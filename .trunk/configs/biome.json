@@ -9,8 +9,7 @@
       "../../.history",
       "../../.wrangler",
       "../../components.d.ts",
-      "../../auto-imports.d.ts",
-      "../../.nuxt"
+      "../../auto-imports.d.ts"
     ]
   },
   "css": {
