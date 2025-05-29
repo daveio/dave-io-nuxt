@@ -1,4 +1,5 @@
-import { checkRateLimit, getRateLimitInfo } from "~/server/utils/response"
+import { checkRateLimit, getRateLimitInfo, isApiError } from "~/server/utils/response"
+import { setResponseHeader, getMethod, getHeader, createError } from "h3"
 
 export default defineEventHandler(async (event) => {
   // Apply to both API and redirect routes
@@ -10,7 +11,7 @@ export default defineEventHandler(async (event) => {
   try {
     const method = getMethod(event)
     const userAgent = getHeader(event, "user-agent") || "unknown"
-    const ip = getClientIP(event) || getHeader(event, "cf-connecting-ip") || "unknown"
+    const ip = getHeader(event, "cf-connecting-ip") || getHeader(event, "x-forwarded-for") || "unknown"
     const cfRay = getHeader(event, "cf-ray") || "unknown"
     const cfCountry = getHeader(event, "cf-ipcountry") || "unknown"
 
@@ -57,13 +58,13 @@ export default defineEventHandler(async (event) => {
     })
 
     // Remove sensitive headers
-    removeHeader(event, "X-Powered-By")
-    removeHeader(event, "Server")
-  } catch (error: any) {
+    setResponseHeader(event, "X-Powered-By", "")
+    setResponseHeader(event, "Server", "")
+  } catch (error: unknown) {
     console.error("Middleware error:", error)
 
     // Re-throw rate limit errors
-    if (error.statusCode === 429) {
+    if (isApiError(error) && error.statusCode === 429) {
       throw error
     }
 

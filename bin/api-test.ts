@@ -27,7 +27,7 @@ class APITester {
   public tokens: Map<string, string> = new Map()
   private secret: string
 
-  constructor(baseUrl: string = "http://localhost:3000", secret?: string) {
+  constructor(baseUrl = "http://localhost:3000", secret?: string) {
     this.baseUrl = baseUrl.replace(/\/$/, "") // Remove trailing slash
     this.secret = secret || process.env.API_JWT_SECRET || "dev-secret-change-in-production"
   }
@@ -93,7 +93,7 @@ class APITester {
   // Make HTTP request with optional auth
   async makeRequest(
     endpoint: string,
-    method: string = "GET",
+    method = "GET",
     token?: string,
     body?: any,
     headers: Record<string, string> = {}
@@ -456,10 +456,10 @@ class APITester {
 
     console.log("\n📈 Testing Metrics Format Endpoints...")
 
-    // Test all metrics format endpoints
-    results.push(await this.makeRequest("/api/metrics/json", "GET", this.tokens.get("metrics")))
-    results.push(await this.makeRequest("/api/metrics/yaml", "GET", this.tokens.get("metrics")))
-    results.push(await this.makeRequest("/api/metrics/prometheus", "GET", this.tokens.get("metrics")))
+    // Test all metrics format endpoints via query parameters
+    results.push(await this.makeRequest("/api/metrics?format=json", "GET", this.tokens.get("metrics")))
+    results.push(await this.makeRequest("/api/metrics?format=yaml", "GET", this.tokens.get("metrics")))
+    results.push(await this.makeRequest("/api/metrics?format=prometheus", "GET", this.tokens.get("metrics")))
 
     const passed = results.filter((r) => r.success).length
     const failed = results.length - passed

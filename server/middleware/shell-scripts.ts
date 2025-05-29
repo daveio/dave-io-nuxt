@@ -1,7 +1,10 @@
+import { getHeader, setHeader } from "h3"
+
 // Middleware to detect curl/wget requests and serve shell script for root path
 export default defineEventHandler(async (event) => {
   const userAgent = getHeader(event, "user-agent") || ""
-  const url = new URL(event.node.req.url!, "http://localhost")
+  const requestUrl = event.node.req.url || "/"
+  const url = new URL(requestUrl, "http://localhost")
 
   // Check if this is a curl or wget request
   const isCurlOrWget = userAgent.toLowerCase().includes("curl") || userAgent.toLowerCase().includes("wget")

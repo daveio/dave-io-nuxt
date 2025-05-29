@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest"
+import { describe, expect, it } from "vitest"
 import {
-  ApiSuccessResponseSchema,
   ApiErrorResponseSchema,
+  ApiSuccessResponseSchema,
+  AuthIntrospectionSchema,
   JWTPayloadSchema,
-  TokenUsageSchema,
   TokenMetricsSchema,
-  AuthIntrospectionSchema
+  TokenUsageSchema
 } from "~/server/utils/schemas"
 
 describe("API Schemas", () => {

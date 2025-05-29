@@ -30,6 +30,14 @@ export const ApiErrorResponseSchema = z.object({
 })
 
 // JWT related schemas
+export const JWTPayloadSchema = z.object({
+  sub: z.string(),
+  iat: z.number(),
+  exp: z.number().optional(),
+  jti: z.string().optional(),
+  maxRequests: z.number().optional()
+})
+
 export const JWTDetailsSchema = z.object({
   sub: z.string(),
   iat: z.number(),
@@ -51,6 +59,18 @@ export const AuthSuccessResponseSchema = z.object({
   message: z.string(),
   jwt: JWTDetailsSchema,
   user: UserSchema,
+  timestamp: z.string()
+})
+
+export const AuthIntrospectionSchema = z.object({
+  success: z.boolean(),
+  data: z.object({
+    valid: z.boolean(),
+    payload: JWTDetailsSchema.optional(),
+    user: UserSchema.optional(),
+    error: z.string().optional()
+  }),
+  message: z.string().optional(),
   timestamp: z.string()
 })
 
@@ -156,7 +176,7 @@ export const AiAltTextResponseSchema = z.object({
 export const TokenUsageSchema = z.object({
   token_id: z.string(),
   usage_count: z.number(),
-  max_requests: z.number().optional(),
+  max_requests: z.number().nullable().optional(),
   created_at: z.string(),
   last_used: z.string().optional()
 })
@@ -180,9 +200,11 @@ export const TokenMetricsSchema = z.object({
 // Export commonly used types
 export type ApiSuccessResponse = z.infer<typeof ApiSuccessResponseSchema>
 export type ApiErrorResponse = z.infer<typeof ApiErrorResponseSchema>
+export type JWTPayload = z.infer<typeof JWTPayloadSchema>
 export type JWTDetails = z.infer<typeof JWTDetailsSchema>
 export type User = z.infer<typeof UserSchema>
 export type AuthSuccessResponse = z.infer<typeof AuthSuccessResponseSchema>
+export type AuthIntrospection = z.infer<typeof AuthIntrospectionSchema>
 export type HealthCheck = z.infer<typeof HealthCheckSchema>
 export type SystemMetrics = z.infer<typeof SystemMetricsSchema>
 export type WorkerInfo = z.infer<typeof WorkerInfoSchema>

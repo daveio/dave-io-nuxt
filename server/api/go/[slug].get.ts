@@ -1,9 +1,9 @@
 import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 import { UrlRedirectSchema } from "~/server/utils/schemas"
-import { getHeader, getClientIP, sendRedirect } from "h3"
+import { getHeader, sendRedirect } from "h3"
 
 // Simulated redirect database - in production this would be KV storage
-const redirects = new Map<string, { slug: string; url: string; title: string; description: string; clicks: number; created_at: string; updated_at: string }>([
+const redirects = new Map<string, { slug: string; url: string; title?: string; description?: string; clicks: number; created_at: string; updated_at: string }>([
   [
     "gh",
     {
@@ -70,7 +70,7 @@ export default defineEventHandler(async (event) => {
 
     // Log analytics (in production, this would write to Analytics Engine)
     const userAgent = getHeader(event, "user-agent") || "unknown"
-    const ip = getClientIP(event) || getHeader(event, "cf-connecting-ip") || "unknown"
+    const ip = getHeader(event, "cf-connecting-ip") || getHeader(event, "x-forwarded-for") || "unknown"
     const cfCountry = getHeader(event, "cf-ipcountry") || "unknown"
     const cfRay = getHeader(event, "cf-ray") || "unknown"
 

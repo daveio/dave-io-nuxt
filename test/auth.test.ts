@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from "vitest"
-import { extractToken, verifyJWT, checkEndpointPermission, getUserFromPayload } from "~/server/utils/auth"
 import { SignJWT } from "jose"
+import { beforeEach, describe, expect, it } from "vitest"
+import { checkEndpointPermission, extractToken, getUserFromPayload, verifyJWT } from "~/server/utils/auth"
 
 // Mock H3Event for testing
 function mockH3Event(headers: Record<string, string> = {}, query: Record<string, any> = {}): any {

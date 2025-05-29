@@ -25,7 +25,7 @@ export interface ApiMeta {
   request_id?: string
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
   message?: string
@@ -36,7 +36,7 @@ export interface ApiResponse<T = any> {
 export interface ApiError {
   success: false
   error: string
-  details?: any
+  details?: string
   timestamp: string
 }
 

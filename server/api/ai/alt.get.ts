@@ -1,5 +1,5 @@
-import { createApiResponse, createApiError } from "~/server/utils/response"
 import { authorizeEndpoint } from "~/server/utils/auth"
+import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 
 // Rate limiting storage (in production this would be KV)
 const rateLimitStorage = new Map<string, { count: number; resetTime: number }>()
@@ -56,7 +56,7 @@ async function validateAndFetchImage(imageUrl: string): Promise<ArrayBuffer> {
 
   // Check file size (4MB limit)
   const contentLength = response.headers.get("content-length")
-  if (contentLength && parseInt(contentLength) > 4 * 1024 * 1024) {
+  if (contentLength && Number.parseInt(contentLength) > 4 * 1024 * 1024) {
     throw createApiError(400, "Image too large (max 4MB)")
   }
 
@@ -145,11 +145,11 @@ export default defineEventHandler(async (event) => {
       },
       "Alt text generated successfully"
     )
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("AI alt text error:", error)
 
     // Re-throw API errors
-    if (error.statusCode) {
+    if (isApiError(error)) {
       throw error
     }
 

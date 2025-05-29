@@ -59,7 +59,7 @@ async function fetchHackerNews(): Promise<DashboardItem[]> {
       const linkMatch = match.match(/<link>(.*?)<\/link>/)
       const _commentsMatch = match.match(/<comments>(.*?)<\/comments>/)
 
-      if (titleMatch && linkMatch) {
+      if (titleMatch && linkMatch && titleMatch[1] && linkMatch[1]) {
         items.push({
           title: titleMatch[1],
           subtitle: "Hacker News",

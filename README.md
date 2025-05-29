@@ -1,6 +1,6 @@
 # Dave.io Nuxt Edition 🌟
 
-Welcome to the most over-engineered personal website you'll ever encounter. This isn't just a website; it's a full-blown API fortress masquerading as a humble Nuxt application. Dave decided his personal site needed JWT authentication, rate limiting, schema validation, and enough security features to make Fort Knox jealous.
+Welcome to the most over-engineered personal website you'll ever encounter. This isn't just a website; it's a full-blown API fortress masquerading as a humble Nuxt application. Dave decided his personal site needed JWT authentication, hierarchical permissions, rate limiting, schema validation, and enough security features to make Fort Knox jealous.
 
 ## What Is This Thing?
 
@@ -34,11 +34,22 @@ Originally, Dave's site was a simple Cloudflare Worker. But why keep things simp
 - `/go/tw` → Twitter/X (when Dave remembers to post)
 - `/go/li` → LinkedIn (for professional pretenses)
 
+### 🛠️ RouterOS Integration
+- MikroTik router script generation
+- Because Dave loves his networking gear
+- `/api/routeros/putio` for automated download management
+
+### 📱 Dashboard Data Feeds
+- Hacker News RSS integration
+- Demo data endpoints for testing
+- Because even personal sites need dashboards
+
 ### 🛡️ Security Features
 - CORS headers that actually make sense
 - Rate limiting (in-memory for now, KV storage for production)
-- Input sanitization and validation
+- Input sanitization and validation with Zod
 - Security headers that would make OWASP proud
+- Shell script responses for curl/wget requests (because why not?)
 
 ## Getting Started (For the Brave)
 
@@ -105,6 +116,20 @@ The only endpoint that doesn't judge you for not having authentication.
 curl http://localhost:3000/api/health
 ```
 
+#### `GET /api/ping`
+Simple ping endpoint that logs analytics and shows off Cloudflare headers.
+
+```bash
+curl http://localhost:3000/api/ping
+```
+
+#### `GET /api/_worker-info`
+Internal Worker runtime information (because transparency is cool).
+
+```bash
+curl http://localhost:3000/api/_worker-info
+```
+
 #### `GET /api/auth`
 Token introspection and validation. Perfect for existential questions about your JWT.
 
@@ -140,6 +165,53 @@ curl -X POST -H "Authorization: Bearer <token>" \
   http://localhost:3000/api/ai/alt
 ```
 
+### RouterOS Endpoints
+
+#### `GET /api/routeros/putio`
+Generate MikroTik router scripts for automated file management.
+
+```bash
+curl -H "Authorization: Bearer <token>" http://localhost:3000/api/routeros/putio
+```
+
+#### `GET /api/routeros/cache`
+Check RouterOS cache status.
+
+```bash
+curl -H "Authorization: Bearer <token>" http://localhost:3000/api/routeros/cache
+```
+
+#### `POST /api/routeros/reset`
+Reset RouterOS cache (nuclear option).
+
+```bash
+curl -X POST -H "Authorization: Bearer <token>" http://localhost:3000/api/routeros/reset
+```
+
+### Dashboard Endpoints
+
+#### `GET /api/dashboard/{name}`
+Get dashboard data feeds. Supports `demo` and `hackernews`.
+
+```bash
+# Demo data
+curl -H "Authorization: Bearer <token>" http://localhost:3000/api/dashboard/demo
+
+# Hacker News feed
+curl -H "Authorization: Bearer <token>" http://localhost:3000/api/dashboard/hackernews
+```
+
+### Statistics
+
+#### `GET /api/stats`
+Get basic API statistics.
+
+```bash
+curl http://localhost:3000/api/stats
+```
+
+### Redirect Service
+
 #### `GET /go/{slug}`
 URL redirects for the lazy (we've all been there).
 
@@ -155,7 +227,10 @@ Get token usage information.
 #### `GET /api/tokens/{uuid}/metrics`
 Detailed metrics for a specific token.
 
-#### `GET /api/tokens/{uuid}/revoke`
+#### `GET /api/tokens/{uuid}/usage`
+Token usage statistics.
+
+#### `POST /api/tokens/{uuid}/revoke`
 Revoke a token (nuclear option).
 
 ## Scripts & Utilities
@@ -189,6 +264,9 @@ bun run test:api --url https://dave.io
 bun run test:api --auth-only
 bun run test:api --metrics-only
 bun run test:api --ai-only
+bun run test:api --dashboard-only
+bun run test:api --routeros-only
+bun run test:api --metrics-formats-only
 
 # Use an existing token
 bun run test:api --token "eyJhbGciOiJIUzI1NiJ9..."
@@ -208,6 +286,14 @@ bun run test:coverage
 
 # Test the API over HTTP
 bun run test:api
+
+# Type checking and linting
+bun run typecheck
+bun run lint
+bun run format
+
+# The full monty (what Dave runs before committing)
+bun check
 ```
 
 ## Deployment (To The Cloud!)
@@ -237,15 +323,31 @@ bun run preview:cloudflare
 ├── server/
 │   ├── api/              # API endpoints
 │   │   ├── auth.get.ts   # JWT validation
+│   │   ├── health.get.ts # Health check
+│   │   ├── ping.get.ts   # Simple ping
 │   │   ├── metrics.get.ts # API metrics
+│   │   ├── stats.get.ts  # Basic stats
 │   │   ├── ai/           # AI endpoints
+│   │   │   ├── alt.get.ts # Alt-text (GET)
+│   │   │   └── alt.post.ts # Alt-text (POST)
+│   │   ├── dashboard/    # Dashboard data
+│   │   │   └── [name].get.ts # Named dashboards
 │   │   ├── go/           # URL redirects
+│   │   │   └── [slug].get.ts # Redirect handler
+│   │   ├── routeros/     # RouterOS integration
+│   │   │   ├── cache.get.ts # Cache status
+│   │   │   ├── putio.get.ts # Put.io scripts
+│   │   │   └── reset.post.ts # Cache reset
 │   │   └── tokens/       # Token management
+│   │       └── [uuid]/   # Token operations
 │   ├── utils/            # Server utilities
 │   │   ├── auth.ts       # Authentication logic
 │   │   ├── response.ts   # Response helpers
 │   │   └── schemas.ts    # Zod validation schemas
 │   └── middleware/       # Server middleware
+│       ├── cors.ts       # CORS configuration
+│       ├── error.ts      # Error handling
+│       └── shell-scripts.ts # Shell script responses
 ├── test/                 # Unit tests
 ├── bin/                  # CLI scripts
 │   ├── jwt.ts           # JWT token management
@@ -263,6 +365,7 @@ bun run preview:cloudflare
 - **Vitest**: Testing that doesn't make you cry
 - **Cloudflare Workers**: Because serverless is the future
 - **Bun**: The runtime that makes everything faster
+- **Biome**: Linting and formatting that just works
 
 ## Contributing (If You Dare)
 
@@ -272,7 +375,8 @@ Found a bug? Want to add a feature? Dave welcomes contributions, but be warned: 
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes (and write tests, Dave is watching)
 4. Run the test suite (`bun run test && bun run test:api`)
-5. Submit a pull request with a description that makes Dave smile
+5. Ensure everything passes (`bun check`)
+6. Submit a pull request with a description that makes Dave smile
 
 ## License
 
@@ -280,10 +384,14 @@ MIT License - Because sharing is caring, and Dave believes in open source.
 
 ## Final Thoughts
 
-This project started as a simple personal website and evolved into a full-fledged API platform. Why? Because Dave doesn't do things halfway. If you're looking for a simple static site generator, this probably isn't for you. If you want to see how to build a production-ready API with authentication, validation, testing, and deployment automation, welcome to the rabbit hole.
+This project started as a simple personal website and evolved into a full-fledged API platform. Why? Because Dave doesn't do things halfway. If you're looking for a simple static site generator, this probably isn't for you. If you want to see how to build a production-ready API with authentication, validation, testing, deployment automation, and enough features to power a small startup, welcome to the rabbit hole.
+
+The codebase demonstrates modern TypeScript patterns, proper error handling, comprehensive testing, and real-world deployment scenarios. It's simultaneously a personal website, a learning resource, and a testament to what happens when a developer has too much free time and strong opinions about code quality.
 
 Remember: with great power comes great responsibility. Use these APIs wisely, and may your tokens never expire unexpectedly.
 
 ---
 
 *Built with ❤️ (and perhaps too much caffeine) by [Dave Williams](https://dave.io)*
+
+*P.S. - If you curl the root URL, you'll get a nice shell script response. Because Dave thought that would be funny.*

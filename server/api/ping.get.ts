@@ -1,4 +1,5 @@
 import { createApiResponse } from "~/server/utils/response"
+import { getHeader } from "h3"
 
 export default defineEventHandler(async (event) => {
   // Simple ping endpoint for monitoring and health checks
@@ -12,7 +13,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Log ping for analytics
-  const ip = getClientIP(event) || getHeader(event, "cf-connecting-ip") || "unknown"
+  const ip = getHeader(event, "cf-connecting-ip") || getHeader(event, "x-forwarded-for") || "unknown"
   console.log(
     `[PING] IP: ${ip} | Country: ${pongData.cf_country} | Ray: ${pongData.cf_ray} | UA: ${pongData.user_agent}`
   )

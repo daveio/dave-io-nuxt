@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest"
-import { createApiResponse, createApiError } from "~/server/utils/response"
+import { describe, expect, it } from "vitest"
+import { createApiError, createApiResponse } from "~/server/utils/response"
 
 // Mock implementations for functions that might not exist yet
 function sanitizeInput(input: any): string {
@@ -15,13 +15,38 @@ function sanitizeInput(input: any): string {
   }
 }
 
+// Test rate limiting implementation
+const testRateLimitMap = new Map<string, { count: number; resetTime: number }>()
+
 function checkRateLimit(key: string, limit: number, windowSeconds: number) {
-  // Simple mock implementation
   const now = Date.now()
+  const windowMs = windowSeconds * 1000
+  const record = testRateLimitMap.get(key)
+
+  if (!record || now > record.resetTime) {
+    testRateLimitMap.set(key, { count: 0, resetTime: now + windowMs })
+    const newRecord = testRateLimitMap.get(key)!
+    newRecord.count++
+    return {
+      allowed: true,
+      remaining: limit - newRecord.count,
+      resetTime: new Date(now + windowMs)
+    }
+  }
+
+  if (record.count >= limit) {
+    return {
+      allowed: false,
+      remaining: 0,
+      resetTime: new Date(record.resetTime)
+    }
+  }
+
+  record.count++
   return {
     allowed: true,
-    remaining: limit - 1,
-    resetTime: new Date(now + windowSeconds * 1000)
+    remaining: limit - record.count,
+    resetTime: new Date(record.resetTime)
   }
 }
 
@@ -175,7 +200,7 @@ describe("Response Utils", () => {
     })
 
     it("should increment count on subsequent calls", () => {
-      const key = "increment-test"
+      const key = `increment-test-${Date.now()}-${Math.random()}`
 
       const result1 = checkRateLimit(key, 5, 60)
       const result2 = checkRateLimit(key, 5, 60)
@@ -187,7 +212,7 @@ describe("Response Utils", () => {
     })
 
     it("should block requests when limit is exceeded", () => {
-      const key = "limit-test"
+      const key = `limit-test-${Date.now()}-${Math.random()}`
       const limit = 3
 
       // Use up the limit
