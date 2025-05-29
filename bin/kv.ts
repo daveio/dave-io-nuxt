@@ -87,7 +87,11 @@ async function fetchAllKeys(cloudflare: Cloudflare, accountId: string): Promise<
 }
 
 // Fetch values for a list of keys
-async function fetchKeyValues(cloudflare: Cloudflare, accountId: string, keys: string[]): Promise<Record<string, unknown>> {
+async function fetchKeyValues(
+  cloudflare: Cloudflare,
+  accountId: string,
+  keys: string[]
+): Promise<Record<string, unknown>> {
   const kvData: Record<string, unknown> = {}
 
   for (const key of keys) {
@@ -136,9 +140,7 @@ async function getAllKVData(backupAll = false) {
     const allKeys = await fetchAllKeys(cloudflare, accountId)
     const keys = filterKeys(allKeys, backupAll)
 
-    console.log(
-      `🔍 Found ${keys.length} keys ${backupAll ? "" : `matching patterns (out of ${allKeys.length} total)`}`
-    )
+    console.log(`🔍 Found ${keys.length} keys ${backupAll ? "" : `matching patterns (out of ${allKeys.length} total)`}`)
 
     return await fetchKeyValues(cloudflare, accountId, keys)
   } catch (error) {
