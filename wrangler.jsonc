@@ -5,14 +5,17 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "dave-io",
-  "main": "./.output/server/index.mjs",
+  // "main": "./.output/server/index.mjs", // overridden by build scripts
   "compatibility_date": "2025-05-29",
-  "assets": {
-    "binding": "ASSETS",
-    "directory": "./.output/public/"
-  },
+  // "assets": { // overridden by build scripts
+  //   "binding": "ASSETS",
+  //   "directory": "./.output/public/"
+  // },
   "observability": {
     "enabled": true
+  },
+  "placement": {
+    "mode": "smart"
   }
   /**
    * Smart Placement

@@ -1,5 +1,5 @@
 name: devskim
-"on":
+on:
   push:
     branches:
       - main
@@ -20,6 +20,6 @@ jobs:
       - name: analysis
         uses: microsoft/DevSkim-Action@4b5047945a44163b94642a1cecc0d93a3f428cc6
       - name: upload
-        uses: github/codeql-action/upload-sarif@bc02a25f6449997c5e9d5a368879b28f56ae19a1
+        uses: github/codeql-action/upload-sarif@7fd62151d9daff11d4b981415ffb365dcd93f75a
         with:
           sarif_file: devskim-results.sarif

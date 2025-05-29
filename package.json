@@ -29,6 +29,7 @@
   "private": true,
   "scripts": {
     "build": "bun run types && bun run nuxt build",
+    "check": "bun run types && bun run build && bun run format && bun run lint && bun run typecheck",
     "cf-typegen": "bun run wrangler types",
     "clean": "bun run rimraf .nuxt .output .wrangler *.d.ts",
     "deploy": "bun run types && bun run build && bun run wrangler deploy",
@@ -41,6 +42,7 @@
     "preview": "bun run preview:cloudflare",
     "preview:cloudflare": "bun run types && bun run build && wrangler dev",
     "preview:nuxt": "bun run types && bun run nuxt preview",
+    "typecheck": "bun run tsc --noEmit",
     "types": "bun run cf-typegen"
   },
   "trustedDependencies": [
