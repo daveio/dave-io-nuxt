@@ -45,7 +45,7 @@
     "dev": "bun run types && bun run nuxt dev",
     "format": "bun run biome format --write && bun run trunk fmt -a",
     "generate": "bun run types && bun run nuxt generate",
-    "lint": "bun run biome check --write && bun run trunk check -a",
+    "lint": "bun run biome check --write && bun run trunk check -a --fix",
     "packages": "bun run rimraf node_modules bun.lock && bun install",
     "postinstall": "bun run types && bun run nuxt prepare",
     "preview": "bun run preview:cloudflare",

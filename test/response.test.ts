@@ -2,15 +2,15 @@ import { describe, expect, it } from "vitest"
 import { createApiError, createApiResponse } from "~/server/utils/response"
 
 // Mock implementations for functions that might not exist yet
-function sanitizeInput(input: any): string {
-  if (typeof input === "string") return input.length > 1000 ? input.slice(0, 997) + "..." : input
+function sanitizeInput(input: unknown): string {
+  if (typeof input === "string") return input.length > 1000 ? `${input.slice(0, 997)}...` : input
   if (typeof input === "number" || typeof input === "boolean") return String(input)
   if (input === null) return "null"
   if (input === undefined) return "undefined"
 
   try {
-    return JSON.stringify(input).length > 1000 ? JSON.stringify(input).slice(0, 997) + "..." : JSON.stringify(input)
-  } catch (error) {
+    return JSON.stringify(input).length > 1000 ? `${JSON.stringify(input).slice(0, 997)}...` : JSON.stringify(input)
+  } catch (_error) {
     return "[Circular]"
   }
 }
@@ -24,9 +24,8 @@ function checkRateLimit(key: string, limit: number, windowSeconds: number) {
   const record = testRateLimitMap.get(key)
 
   if (!record || now > record.resetTime) {
-    testRateLimitMap.set(key, { count: 0, resetTime: now + windowMs })
-    const newRecord = testRateLimitMap.get(key)!
-    newRecord.count++
+    const newRecord = { count: 1, resetTime: now + windowMs }
+    testRateLimitMap.set(key, newRecord)
     return {
       allowed: true,
       remaining: limit - newRecord.count,
@@ -127,11 +126,11 @@ describe("Response Utils", () => {
         { status: 500, message: "Internal Server Error" }
       ]
 
-      testCases.forEach(({ status, message }) => {
+      for (const { status, message } of testCases) {
         expect(() => {
           createApiError(status, message)
         }).toThrow()
-      })
+      }
     })
   })
 
@@ -173,7 +172,7 @@ describe("Response Utils", () => {
     })
 
     it("should handle circular references in objects", () => {
-      const circular: any = { name: "test" }
+      const circular: { name: string; self?: unknown } = { name: "test" }
       circular.self = circular
 
       const result = sanitizeInput(circular)

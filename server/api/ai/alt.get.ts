@@ -1,29 +1,57 @@
 import { authorizeEndpoint } from "~/server/utils/auth"
 import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 
-// Rate limiting storage (in production this would be KV)
-const rateLimitStorage = new Map<string, { count: number; resetTime: number }>()
-
-async function checkRateLimit(userId: string): Promise<{ allowed: boolean; remaining: number; resetTime: Date }> {
+async function checkAIRateLimit(
+  userId: string, 
+  kv?: KVNamespace
+): Promise<{ allowed: boolean; remaining: number; resetTime: Date }> {
   const now = Date.now()
   const hourMs = 60 * 60 * 1000
   const maxRequests = 100 // 100 requests per hour
+  const windowStart = Math.floor(now / hourMs) * hourMs
+  const windowEnd = windowStart + hourMs
 
-  const key = `ai:alt:${userId}`
-  let data = rateLimitStorage.get(key)
+  const key = `ai:alt:${userId}:${windowStart}`
 
-  if (!data || now > data.resetTime) {
-    // Reset the counter
-    data = { count: 0, resetTime: now + hourMs }
-  }
+  try {
+    if (kv) {
+      const countStr = await kv.get(key)
+      const currentCount = countStr ? parseInt(countStr, 10) : 0
 
-  data.count++
-  rateLimitStorage.set(key, data)
+      if (currentCount >= maxRequests) {
+        return {
+          allowed: false,
+          remaining: 0,
+          resetTime: new Date(windowEnd)
+        }
+      }
 
-  return {
-    allowed: data.count <= maxRequests,
-    remaining: Math.max(0, maxRequests - data.count),
-    resetTime: new Date(data.resetTime)
+      const newCount = currentCount + 1
+      await kv.put(key, newCount.toString(), { 
+        expirationTtl: Math.ceil(hourMs / 1000) + 60 // Add 1 minute buffer
+      })
+
+      return {
+        allowed: true,
+        remaining: maxRequests - newCount,
+        resetTime: new Date(windowEnd)
+      }
+    } else {
+      // Fallback to basic rate limiting without persistence
+      console.warn("KV not available for AI rate limiting")
+      return {
+        allowed: true,
+        remaining: maxRequests - 1,
+        resetTime: new Date(windowEnd)
+      }
+    }
+  } catch (error) {
+    console.error("AI rate limiting error:", error)
+    return {
+      allowed: true,
+      remaining: maxRequests - 1,
+      resetTime: new Date(windowEnd)
+    }
   }
 }
 
@@ -86,9 +114,12 @@ export default defineEventHandler(async (event) => {
       throw createApiError(400, "Image URL is required (image parameter)")
     }
 
+    // Get environment bindings
+    const env = event.context.cloudflare?.env as { DATA?: KVNamespace; AI?: Ai }
+
     // Check rate limiting
     const userId = auth.payload?.jti || auth.payload?.sub || "anonymous"
-    const rateLimit = await checkRateLimit(userId)
+    const rateLimit = await checkAIRateLimit(userId, env?.DATA)
 
     if (!rateLimit.allowed) {
       setHeader(event, "X-RateLimit-Limit", "100")
@@ -106,35 +137,44 @@ export default defineEventHandler(async (event) => {
     const processingStart = Date.now()
     const imageBuffer = await validateAndFetchImage(imageUrl)
 
-    // Simulate AI processing - in production this would use Cloudflare AI
-    // const result = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
-    //   image: Array.from(new Uint8Array(imageBuffer)),
-    //   prompt: 'Describe this image in detail for use as alt text. Focus on the main subjects, actions, and important visual elements that would help someone understand the image content. Be concise but descriptive.'
-    // })
+    // Use Cloudflare AI for image analysis
+    let altText: string
+    let aiModel = "@cf/llava-hf/llava-1.5-7b-hf"
+    
+    if (env?.AI) {
+      try {
+        const result = await env.AI.run(aiModel, {
+          image: Array.from(new Uint8Array(imageBuffer)),
+          prompt: 'Describe this image in detail for use as alt text. Focus on the main subjects, actions, and important visual elements that would help someone understand the image content. Be concise but descriptive.',
+          max_tokens: 150
+        }) as { description?: string; text?: string }
 
-    await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 1000))
+        altText = result.description || result.text || "Unable to generate description"
+        
+        // Clean up the AI response
+        altText = altText.trim()
+        if (altText.length > 300) {
+          altText = altText.substring(0, 297) + "..."
+        }
+      } catch (error) {
+        console.error("AI processing failed:", error)
+        // Fallback to a generic message if AI fails
+        altText = "Image content could not be analyzed automatically"
+        aiModel = "fallback"
+      }
+    } else {
+      console.warn("AI binding not available, using fallback")
+      altText = "AI service temporarily unavailable - image analysis could not be performed"
+      aiModel = "unavailable"
+    }
 
     const processingTime = Date.now() - processingStart
-
-    // Simulated AI response
-    const altTexts = [
-      "A person standing in front of a modern building with glass windows and reflective surfaces",
-      "A close-up view of colorful flowers blooming in a garden with green foliage",
-      "A computer screen displaying code with syntax highlighting in a dark theme",
-      "A group of people having a collaborative discussion around a conference table",
-      "A landscape view showing mountains in the background with pine trees in the foreground",
-      "A domestic cat sitting on a windowsill looking outside at the street",
-      "A plate of food with fresh vegetables and main course arranged in an artistic presentation",
-      "A person using a smartphone while sitting at a cafe with a coffee cup nearby"
-    ]
-
-    const altText = altTexts[Math.floor(Math.random() * altTexts.length)]
 
     return createApiResponse(
       {
         altText,
         imageSource: imageUrl,
-        model: "@cf/llava-hf/llava-1.5-7b-hf",
+        model: aiModel,
         timestamp: new Date().toISOString(),
         processingTimeMs: processingTime,
         imageSizeBytes: imageBuffer.byteLength,

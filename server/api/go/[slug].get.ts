@@ -1,9 +1,20 @@
+import { getHeader, sendRedirect } from "h3"
 import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 import { UrlRedirectSchema } from "~/server/utils/schemas"
-import { getHeader, sendRedirect } from "h3"
 
 // Simulated redirect database - in production this would be KV storage
-const redirects = new Map<string, { slug: string; url: string; title?: string; description?: string; clicks: number; created_at: string; updated_at: string }>([
+const redirects = new Map<
+  string,
+  {
+    slug: string
+    url: string
+    title?: string
+    description?: string
+    clicks: number
+    created_at: string
+    updated_at: string
+  }
+>([
   [
     "gh",
     {
@@ -50,8 +61,36 @@ export default defineEventHandler(async (event) => {
       createApiError(400, "Slug parameter is required")
     }
 
-    // Get redirect from storage
-    const redirectData = redirects.get(slug)
+    // Get environment bindings
+    const env = event.context.cloudflare?.env as { DATA?: KVNamespace; ANALYTICS?: AnalyticsEngineDataset }
+
+    // Get redirect from KV storage first, fallback to in-memory
+    let redirectData: any
+    const redirectKey = `redirect:${slug}`
+
+    if (env?.DATA) {
+      try {
+        const kvData = await env.DATA.get(redirectKey)
+        if (kvData) {
+          redirectData = JSON.parse(kvData)
+        } else {
+          // Fallback to in-memory data and store in KV for future use
+          const fallbackData = redirects.get(slug)
+          if (fallbackData) {
+            redirectData = fallbackData
+            // Store in KV for next time
+            await env.DATA.put(redirectKey, JSON.stringify(fallbackData))
+          }
+        }
+      } catch (error) {
+        console.error("KV redirect lookup failed:", error)
+        redirectData = redirects.get(slug)
+      }
+    } else {
+      // No KV available, use in-memory
+      redirectData = redirects.get(slug)
+    }
+
     if (!redirectData) {
       createApiError(404, `Redirect not found for slug: ${slug}`)
     }
@@ -59,20 +98,41 @@ export default defineEventHandler(async (event) => {
     // Validate redirect data
     const redirect = UrlRedirectSchema.parse(redirectData)
 
-    // Increment click count (in production, this would update KV storage)
+    // Increment click count in KV or in-memory
     const clickCount = (redirect.clicks || 0) + 1
     const updatedRedirect = {
       ...redirect,
       clicks: clickCount,
       updated_at: new Date().toISOString()
     }
-    redirects.set(slug, updatedRedirect)
 
-    // Log analytics (in production, this would write to Analytics Engine)
+    if (env?.DATA) {
+      try {
+        await env.DATA.put(redirectKey, JSON.stringify(updatedRedirect))
+      } catch (error) {
+        console.error("Failed to update redirect in KV:", error)
+      }
+    } else {
+      redirects.set(slug, updatedRedirect)
+    }
+
+    // Log analytics to Analytics Engine
     const userAgent = getHeader(event, "user-agent") || "unknown"
     const ip = getHeader(event, "cf-connecting-ip") || getHeader(event, "x-forwarded-for") || "unknown"
     const cfCountry = getHeader(event, "cf-ipcountry") || "unknown"
     const cfRay = getHeader(event, "cf-ray") || "unknown"
+
+    if (env?.ANALYTICS) {
+      try {
+        env.ANALYTICS.writeDataPoint({
+          blobs: [slug, redirect.url, userAgent, ip, cfCountry, cfRay],
+          doubles: [1], // Click count
+          indexes: [slug], // For querying by slug
+        })
+      } catch (error) {
+        console.error("Failed to write analytics:", error)
+      }
+    }
 
     console.log(
       `[REDIRECT] ${slug} -> ${redirect.url} | IP: ${ip} | Country: ${cfCountry} | Ray: ${cfRay} | UA: ${userAgent}`

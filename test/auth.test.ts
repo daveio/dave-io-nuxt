@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest"
 import { checkEndpointPermission, extractToken, getUserFromPayload, verifyJWT } from "~/server/utils/auth"
 
 // Mock H3Event for testing
-function mockH3Event(headers: Record<string, string> = {}, query: Record<string, any> = {}): any {
+function mockH3Event(headers: Record<string, string> = {}, query: Record<string, unknown> = {}): unknown {
   return {
     node: {
       req: {
@@ -15,12 +15,12 @@ function mockH3Event(headers: Record<string, string> = {}, query: Record<string,
 }
 
 // Mock getHeader function
-global.getHeader = (event: any, name: string) => {
+global.getHeader = (event: unknown, name: string) => {
   return event.node?.req?.headers?.[name.toLowerCase()]
 }
 
 // Mock getQuery function
-global.getQuery = (event: any) => {
+global.getQuery = (event: unknown) => {
   return event.query || {}
 }
 

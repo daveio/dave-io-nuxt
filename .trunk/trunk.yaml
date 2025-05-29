@@ -53,6 +53,10 @@ lint:
     - yamllint@1.37.1
   ignore:
     - linters:
+        - biome
+      paths:
+        - .claude/settings.local.json
+    - linters:
         - trunk-toolbox
       paths:
         - "**/*.jpg"

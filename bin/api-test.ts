@@ -9,7 +9,7 @@ interface TestResult {
   method: string
   status: number
   success: boolean
-  response?: any
+  response?: unknown
   error?: string
   duration: number
 }
@@ -95,7 +95,7 @@ class APITester {
     endpoint: string,
     method = "GET",
     token?: string,
-    body?: any,
+    body?: unknown,
     headers: Record<string, string> = {}
   ): Promise<TestResult> {
     const startTime = Date.now()
@@ -108,7 +108,7 @@ class APITester {
       }
 
       if (token) {
-        requestHeaders["Authorization"] = `Bearer ${token}`
+        requestHeaders.Authorization = `Bearer ${token}`
       }
 
       const requestInit: RequestInit = {
@@ -123,7 +123,7 @@ class APITester {
       const response = await fetch(url, requestInit)
       const duration = Date.now() - startTime
 
-      let responseData: any
+      let responseData: unknown
       const contentType = response.headers.get("content-type")
 
       if (contentType?.includes("application/json")) {
@@ -358,7 +358,7 @@ class APITester {
 
   // Print test results
   printResults(suites: TestSuite[]) {
-    console.log("\n" + "=".repeat(80))
+    console.log(`\n${"=".repeat(80)}`)
     console.log("🧪 API TEST RESULTS")
     console.log("=".repeat(80))
 
@@ -386,7 +386,7 @@ class APITester {
       }
     }
 
-    console.log("\n" + "-".repeat(80))
+    console.log(`\n${"-".repeat(80)}`)
     console.log(`📊 SUMMARY: ${totalPassed}/${totalPassed + totalFailed} tests passed (${totalDuration}ms total)`)
 
     if (totalFailed === 0) {

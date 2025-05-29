@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "dave-io-nuxt",
+  "name": "next-dave-io",
   "compatibility_date": "2025-05-29",
   "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
   "observability": {
@@ -15,29 +15,25 @@
   "analytics_engine_datasets": [
     {
       "binding": "ANALYTICS",
-      "dataset": "DAVE_IO_ANALYTICS"
+      "dataset": "NEXT_DAVE_IO_ANALYTICS"
     }
   ],
   "kv_namespaces": [
     {
       "binding": "DATA",
-      "id": "7ac00514fd4c4d4183851b8d7053eb53"
+      "id": "184eca13ac05485d96de48c436a6f5e6"
     }
   ],
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "API_AUTH_METADATA",
+      "database_name": "NEXT_API_AUTH_METADATA",
       "database_id": ""
     }
   ],
   "routes": [
     {
-      "pattern": "dave.io",
-      "custom_domain": true
-    },
-    {
-      "pattern": "www.dave.io",
+      "pattern": "next.dave.io",
       "custom_domain": true
     }
   ]

@@ -1,5 +1,5 @@
-import { createApiResponse } from "~/server/utils/response"
 import { getHeader } from "h3"
+import { createApiResponse } from "~/server/utils/response"
 
 export default defineEventHandler(async (event) => {
   // This endpoint provides info about the Worker runtime

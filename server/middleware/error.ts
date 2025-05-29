@@ -1,5 +1,5 @@
+import { createError, getHeader, getMethod, setResponseHeader } from "h3"
 import { checkRateLimit, getRateLimitInfo, isApiError } from "~/server/utils/response"
-import { setResponseHeader, getMethod, getHeader, createError } from "h3"
 
 export default defineEventHandler(async (event) => {
   // Apply to both API and redirect routes

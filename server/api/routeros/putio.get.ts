@@ -1,8 +1,8 @@
 import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 
-interface IPRange {
+interface BGPPrefix {
   prefix: string
-  exact: boolean
+  exact?: boolean
 }
 
 interface RouteROSData {
@@ -48,8 +48,8 @@ async function fetchPutIOData(): Promise<RouteROSData> {
         const prefixes = bgpData.data?.ipv4_prefixes || []
         const ipv6Prefixes = bgpData.data?.ipv6_prefixes || []
 
-        ipv4Ranges = prefixes.map((p: any) => p.prefix)
-        ipv6Ranges = ipv6Prefixes.map((p: any) => p.prefix)
+        ipv4Ranges = prefixes.map((p: BGPPrefix) => p.prefix)
+        ipv6Ranges = ipv6Prefixes.map((p: BGPPrefix) => p.prefix)
       }
     }
 
@@ -139,14 +139,12 @@ export default defineEventHandler(async (event) => {
           },
           "put.io IP ranges retrieved successfully"
         )
-
-      case "script":
       default:
         setHeader(event, "Content-Type", "text/plain")
         setHeader(event, "Content-Disposition", 'attachment; filename="putio-routeros.rsc"')
         return data.script
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("RouterOS put.io error:", error)
 
     if (isApiError(error)) {

@@ -1,6 +1,6 @@
 import type { ApiErrorResponse, ApiSuccessResponse } from "./schemas"
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
   message?: string
@@ -36,7 +36,7 @@ export function createApiResponse<T>(data?: T, message?: string, meta?: ApiRespo
   return response
 }
 
-export function createApiError(statusCode: number, message: string, details?: any): never {
+export function createApiError(statusCode: number, message: string, details?: unknown): never {
   throw createError({
     statusCode,
     statusMessage: message,
@@ -52,7 +52,13 @@ export function createApiError(statusCode: number, message: string, details?: an
   })
 }
 
-export function validateInput(input: unknown, schema: Record<string, { required?: boolean; type?: string; maxLength?: number; pattern?: RegExp }>): boolean {
+export function validateInput(
+  input: unknown,
+  schema: Record<
+    string,
+    { required?: boolean; type?: "string" | "number" | "boolean" | "object"; maxLength?: number; pattern?: RegExp }
+  >
+): boolean {
   // Basic validation - in production, use a proper validation library like Zod
   if (!input || typeof input !== "object") {
     return false
@@ -64,13 +70,16 @@ export function validateInput(input: unknown, schema: Record<string, { required?
     if (rules.required && (value === undefined || value === null || value === "")) {
       return false
     }
-    if (value && rules.type && typeof value !== rules.type) {
+    if (value && rules.type) {
+      const valueType = typeof value
+      if (valueType !== rules.type) {
+        return false
+      }
+    }
+    if (value && rules.maxLength && typeof value === "string" && value.length > rules.maxLength) {
       return false
     }
-    if (value && rules.maxLength && typeof value === 'string' && value.length > rules.maxLength) {
-      return false
-    }
-    if (value && rules.pattern && typeof value === 'string' && !rules.pattern.test(value)) {
+    if (value && rules.pattern && typeof value === "string" && !rules.pattern.test(value)) {
       return false
     }
   }
@@ -78,7 +87,7 @@ export function validateInput(input: unknown, schema: Record<string, { required?
   return true
 }
 
-export function sanitizeInput(input: any): string {
+export function sanitizeInput(input: unknown): string {
   let stringValue: string
 
   if (input === null) {
@@ -92,10 +101,10 @@ export function sanitizeInput(input: any): string {
   } else if (typeof input === "object") {
     try {
       stringValue = JSON.stringify(input)
-    } catch (error) {
+    } catch (_error) {
       // Handle circular references
       try {
-        stringValue = JSON.stringify(input, (key, value) => {
+        stringValue = JSON.stringify(input, (_key, value) => {
           if (typeof value === "object" && value !== null) {
             if (seen.has(value)) {
               return "[Circular]"
@@ -134,7 +143,7 @@ export function sanitizeInput(input: any): string {
 
   // Truncate if too long
   if (sanitized.length > 1000) {
-    return sanitized.slice(0, 997) + "..."
+    return `${sanitized.slice(0, 997)}...`
   }
 
   return sanitized
@@ -143,50 +152,118 @@ export function sanitizeInput(input: any): string {
 // Helper for circular reference detection
 const seen = new WeakSet()
 
-// Worker-compatible rate limiting (simple in-memory)
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
+// KV-based rate limiting with in-memory fallback
+const fallbackRateLimitMap = new Map<string, { count: number; resetTime: number }>()
 
-export function checkRateLimit(
+export async function checkRateLimit(
   identifier: string,
+  kv?: KVNamespace,
   limit = 100,
   windowMs = 60000
-): { allowed: boolean; remaining: number; resetTime: Date } {
+): Promise<{ allowed: boolean; remaining: number; resetTime: Date }> {
   const now = Date.now()
-  const record = rateLimitMap.get(identifier)
+  const windowStart = Math.floor(now / windowMs) * windowMs
+  const windowEnd = windowStart + windowMs
+  const rateLimitKey = `rate_limit:${identifier}:${windowStart}`
 
-  if (!record || now > record.resetTime) {
-    rateLimitMap.set(identifier, { count: 0, resetTime: now + windowMs })
-    const newRecord = rateLimitMap.get(identifier)!
-    newRecord.count++
+  try {
+    if (kv) {
+      // Use KV storage for persistent rate limiting
+      const countStr = await kv.get(rateLimitKey)
+      const currentCount = countStr ? parseInt(countStr, 10) : 0
+
+      if (currentCount >= limit) {
+        return {
+          allowed: false,
+          remaining: 0,
+          resetTime: new Date(windowEnd)
+        }
+      }
+
+      // Increment count with window expiration
+      const newCount = currentCount + 1
+      await kv.put(rateLimitKey, newCount.toString(), { 
+        expirationTtl: Math.ceil(windowMs / 1000) + 10 // Add 10s buffer
+      })
+
+      return {
+        allowed: true,
+        remaining: limit - newCount,
+        resetTime: new Date(windowEnd)
+      }
+    } else {
+      // Fallback to in-memory rate limiting
+      const record = fallbackRateLimitMap.get(identifier)
+
+      if (!record || now > record.resetTime) {
+        const newRecord = { count: 1, resetTime: windowEnd }
+        fallbackRateLimitMap.set(identifier, newRecord)
+        return {
+          allowed: true,
+          remaining: limit - newRecord.count,
+          resetTime: new Date(windowEnd)
+        }
+      }
+
+      if (record.count >= limit) {
+        return {
+          allowed: false,
+          remaining: 0,
+          resetTime: new Date(record.resetTime)
+        }
+      }
+
+      record.count++
+      return {
+        allowed: true,
+        remaining: limit - record.count,
+        resetTime: new Date(record.resetTime)
+      }
+    }
+  } catch (error) {
+    console.error("Rate limiting error:", error)
+    // Fail open - allow the request but log the error
     return {
       allowed: true,
-      remaining: limit - newRecord.count,
-      resetTime: new Date(now + windowMs)
+      remaining: limit - 1,
+      resetTime: new Date(windowEnd)
     }
-  }
-
-  if (record.count >= limit) {
-    return {
-      allowed: false,
-      remaining: 0,
-      resetTime: new Date(record.resetTime)
-    }
-  }
-
-  record.count++
-  return {
-    allowed: true,
-    remaining: limit - record.count,
-    resetTime: new Date(record.resetTime)
   }
 }
 
-export function getRateLimitInfo(identifier: string): { remaining: number; resetTime: number } {
-  const record = rateLimitMap.get(identifier)
-  if (!record || Date.now() > record.resetTime) {
-    return { remaining: 100, resetTime: Date.now() + 60000 }
+export async function getRateLimitInfo(
+  identifier: string,
+  kv?: KVNamespace,
+  limit = 100,
+  windowMs = 60000
+): Promise<{ remaining: number; resetTime: number }> {
+  const now = Date.now()
+  const windowStart = Math.floor(now / windowMs) * windowMs
+  const windowEnd = windowStart + windowMs
+  const rateLimitKey = `rate_limit:${identifier}:${windowStart}`
+
+  try {
+    if (kv) {
+      const countStr = await kv.get(rateLimitKey)
+      const currentCount = countStr ? parseInt(countStr, 10) : 0
+      return { 
+        remaining: Math.max(0, limit - currentCount), 
+        resetTime: windowEnd 
+      }
+    } else {
+      const record = fallbackRateLimitMap.get(identifier)
+      if (!record || now > record.resetTime) {
+        return { remaining: limit, resetTime: windowEnd }
+      }
+      return { 
+        remaining: Math.max(0, limit - record.count), 
+        resetTime: record.resetTime 
+      }
+    }
+  } catch (error) {
+    console.error("Rate limit info error:", error)
+    return { remaining: limit, resetTime: windowEnd }
   }
-  return { remaining: Math.max(0, 100 - record.count), resetTime: record.resetTime }
 }
 
 function generateRequestId(): string {
@@ -200,5 +277,5 @@ function generateRequestId(): string {
 
 // Type guard for API errors
 export function isApiError(error: unknown): error is { statusCode: number; message?: string } {
-  return typeof error === 'object' && error !== null && 'statusCode' in error
+  return typeof error === "object" && error !== null && "statusCode" in error
 }

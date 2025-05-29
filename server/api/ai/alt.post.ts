@@ -11,13 +11,16 @@ export default defineEventHandler(async (event) => {
       createApiError(401, auth.error || "Unauthorized")
     }
 
+    // Get environment bindings
+    const env = event.context.cloudflare?.env as { DATA?: KVNamespace; AI?: Ai }
+
     // Parse and validate request body
     const body = await readBody(event)
     const request = AiAltTextRequestSchema.parse(body)
 
     const startTime = Date.now()
 
-    // Simulate AI processing - in production this would use Cloudflare AI
+    // Process the image data
     let imageData: Buffer
 
     if (request.url) {
@@ -54,23 +57,39 @@ export default defineEventHandler(async (event) => {
       createApiError(400, "Image too large (max 10MB)")
     }
 
-    // Simulate AI processing delay
-    await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 1000))
+    // Use Cloudflare AI for image analysis
+    let altText: string
+    let confidence: number
+    
+    if (env?.AI) {
+      try {
+        const result = await env.AI.run("@cf/llava-hf/llava-1.5-7b-hf", {
+          image: Array.from(new Uint8Array(imageData)),
+          prompt: 'Describe this image in detail for use as alt text. Focus on the main subjects, actions, and important visual elements that would help someone understand the image content. Be concise but descriptive.',
+          max_tokens: 150
+        }) as { description?: string; text?: string }
 
-    // Generate simulated alt text based on image properties
-    const altTexts = [
-      "A person standing in front of a modern building with glass windows",
-      "A close-up view of colorful flowers in a garden setting",
-      "A computer screen displaying code with syntax highlighting",
-      "A group of people having a discussion around a conference table",
-      "A landscape view showing mountains in the background with trees",
-      "A cat sitting on a windowsill looking outside",
-      "A plate of food with vegetables and main course arranged artistically",
-      "A person using a smartphone while sitting at a cafe"
-    ]
+        altText = result.description || result.text || "Unable to generate description"
+        
+        // Clean up the AI response
+        altText = altText.trim()
+        if (altText.length > 300) {
+          altText = altText.substring(0, 297) + "..."
+        }
+        
+        // Set confidence based on response quality
+        confidence = altText.length > 20 ? 0.92 : 0.75
+      } catch (error) {
+        console.error("AI processing failed:", error)
+        altText = "Image content could not be analyzed automatically"
+        confidence = 0.0
+      }
+    } else {
+      console.warn("AI binding not available, using fallback")
+      altText = "AI service temporarily unavailable - image analysis could not be performed"
+      confidence = 0.0
+    }
 
-    const altText = altTexts[Math.floor(Math.random() * altTexts.length)]
-    const confidence = 0.85 + Math.random() * 0.14 // 0.85-0.99
     const processingTime = Date.now() - startTime
 
     // Build response

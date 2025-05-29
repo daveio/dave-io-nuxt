@@ -3,7 +3,15 @@ import { createApiError, createApiResponse, isApiError } from "~/server/utils/re
 import { TokenMetricsSchema, TokenUsageSchema } from "~/server/utils/schemas"
 
 // Simulated token usage database - in production this would be KV storage
-const tokenUsage = new Map<string, any>([
+interface TokenUsageData {
+  token_id: string
+  usage_count: number
+  max_requests: number
+  created_at: string
+  last_used: string
+}
+
+const tokenUsage = new Map<string, TokenUsageData>([
   [
     "550e8400-e29b-41d4-a716-446655440000",
     {
@@ -58,7 +66,8 @@ export default defineEventHandler(async (event) => {
 
       const tokenData = TokenUsageSchema.parse(usage)
       return createApiResponse(tokenData, "Token usage retrieved successfully")
-    } else if (path === "revoke") {
+    }
+    if (path === "revoke") {
       // GET /api/tokens/{uuid}/revoke - Revoke token
       const usage = tokenUsage.get(uuid)
       if (!usage) {
@@ -77,7 +86,8 @@ export default defineEventHandler(async (event) => {
       }
 
       return createApiResponse(revokeData, "Token revoked successfully")
-    } else if (path === "metrics") {
+    }
+    if (path === "metrics") {
       // GET /api/tokens/{uuid}/metrics - Get token metrics
       const usage = tokenUsage.get(uuid)
       if (!usage) {
@@ -102,10 +112,9 @@ export default defineEventHandler(async (event) => {
       })
 
       return metrics
-    } else {
-      throw createApiError(404, `Unknown token endpoint: ${path}`)
     }
-  } catch (error: any) {
+    throw createApiError(404, `Unknown token endpoint: ${path}`)
+  } catch (error: unknown) {
     console.error("Token management error:", error)
 
     // Re-throw API errors

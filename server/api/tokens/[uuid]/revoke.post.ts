@@ -37,7 +37,7 @@ export default defineEventHandler(async (event) => {
     let body: RevokeRequest
     try {
       body = await readBody(event)
-    } catch (error) {
+    } catch (_error) {
       throw createApiError(400, "Invalid JSON body")
     }
 
@@ -45,21 +45,40 @@ export default defineEventHandler(async (event) => {
       throw createApiError(400, 'Field "revoked" must be a boolean')
     }
 
-    // In production, this would:
-    // 1. Check if token exists in D1 database or KV
-    // 2. Update auth:revocation:{uuid} in KV storage
-    // 3. Log the revocation action
-
     const now = new Date().toISOString()
 
-    console.log(`Token ${body.revoked ? "revocation" : "restoration"} requested:`, {
+    // Get KV binding for token revocation
+    const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
+    if (!env?.DATA) {
+      throw createApiError(500, "KV storage not available")
+    }
+
+    const revokedKey = `revoked_token:${uuid}`
+
+    try {
+      if (body.revoked) {
+        // Add token to revocation blacklist with 30-day expiration
+        await env.DATA.put(revokedKey, JSON.stringify({
+          revoked_at: now,
+          revoked_by: auth.payload?.sub,
+          reason: "Manual revocation via API"
+        }), { expirationTtl: 86400 * 30 }) // 30 days
+      } else {
+        // Remove token from revocation blacklist
+        await env.DATA.delete(revokedKey)
+      }
+    } catch (error) {
+      console.error("Failed to update token revocation in KV:", error)
+      throw createApiError(500, "Failed to update token revocation status")
+    }
+
+    console.log(`Token ${body.revoked ? "revocation" : "restoration"} completed:`, {
       uuid,
       revoked: body.revoked,
       requestedBy: auth.payload?.sub,
       timestamp: now
     })
 
-    // Simulate the revocation action
     const response: RevokeResponse = {
       uuid,
       revoked: body.revoked,
@@ -74,7 +93,7 @@ export default defineEventHandler(async (event) => {
       response,
       body.revoked ? "Token revoked successfully" : "Token revocation removed successfully"
     )
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Token revocation error:", error)
 
     if (isApiError(error)) {

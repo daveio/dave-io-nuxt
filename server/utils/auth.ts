@@ -101,39 +101,60 @@ export async function trackTokenUsage(
   jti: string,
   maxRequests?: number
 ): Promise<{ allowed: boolean; currentCount: number }> {
-  // In a real implementation, this would use Cloudflare KV
-  // For now, we'll use a simple in-memory approach
-
   if (!maxRequests) {
     return { allowed: true, currentCount: 0 }
   }
 
-  // Get current count from KV (simulated)
-  const countKey = `token_usage:${jti}`
-  // const currentCount = await env.KV.get(countKey) || 0
+  try {
+    // Get KV binding from event context
+    const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
+    if (!env?.DATA) {
+      console.warn("KV binding not available, falling back to unlimited access")
+      return { allowed: true, currentCount: 0 }
+    }
 
-  // For development, we'll simulate this
-  const currentCount = 0 // This would be fetched from KV
+    const countKey = `token_usage:${jti}`
+    
+    // Get current count from KV
+    const countStr = await env.DATA.get(countKey)
+    const currentCount = countStr ? parseInt(countStr, 10) : 0
 
-  if (currentCount >= maxRequests) {
-    return { allowed: false, currentCount }
+    if (currentCount >= maxRequests) {
+      return { allowed: false, currentCount }
+    }
+
+    // Increment count with 1-hour expiration
+    const newCount = currentCount + 1
+    await env.DATA.put(countKey, newCount.toString(), { expirationTtl: 3600 })
+
+    return { allowed: true, currentCount: newCount }
+  } catch (error) {
+    console.error("Failed to track token usage:", error)
+    // Fail open - allow request but log the error
+    return { allowed: true, currentCount: 0 }
   }
-
-  // Increment count
-  // await env.KV.put(countKey, (currentCount + 1).toString(), { expirationTtl: 3600 })
-
-  return { allowed: true, currentCount: currentCount + 1 }
 }
 
 // Check if token is revoked (JTI blacklist)
 export async function isTokenRevoked(event: H3Event, jti: string): Promise<boolean> {
   if (!jti) return false
 
-  // In real implementation: check KV store for revoked tokens
-  // const revoked = await env.KV.get(`revoked_token:${jti}`)
-  // return revoked !== null
+  try {
+    // Get KV binding from event context
+    const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
+    if (!env?.DATA) {
+      console.warn("KV binding not available, assuming token not revoked")
+      return false
+    }
 
-  return false // For development
+    // Check KV store for revoked tokens
+    const revoked = await env.DATA.get(`revoked_token:${jti}`)
+    return revoked !== null
+  } catch (error) {
+    console.error("Failed to check token revocation:", error)
+    // Fail open - assume not revoked but log the error
+    return false
+  }
 }
 
 // Main authorization function

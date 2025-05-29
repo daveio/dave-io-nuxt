@@ -10,7 +10,8 @@
       "Bash(rm -rf /Users/dave/src/github.com/daveio/dave-io-nuxt/server/api/posts)",
       "Bash(bun add zod jose)",
       "mcp__sharedMemory__search_nodes",
-      "mcp__sharedMemory__create_entities"
+      "mcp__sharedMemory__create_entities",
+      "mcp__cloudflareDocumentation__search_cloudflare_documentation"
     ]
   },
   "enableAllProjectMcpServers": false
