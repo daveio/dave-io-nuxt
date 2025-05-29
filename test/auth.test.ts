@@ -1,7 +1,7 @@
+import type { IncomingMessage, ServerResponse } from "node:http"
+import type { H3Event } from "h3"
 import { SignJWT } from "jose"
 import { beforeEach, describe, expect, it } from "vitest"
-import type { H3Event } from "h3"
-import type { IncomingMessage, ServerResponse } from "node:http"
 import { checkEndpointPermission, extractToken, getUserFromPayload, verifyJWT } from "~/server/utils/auth"
 
 // Mock H3Event for testing - this is a simplified version for unit testing
@@ -39,13 +39,14 @@ function mockH3Event(headers: Record<string, string> = {}, query: Record<string,
     toJSON: () => ({})
   } as unknown as H3Event
 }
-
 // Mock getHeader function
 ;(global as unknown as { getHeader: (event: H3Event, name: string) => string | undefined }).getHeader = (
   event: H3Event,
   name: string
 ) => {
-  return (event as unknown as { node: { req: { headers: Record<string, string> } } })?.node?.req?.headers?.[name.toLowerCase()]
+  return (event as unknown as { node: { req: { headers: Record<string, string> } } })?.node?.req?.headers?.[
+    name.toLowerCase()
+  ]
 }
 
 // Mock getQuery function

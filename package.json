@@ -40,7 +40,7 @@
   "scripts": {
     "build": "bun run types && bun run nuxt build",
     "cf-typegen": "bun run wrangler types",
-    "check": "bun run types && bun run build && bun run format && bun run lint && bun run typecheck && bun run test",
+    "check": "bun run reset && bun run format && bun run lint && bun run typecheck && bun run test",
     "clean": "bun run rimraf .nuxt .output .wrangler *.d.ts",
     "deploy": "bun run types && bun run build && bun run wrangler deploy",
     "dev": "bun run types && bun run nuxt dev",
@@ -55,7 +55,8 @@
     "preview:cloudflare": "bun run types && bun run build && wrangler dev",
     "preview:nuxt": "bun run types && bun run nuxt preview",
     "reset": "bun run clean && bun run packages && bun run build",
-    "test": "bun run vitest",
+    "test": "bun run vitest run && bun test",
+    "test:watch": "bun run vitest",
     "test:api": "bun run bin/api-test.ts",
     "test:coverage": "bun run vitest --coverage",
     "test:ui": "bun run vitest --ui",

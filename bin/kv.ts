@@ -337,11 +337,16 @@ program
 
       let filteredKeys = keys
       if (options.pattern) {
+        // Sanitize pattern input to prevent ReDoS attacks
+        const sanitizedPattern = options.pattern
+          .replace(/[.*+?^${}()|[\]\\]/g, "\\$&") // Escape special regex characters
+          .substring(0, 100) // Limit pattern length
+
         try {
-          const pattern = new RegExp(options.pattern, "i")
-          filteredKeys = keys.filter((key: string) => pattern.test(key))
+          // Use simple string matching instead of regex for safety
+          filteredKeys = keys.filter((key: string) => key.toLowerCase().includes(sanitizedPattern.toLowerCase()))
         } catch {
-          console.error("❌ Invalid regex pattern:", options.pattern)
+          console.error("❌ Invalid pattern:", options.pattern)
           return
         }
       }
