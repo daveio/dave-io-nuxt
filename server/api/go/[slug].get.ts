@@ -14,9 +14,9 @@ interface RedirectData {
 
 export default defineEventHandler(async (event) => {
   try {
-    const env = event.context.cloudflare?.env as { 
+    const env = event.context.cloudflare?.env as {
       KV?: KVNamespace
-      ANALYTICS?: AnalyticsEngineDataset 
+      ANALYTICS?: AnalyticsEngineDataset
     }
 
     if (!env?.KV || !env?.ANALYTICS) {

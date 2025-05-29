@@ -64,7 +64,6 @@ async function getCachedData(kv?: KVNamespace): Promise<RouteROSData | null> {
 
 // Store data in KV storage
 async function storeDataInKV(data: RouteROSData, kv: KVNamespace): Promise<void> {
-
   try {
     await Promise.all([
       kv.put("routeros:putio:ipv4", JSON.stringify(data.ipv4Ranges)),
@@ -81,7 +80,6 @@ async function storeDataInKV(data: RouteROSData, kv: KVNamespace): Promise<void>
     console.error("Failed to store data in KV:", error)
   }
 }
-
 
 async function fetchPutIOData(kv: KVNamespace): Promise<RouteROSData> {
   try {

@@ -29,21 +29,21 @@ async function getMetricsFromAnalytics(
 
     // Query real metrics from Analytics Engine
     const now = new Date()
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+    const _yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 
     // Get total API requests from KV counters
     const [totalRequests, successfulRequests, failedRequests, rateLimitedRequests] = await Promise.all([
-      kv.get("metrics:requests:total").then(v => parseInt(v || "0")),
-      kv.get("metrics:requests:successful").then(v => parseInt(v || "0")),
-      kv.get("metrics:requests:failed").then(v => parseInt(v || "0")),
-      kv.get("metrics:requests:rate_limited").then(v => parseInt(v || "0"))
+      kv.get("metrics:requests:total").then((v) => Number.parseInt(v || "0")),
+      kv.get("metrics:requests:successful").then((v) => Number.parseInt(v || "0")),
+      kv.get("metrics:requests:failed").then((v) => Number.parseInt(v || "0")),
+      kv.get("metrics:requests:rate_limited").then((v) => Number.parseInt(v || "0"))
     ])
 
     // Get 24h metrics from KV (these should be updated by Analytics Engine processing)
     const [last24hTotal, last24hSuccessful, last24hFailed] = await Promise.all([
-      kv.get("metrics:24h:total").then(v => parseInt(v || "0")),
-      kv.get("metrics:24h:successful").then(v => parseInt(v || "0")),
-      kv.get("metrics:24h:failed").then(v => parseInt(v || "0"))
+      kv.get("metrics:24h:total").then((v) => Number.parseInt(v || "0")),
+      kv.get("metrics:24h:successful").then((v) => Number.parseInt(v || "0")),
+      kv.get("metrics:24h:failed").then((v) => Number.parseInt(v || "0"))
     ])
 
     const metricsData = {

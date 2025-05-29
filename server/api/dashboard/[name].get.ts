@@ -1,3 +1,4 @@
+import { getCloudflareEnv, getKVNamespace, shouldAllowMockData } from "~/server/utils/environment"
 import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 
 interface DashboardItem {
@@ -12,18 +13,47 @@ interface DashboardResponse {
   error: string | null
   items: DashboardItem[]
   timestamp: number
+  source?: "kv" | "mock" | "live" | "cache"
 }
 
 // Get dashboard configuration from KV storage
-async function getDashboardItems(name: string, kv: KVNamespace): Promise<DashboardItem[]> {
+async function getDashboardItems(
+  name: string,
+  kv: KVNamespace
+): Promise<{ items: DashboardItem[]; source: "kv" | "mock" }> {
   try {
     const dashboardKey = `dashboard:${name}:config`
     const cachedConfig = await kv.get(dashboardKey)
 
     if (cachedConfig) {
-      return JSON.parse(cachedConfig)
+      return { items: JSON.parse(cachedConfig), source: "kv" }
     }
-    
+
+    // Special case for demo dashboard - provide mock data but clearly indicate it
+    if (name === "demo" && shouldAllowMockData()) {
+      console.warn("⚠️  Demo dashboard using mock data - no KV configuration found")
+      return {
+        items: [
+          {
+            title: "API Endpoints",
+            subtitle: "12 active endpoints (mock data)",
+            linkURL: "/api/docs"
+          },
+          {
+            title: "JWT Tokens",
+            subtitle: "3 active tokens (mock data)",
+            linkURL: "/api/auth"
+          },
+          {
+            title: "System Health",
+            subtitle: "All systems operational (mock data)",
+            linkURL: "/api/ping"
+          }
+        ],
+        source: "mock"
+      }
+    }
+
     throw new Error(`Dashboard configuration not found for: ${name}`)
   } catch (error) {
     console.error("Failed to get dashboard from KV:", error)
@@ -31,8 +61,7 @@ async function getDashboardItems(name: string, kv: KVNamespace): Promise<Dashboa
   }
 }
 
-
-async function fetchHackerNews(kv: KVNamespace): Promise<DashboardItem[]> {
+async function fetchHackerNews(kv: KVNamespace): Promise<{ items: DashboardItem[]; source: "cache" | "live" }> {
   const cacheKey = "dashboard:hackernews:cache"
   const cacheTtl = 1800 // 30 minutes
 
@@ -42,7 +71,7 @@ async function fetchHackerNews(kv: KVNamespace): Promise<DashboardItem[]> {
     if (cached) {
       const parsedCache = JSON.parse(cached)
       if (Date.now() - parsedCache.timestamp < cacheTtl * 1000) {
-        return parsedCache.items
+        return { items: parsedCache.items, source: "cache" }
       }
     }
   } catch (error) {
@@ -94,15 +123,10 @@ async function fetchHackerNews(kv: KVNamespace): Promise<DashboardItem[]> {
       }
     }
 
-    return items
+    return { items, source: "live" }
   } catch (error) {
     console.error("Error fetching Hacker News:", error)
-    return [
-      {
-        title: "Error loading Hacker News",
-        subtitle: "RSS feed temporarily unavailable"
-      }
-    ]
+    throw new Error("Hacker News RSS feed temporarily unavailable")
   }
 }
 
@@ -115,42 +139,65 @@ export default defineEventHandler(async (event) => {
     }
 
     // Get environment bindings
-    const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
-
-    if (!env?.DATA) {
-      throw createApiError(503, "Dashboard service not available")
-    }
+    const env = getCloudflareEnv(event)
+    const kv = getKVNamespace(env)
 
     let items: DashboardItem[]
+    let source: "kv" | "mock" | "live" | "cache"
     const error: string | null = null
 
     switch (name) {
-      case "demo":
-        items = await getDashboardItems(name, env.DATA)
+      case "demo": {
+        if (!kv) {
+          throw createApiError(503, "Dashboard service not available")
+        }
+        const result = await getDashboardItems(name, kv)
+        items = result.items
+        source = result.source
         break
+      }
 
       case "hacker-news":
-      case "hackernews":
-        items = await fetchHackerNews(env.DATA)
+      case "hackernews": {
+        if (!kv) {
+          throw createApiError(503, "Dashboard service not available")
+        }
+        const result = await fetchHackerNews(kv)
+        items = result.items
+        source = result.source
         break
+      }
 
-      default:
+      default: {
+        if (!kv) {
+          throw createApiError(503, "Dashboard service not available")
+        }
         // Check if custom dashboard exists in KV
         try {
-          items = await getDashboardItems(name, env.DATA)
+          const result = await getDashboardItems(name, kv)
+          items = result.items
+          source = result.source
           if (items.length === 0) {
             throw createApiError(404, `Dashboard '${name}' not found`)
           }
         } catch {
           throw createApiError(404, `Dashboard '${name}' not found`)
         }
+      }
     }
 
     const response: DashboardResponse = {
       dashboard: name,
       error,
       items,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      source
+    }
+
+    // Add warning header when serving mock data
+    if (source === "mock") {
+      setHeader(event, "X-Data-Source", "mock")
+      setHeader(event, "X-Warning", "This endpoint is serving mock data for demonstration purposes")
     }
 
     return createApiResponse(response, `Dashboard '${name}' retrieved successfully`)

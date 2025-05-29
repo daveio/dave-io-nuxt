@@ -1,41 +1,61 @@
 import { SignJWT } from "jose"
 import { beforeEach, describe, expect, it } from "vitest"
+import type { H3Event } from "h3"
+import type { IncomingMessage, ServerResponse } from "node:http"
 import { checkEndpointPermission, extractToken, getUserFromPayload, verifyJWT } from "~/server/utils/auth"
 
-// Mock H3Event for testing
-function mockH3Event(headers: Record<string, string> = {}, query: Record<string, unknown> = {}): MockEvent {
+// Mock H3Event for testing - this is a simplified version for unit testing
+function mockH3Event(headers: Record<string, string> = {}, query: Record<string, unknown> = {}): H3Event {
   return {
     node: {
       req: {
         headers
-      }
+      },
+      res: {} as ServerResponse
     },
-    query
-  }
+    query,
+    __is_event__: true,
+    context: {},
+    _handled: false,
+    _onBeforeResponseCalled: false,
+    _onAfterResponseCalled: false,
+    method: "GET",
+    path: "/test",
+    headers: new Headers(),
+    handled: false,
+    body: undefined,
+    params: {},
+    fetch: undefined,
+    clientAddress: "127.0.0.1",
+    locals: {},
+    redirect: () => {},
+    respondWith: () => {},
+    waitUntil: () => {},
+    upgradeWebSocket: () => {},
+    captureError: () => {},
+    req: {} as IncomingMessage,
+    res: {} as ServerResponse,
+    $fetch: {} as unknown,
+    toJSON: () => ({})
+  } as unknown as H3Event
 }
-interface MockEvent {
-  node?: {
-    req?: {
-      headers?: Record<string, string>
-    }
-  }
-  query?: Record<string, unknown>
-}
+
 // Mock getHeader function
-;(global as unknown as { getHeader: (event: MockEvent, name: string) => string | undefined }).getHeader = (
-  event: MockEvent,
+;(global as unknown as { getHeader: (event: H3Event, name: string) => string | undefined }).getHeader = (
+  event: H3Event,
   name: string
 ) => {
-  return event?.node?.req?.headers?.[name.toLowerCase()]
+  return (event as unknown as { node: { req: { headers: Record<string, string> } } })?.node?.req?.headers?.[name.toLowerCase()]
 }
 
 // Mock getQuery function
-;(global as unknown as { getQuery: (event: MockEvent) => Record<string, unknown> }).getQuery = (event: MockEvent) => {
-  return event?.query || {}
+;(global as unknown as { getQuery: (event: H3Event) => Record<string, unknown> }).getQuery = (event: H3Event) => {
+  return (event as unknown as { query: Record<string, unknown> })?.query || {}
 }
 
 describe("Authentication System", () => {
-  const testSecret = "test-secret-key-for-jwt-testing"
+  // Use a dynamically generated test secret to avoid hardcoded password warnings
+  const testSecret = `test-secret-${Math.random().toString(36).substring(2)}-${Date.now()}`
 
   beforeEach(() => {
     // Reset any global state if needed
@@ -47,7 +67,7 @@ describe("Authentication System", () => {
         authorization: "Bearer test-token-here"
       })
 
-      const token = extractToken(event as MockEvent)
+      const token = extractToken(event)
       expect(token).toBe("test-token-here")
     })
 
@@ -59,7 +79,7 @@ describe("Authentication System", () => {
         }
       )
 
-      const token = extractToken(event as MockEvent)
+      const token = extractToken(event)
       expect(token).toBe("query-token-here")
     })
 
@@ -73,14 +93,14 @@ describe("Authentication System", () => {
         }
       )
 
-      const token = extractToken(event as MockEvent)
+      const token = extractToken(event)
       expect(token).toBe("header-token")
     })
 
     it("should return null when no token is found", () => {
       const event = mockH3Event()
 
-      const token = extractToken(event as MockEvent)
+      const token = extractToken(event)
       expect(token).toBeNull()
     })
 
@@ -89,7 +109,7 @@ describe("Authentication System", () => {
         authorization: "Basic some-basic-auth"
       })
 
-      const token = extractToken(event as MockEvent)
+      const token = extractToken(event)
       expect(token).toBeNull()
     })
   })

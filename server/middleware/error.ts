@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
     // Apply rate limiting only to API routes (not redirects)
     if (url.startsWith("/api/")) {
       const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
-      
+
       if (!env?.DATA) {
         throw createError({
           statusCode: 503,

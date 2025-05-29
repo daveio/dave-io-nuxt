@@ -19,9 +19,9 @@ export default defineEventHandler(async (event) => {
       throw createApiError(401, auth.error || "Unauthorized")
     }
 
-    const env = event.context.cloudflare?.env as { 
+    const env = event.context.cloudflare?.env as {
       KV?: KVNamespace
-      ANALYTICS?: AnalyticsEngineDataset 
+      ANALYTICS?: AnalyticsEngineDataset
     }
 
     if (!env?.KV) {
@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
       // GET /api/tokens/{uuid} - Get token usage
       const tokenKey = `token:${uuid}`
       const tokenData = await env.KV.get(tokenKey)
-      
+
       if (!tokenData) {
         throw createApiError(404, `Token not found: ${uuid}`)
       }
@@ -59,13 +59,13 @@ export default defineEventHandler(async (event) => {
       // GET /api/tokens/{uuid}/revoke - Revoke token
       const tokenKey = `token:${uuid}`
       const tokenData = await env.KV.get(tokenKey)
-      
+
       if (!tokenData) {
         throw createApiError(404, `Token not found: ${uuid}`)
       }
 
       // Add the token to revocation blacklist
-      await env.KV.put(`revoked_token:${uuid}`, 'true', { expirationTtl: 86400 * 30 })
+      await env.KV.put(`revoked_token:${uuid}`, "true", { expirationTtl: 86400 * 30 })
 
       console.log(`Token revoked: ${uuid}`)
 
@@ -81,25 +81,25 @@ export default defineEventHandler(async (event) => {
       // GET /api/tokens/{uuid}/metrics - Get token metrics
       const tokenKey = `token:${uuid}`
       const tokenData = await env.KV.get(tokenKey)
-      
+
       if (!tokenData) {
         throw createApiError(404, `Token not found: ${uuid}`)
       }
 
-      const usage: TokenUsageData = JSON.parse(tokenData)
+      const _usage: TokenUsageData = JSON.parse(tokenData)
 
       // Get real metrics data from KV counters for this specific token
       const [totalRequests, successfulRequests, failedRequests, rateLimitedRequests] = await Promise.all([
-        env.KV.get(`token:${uuid}:requests:total`).then(v => parseInt(v || "0")),
-        env.KV.get(`token:${uuid}:requests:successful`).then(v => parseInt(v || "0")),
-        env.KV.get(`token:${uuid}:requests:failed`).then(v => parseInt(v || "0")),
-        env.KV.get(`token:${uuid}:requests:rate_limited`).then(v => parseInt(v || "0"))
+        env.KV.get(`token:${uuid}:requests:total`).then((v) => Number.parseInt(v || "0")),
+        env.KV.get(`token:${uuid}:requests:successful`).then((v) => Number.parseInt(v || "0")),
+        env.KV.get(`token:${uuid}:requests:failed`).then((v) => Number.parseInt(v || "0")),
+        env.KV.get(`token:${uuid}:requests:rate_limited`).then((v) => Number.parseInt(v || "0"))
       ])
 
       const [last24hTotal, last24hSuccessful, last24hFailed] = await Promise.all([
-        env.KV.get(`token:${uuid}:24h:total`).then(v => parseInt(v || "0")),
-        env.KV.get(`token:${uuid}:24h:successful`).then(v => parseInt(v || "0")),
-        env.KV.get(`token:${uuid}:24h:failed`).then(v => parseInt(v || "0"))
+        env.KV.get(`token:${uuid}:24h:total`).then((v) => Number.parseInt(v || "0")),
+        env.KV.get(`token:${uuid}:24h:successful`).then((v) => Number.parseInt(v || "0")),
+        env.KV.get(`token:${uuid}:24h:failed`).then((v) => Number.parseInt(v || "0"))
       ])
 
       const metrics = TokenMetricsSchema.parse({

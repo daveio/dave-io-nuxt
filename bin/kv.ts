@@ -118,7 +118,7 @@ async function getAllKVData(backupAll = false) {
           kvData[key] = tryParseJson(valueStr)
         }
       } catch (error) {
-        console.error('❌ Failed to get value for key:', key, error)
+        console.error("❌ Failed to get value for key:", key, error)
       }
     }
 
@@ -212,10 +212,10 @@ async function restoreKV(filename: string) {
           metadata: "{}"
         })
         const preview = valueStr.substring(0, 100) + (valueStr.length > 100 ? "..." : "")
-        console.log("  ✓", key + ":", preview)
+        console.log("  ✓", `${key}:`, preview)
         successCount++
       } catch (error) {
-        console.error('  ❌ Failed to restore', key + ':', error)
+        console.error("  ❌ Failed to restore", `${key}:`, error)
         errorCount++
       }
     }
@@ -275,7 +275,7 @@ async function wipeKV() {
         console.log("  ✓ Deleted:", key)
         successCount++
       } catch (error) {
-        console.error('  ❌ Failed to delete', key + ':', error)
+        console.error("  ❌ Failed to delete", `${key}:`, error)
         errorCount++
       }
     }
@@ -355,9 +355,9 @@ program
           })
           const value = valueResponse ? await valueResponse.text() : ""
           const preview = value.substring(0, 50) + (value.length > 50 ? "..." : "")
-          console.log('  📄', key + ':', preview)
+          console.log("  📄", `${key}:`, preview)
         } catch {
-          console.log("  📄", key + ": <failed to fetch value>")
+          console.log("  📄", `${key}: <failed to fetch value>`)
         }
       }
     } catch (error) {

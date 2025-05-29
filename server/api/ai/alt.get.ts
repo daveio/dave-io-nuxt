@@ -138,7 +138,7 @@ export default defineEventHandler(async (event) => {
 
     // Use Cloudflare AI for image analysis
     let altText: string
-    let aiModel = "@cf/llava-hf/llava-1.5-7b-hf"
+    const aiModel = "@cf/llava-hf/llava-1.5-7b-hf"
 
     if (!env?.AI) {
       throw createApiError(503, "AI service not available")

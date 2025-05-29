@@ -56,7 +56,6 @@ async function getTokenUsageFromKV(uuid: string, kv?: KVNamespace): Promise<Toke
   }
 }
 
-
 export default defineEventHandler(async (event) => {
   try {
     // Check authorization for token management

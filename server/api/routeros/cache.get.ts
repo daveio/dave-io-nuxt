@@ -53,7 +53,6 @@ async function getCacheStatsFromKV(kv?: KVNamespace): Promise<CacheStats> {
   }
 }
 
-
 export default defineEventHandler(async (event) => {
   try {
     // Get environment bindings
