@@ -10,6 +10,20 @@ export default defineNuxtConfig({
     cloudflare: {
       deployConfig: true,
       nodeCompat: true
+    },
+    experimental: {
+      wasm: true
+    },
+    routeRules: {
+      '/api/**': { 
+        cors: true,
+        headers: { 
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'X-Content-Type-Options': 'nosniff',
+          'X-Frame-Options': 'DENY',
+          'X-XSS-Protection': '1; mode=block'
+        }
+      }
     }
   },
   modules: [
