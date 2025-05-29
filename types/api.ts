@@ -1,38 +1,32 @@
-export interface User {
-  id: number
-  name: string
-  email: string
-  created: string
-  updated?: string
-  lastLogin?: string
-}
+// Re-export all types from schemas for compatibility
+export type {
+  ApiSuccessResponse,
+  ApiErrorResponse,
+  JWTDetails,
+  User,
+  AuthSuccessResponse,
+  HealthCheck,
+  SystemMetrics,
+  WorkerInfo,
+  UrlRedirect,
+  CreateRedirect,
+  AiAltTextRequest,
+  AiAltTextResponse,
+  TokenUsage,
+  TokenMetrics
+} from '~/server/utils/schemas'
 
-export interface Post {
-  id: number
-  title: string
-  content: string
-  author: string
-  published: boolean
-  created?: string
-  updated?: string
-}
-
-export interface UploadedFile {
-  id: string
-  name: string
-  size: number
-  type: string
-  uploaded_at: string
-}
-
+// Legacy interfaces for backward compatibility
 export interface ApiMeta {
   total?: number
   page?: number
   per_page?: number
   total_pages?: number
+  request_id?: string
 }
 
 export interface ApiResponse<T = any> {
+  success: boolean
   data?: T
   message?: string
   meta?: ApiMeta
@@ -40,33 +34,26 @@ export interface ApiResponse<T = any> {
 }
 
 export interface ApiError {
+  success: false
   error: string
   details?: any
   timestamp: string
 }
 
-export interface SystemStats {
-  users: {
-    total: number
-    active: number
-    new_today: number
-  }
-  posts: {
-    total: number
-    published: number
-    drafts: number
-  }
-  system: {
-    uptime: number
-    memory_usage: NodeJS.MemoryUsage
-    node_version: string
-    platform: string
-  }
+// JWT Token Payload for client-side use
+export interface ClientJWTPayload {
+  sub: string
+  iat: number
+  exp?: number
+  jti?: string
+  maxRequests?: number
 }
 
-export interface HealthCheck {
-  status: 'ok' | 'error'
-  timestamp: string
-  version: string
-  environment: string
+// Client-side user info
+export interface ClientUser {
+  id: string
+  issuedAt: string
+  expiresAt: string | null
+  tokenId?: string
+  maxRequests?: number
 }

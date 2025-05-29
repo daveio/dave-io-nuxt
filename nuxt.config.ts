@@ -5,6 +5,13 @@ import { defineNuxtConfig } from "nuxt/config"
 export default defineNuxtConfig({
   compatibilityDate: "2025-05-15",
   devtools: { enabled: true },
+  
+  // Vite configuration to disable sourcemaps in production
+  vite: {
+    build: {
+      sourcemap: false // Disable sourcemaps in production to avoid warnings
+    }
+  },
   nitro: {
     preset: "cloudflare_module",
     cloudflare: {
@@ -21,9 +28,23 @@ export default defineNuxtConfig({
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'X-Content-Type-Options': 'nosniff',
           'X-Frame-Options': 'DENY',
-          'X-XSS-Protection': '1; mode=block'
+          'X-XSS-Protection': '0' // Updated per best practices
+        }
+      },
+      '/go/**': {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
         }
       }
+    }
+  },
+  runtimeConfig: {
+    // Server-side environment variables
+    apiJwtSecret: process.env.API_JWT_SECRET || 'dev-secret-change-in-production',
+    cloudflareApiToken: process.env.CLOUDFLARE_API_TOKEN || '',
+    public: {
+      // Client-side environment variables
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || '/api'
     }
   },
   modules: [

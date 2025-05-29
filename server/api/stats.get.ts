@@ -1,8 +1,9 @@
 import { createApiResponse } from '~/server/utils/response'
+import { SystemMetricsSchema } from '~/server/utils/schemas'
 
 export default defineEventHandler(async (event) => {
   // Worker-compatible statistics (no process.uptime or memory access)
-  const stats = {
+  const stats = SystemMetricsSchema.parse({
     users: {
       total: 3,
       active: 2,
@@ -25,7 +26,7 @@ export default defineEventHandler(async (event) => {
       endpoints_available: 8,
       rate_limit: '100 requests/minute'
     }
-  }
+  })
 
   return createApiResponse(stats, 'Statistics retrieved successfully')
 })

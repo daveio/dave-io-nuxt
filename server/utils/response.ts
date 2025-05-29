@@ -1,3 +1,5 @@
+import type { ApiSuccessResponse, ApiErrorResponse } from './schemas'
+
 export interface ApiResponse<T = any> {
   success: boolean
   data?: T
@@ -17,7 +19,7 @@ export function createApiResponse<T>(
   data?: T,
   message?: string,
   meta?: ApiResponse<T>['meta']
-): ApiResponse<T> {
+): ApiSuccessResponse {
   return {
     success: true,
     data,
@@ -46,7 +48,7 @@ export function createApiError(
         request_id: generateRequestId()
       },
       timestamp: new Date().toISOString()
-    }
+    } as ApiErrorResponse
   })
 }
 

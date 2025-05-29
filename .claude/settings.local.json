@@ -1,3 +1,15 @@
 {
+  "permissions": {
+    "allow": [
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "Bash(rm /Users/dave/src/github.com/daveio/dave-io-nuxt/server/api/users -rf)",
+      "Bash(rm -rf /Users/dave/src/github.com/daveio/dave-io-nuxt/server/api/users)",
+      "Bash(rm /Users/dave/src/github.com/daveio/dave-io-nuxt/server/api/upload.post.ts)",
+      "Bash(rm /Users/dave/src/github.com/daveio/dave-io-nuxt/server/api/posts -rf)",
+      "Bash(rm -rf /Users/dave/src/github.com/daveio/dave-io-nuxt/server/api/posts)",
+      "Bash(bun add zod jose)"
+    ]
+  },
   "enableAllProjectMcpServers": false
 }
