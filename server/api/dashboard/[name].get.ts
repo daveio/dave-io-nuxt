@@ -1,5 +1,5 @@
-import { createApiResponse, createApiError } from "~/server/utils/response"
 import { authorizeEndpoint } from "~/server/utils/auth"
+import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 
 interface DashboardItem {
   title: string
@@ -57,7 +57,7 @@ async function fetchHackerNews(): Promise<DashboardItem[]> {
       // Top 10 items
       const titleMatch = match.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)
       const linkMatch = match.match(/<link>(.*?)<\/link>/)
-      const commentsMatch = match.match(/<comments>(.*?)<\/comments>/)
+      const _commentsMatch = match.match(/<comments>(.*?)<\/comments>/)
 
       if (titleMatch && linkMatch) {
         items.push({
@@ -89,7 +89,7 @@ export default defineEventHandler(async (event) => {
     }
 
     let items: DashboardItem[]
-    let error: string | null = null
+    const error: string | null = null
 
     switch (name) {
       case "demo":
@@ -113,11 +113,11 @@ export default defineEventHandler(async (event) => {
     }
 
     return createApiResponse(response, `Dashboard '${name}' retrieved successfully`)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Dashboard error:", error)
 
     // Re-throw API errors
-    if (error.statusCode) {
+    if (isApiError(error)) {
       throw error
     }
 

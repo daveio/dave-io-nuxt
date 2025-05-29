@@ -1,5 +1,5 @@
-import { createApiResponse, createApiError } from "~/server/utils/response"
 import { authorizeEndpoint } from "~/server/utils/auth"
+import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 
 export default defineEventHandler(async (event) => {
   try {
@@ -31,10 +31,10 @@ export default defineEventHandler(async (event) => {
       },
       "RouterOS cache reset completed"
     )
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("RouterOS reset error:", error)
 
-    if (error.statusCode) {
+    if (isApiError(error)) {
       throw error
     }
 

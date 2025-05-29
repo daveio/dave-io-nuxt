@@ -1,8 +1,9 @@
-import { createApiResponse, createApiError } from "~/server/utils/response"
+import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 import { UrlRedirectSchema } from "~/server/utils/schemas"
+import { getHeader, getClientIP, sendRedirect } from "h3"
 
 // Simulated redirect database - in production this would be KV storage
-const redirects = new Map<string, any>([
+const redirects = new Map<string, { slug: string; url: string; title: string; description: string; clicks: number; created_at: string; updated_at: string }>([
   [
     "gh",
     {
@@ -59,11 +60,13 @@ export default defineEventHandler(async (event) => {
     const redirect = UrlRedirectSchema.parse(redirectData)
 
     // Increment click count (in production, this would update KV storage)
-    redirect.clicks++
-    redirects.set(slug, {
+    const clickCount = (redirect.clicks || 0) + 1
+    const updatedRedirect = {
       ...redirect,
+      clicks: clickCount,
       updated_at: new Date().toISOString()
-    })
+    }
+    redirects.set(slug, updatedRedirect)
 
     // Log analytics (in production, this would write to Analytics Engine)
     const userAgent = getHeader(event, "user-agent") || "unknown"
@@ -77,11 +80,11 @@ export default defineEventHandler(async (event) => {
 
     // Perform redirect (302 Found)
     return sendRedirect(event, redirect.url, 302)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Redirect error:", error)
 
     // Re-throw API errors
-    if (error.statusCode) {
+    if (isApiError(error)) {
       throw error
     }
 

@@ -1,6 +1,6 @@
-import { createApiResponse, createApiError } from "~/server/utils/response"
-import { TokenUsageSchema, TokenMetricsSchema } from "~/server/utils/schemas"
 import { authorizeEndpoint } from "~/server/utils/auth"
+import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
+import { TokenMetricsSchema, TokenUsageSchema } from "~/server/utils/schemas"
 
 // Simulated token usage database - in production this would be KV storage
 const tokenUsage = new Map<string, any>([
@@ -32,20 +32,20 @@ export default defineEventHandler(async (event) => {
     const authFunc = await authorizeEndpoint("api", "tokens")
     const auth = await authFunc(event)
     if (!auth.success) {
-      createApiError(401, auth.error || "Unauthorized")
+      throw createApiError(401, auth.error || "Unauthorized")
     }
 
     const uuid = getRouterParam(event, "uuid")
     const path = getRouterParam(event, "path")
 
     if (!uuid) {
-      createApiError(400, "Token UUID is required")
+      throw createApiError(400, "Token UUID is required")
     }
 
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
     if (!uuidRegex.test(uuid)) {
-      createApiError(400, "Invalid UUID format")
+      throw createApiError(400, "Invalid UUID format")
     }
 
     // Handle different paths
@@ -53,7 +53,7 @@ export default defineEventHandler(async (event) => {
       // GET /api/tokens/{uuid} - Get token usage
       const usage = tokenUsage.get(uuid)
       if (!usage) {
-        createApiError(404, `Token not found: ${uuid}`)
+        throw createApiError(404, `Token not found: ${uuid}`)
       }
 
       const tokenData = TokenUsageSchema.parse(usage)
@@ -62,7 +62,7 @@ export default defineEventHandler(async (event) => {
       // GET /api/tokens/{uuid}/revoke - Revoke token
       const usage = tokenUsage.get(uuid)
       if (!usage) {
-        createApiError(404, `Token not found: ${uuid}`)
+        throw createApiError(404, `Token not found: ${uuid}`)
       }
 
       // In production, this would add the JTI to a blacklist in KV storage
@@ -81,7 +81,7 @@ export default defineEventHandler(async (event) => {
       // GET /api/tokens/{uuid}/metrics - Get token metrics
       const usage = tokenUsage.get(uuid)
       if (!usage) {
-        createApiError(404, `Token not found: ${uuid}`)
+        throw createApiError(404, `Token not found: ${uuid}`)
       }
 
       // Simulate metrics data for this specific token
@@ -103,16 +103,16 @@ export default defineEventHandler(async (event) => {
 
       return metrics
     } else {
-      createApiError(404, `Unknown token endpoint: ${path}`)
+      throw createApiError(404, `Unknown token endpoint: ${path}`)
     }
   } catch (error: any) {
     console.error("Token management error:", error)
 
     // Re-throw API errors
-    if (error.statusCode) {
+    if (isApiError(error)) {
       throw error
     }
 
-    createApiError(500, "Token management failed")
+    throw createApiError(500, "Token management failed")
   }
 })

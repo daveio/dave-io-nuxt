@@ -1,6 +1,6 @@
-import { createApiResponse, createApiError } from "~/server/utils/response"
+import { extractToken, getUserFromPayload, verifyJWT } from "~/server/utils/auth"
+import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 import { AuthSuccessResponseSchema } from "~/server/utils/schemas"
-import { extractToken, verifyJWT, getUserFromPayload } from "~/server/utils/auth"
 
 export default defineEventHandler(async (event) => {
   try {
@@ -48,11 +48,11 @@ export default defineEventHandler(async (event) => {
     })
 
     return response
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Authentication error:", error)
 
     // Re-throw API errors
-    if (error.statusCode) {
+    if (isApiError(error)) {
       throw error
     }
 

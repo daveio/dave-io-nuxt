@@ -1,6 +1,6 @@
-import { createApiResponse, createApiError } from "~/server/utils/response"
-import { TokenMetricsSchema } from "~/server/utils/schemas"
 import { authorizeEndpoint } from "~/server/utils/auth"
+import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
+import { TokenMetricsSchema } from "~/server/utils/schemas"
 
 // Simulated metrics data - in production this would come from Analytics Engine/KV
 const metricsData = {
@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
         setHeader(event, "content-type", "application/json")
         return metrics
 
-      case "yaml":
+      case "yaml": {
         setHeader(event, "content-type", "application/x-yaml")
         // Simple YAML conversion - in production use a proper YAML library
         const yamlOutput = `
@@ -58,8 +58,9 @@ data:
 timestamp: ${metrics.timestamp}
 `.trim()
         return yamlOutput
+      }
 
-      case "prometheus":
+      case "prometheus": {
         setHeader(event, "content-type", "text/plain")
         // Prometheus format
         const prometheusOutput = `
@@ -84,6 +85,7 @@ api_requests_rate_limited_total ${metrics.data.rate_limited_requests}
 api_requests_24h_total ${metrics.data.last_24h.total}
 `.trim()
         return prometheusOutput
+      }
 
       default:
         createApiError(400, `Unsupported format: ${format}. Supported formats: json, yaml, prometheus`)
@@ -92,7 +94,7 @@ api_requests_24h_total ${metrics.data.last_24h.total}
     console.error("Metrics error:", error)
 
     // Re-throw API errors
-    if (error.statusCode) {
+    if (isApiError(error)) {
       throw error
     }
 

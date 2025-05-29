@@ -1,4 +1,4 @@
-import { createApiResponse, createApiError } from "~/server/utils/response"
+import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 
 interface IPRange {
   prefix: string
@@ -149,7 +149,7 @@ export default defineEventHandler(async (event) => {
   } catch (error: any) {
     console.error("RouterOS put.io error:", error)
 
-    if (error.statusCode) {
+    if (isApiError(error)) {
       throw error
     }
 

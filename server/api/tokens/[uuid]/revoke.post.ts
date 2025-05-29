@@ -1,5 +1,5 @@
-import { createApiResponse, createApiError } from "~/server/utils/response"
 import { authorizeEndpoint } from "~/server/utils/auth"
+import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 
 interface RevokeRequest {
   revoked: boolean
@@ -77,7 +77,7 @@ export default defineEventHandler(async (event) => {
   } catch (error: any) {
     console.error("Token revocation error:", error)
 
-    if (error.statusCode) {
+    if (isApiError(error)) {
       throw error
     }
 

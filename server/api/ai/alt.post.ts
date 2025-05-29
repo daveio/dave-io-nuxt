@@ -1,6 +1,6 @@
-import { createApiResponse, createApiError } from "~/server/utils/response"
-import { AiAltTextRequestSchema, AiAltTextResponseSchema } from "~/server/utils/schemas"
 import { authorizeEndpoint } from "~/server/utils/auth"
+import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
+import { AiAltTextRequestSchema, AiAltTextResponseSchema } from "~/server/utils/schemas"
 
 export default defineEventHandler(async (event) => {
   try {
@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
       // Decode base64 image
       try {
         imageData = Buffer.from(request.image, "base64")
-      } catch (error) {
+      } catch (_error) {
         createApiError(400, "Invalid base64 image data")
       }
     } else {
@@ -83,11 +83,11 @@ export default defineEventHandler(async (event) => {
     })
 
     return response
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("AI alt-text error:", error)
 
     // Re-throw API errors
-    if (error.statusCode) {
+    if (isApiError(error)) {
       throw error
     }
 

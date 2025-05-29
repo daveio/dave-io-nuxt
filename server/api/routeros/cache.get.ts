@@ -1,4 +1,4 @@
-import { createApiResponse, createApiError } from "~/server/utils/response"
+import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 
 interface CacheStats {
   ipv4Count: number
@@ -12,13 +12,13 @@ interface CacheStats {
 }
 
 // Simulated cache statistics (in production this would come from KV)
-let cacheStats = {
+const cacheStats = {
   hits: 0,
   misses: 0,
   refreshes: 0
 }
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (_event) => {
   try {
     // In production, this would read from KV storage:
     // - routeros:putio:ipv4 (for IPv4 ranges)
@@ -45,10 +45,10 @@ export default defineEventHandler(async (event) => {
     }
 
     return createApiResponse(stats, "RouterOS cache status retrieved successfully")
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("RouterOS cache error:", error)
 
-    if (error.statusCode) {
+    if (isApiError(error)) {
       throw error
     }
 

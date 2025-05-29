@@ -1,5 +1,5 @@
-import { createApiResponse, createApiError } from "~/server/utils/response"
 import { authorizeEndpoint } from "~/server/utils/auth"
+import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 
 interface TokenUsage {
   uuid: string
@@ -84,10 +84,10 @@ export default defineEventHandler(async (event) => {
     // - auth:revocation:{uuid} (revocation status)
 
     return createApiResponse(usage, "Token usage retrieved successfully")
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Token usage error:", error)
 
-    if (error.statusCode) {
+    if (isApiError(error)) {
       throw error
     }
 
