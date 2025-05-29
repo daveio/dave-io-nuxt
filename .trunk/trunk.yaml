@@ -1,0 +1,73 @@
+# https://docs.trunk.io/cli | https://docs.trunk.io/reference/trunk-yaml
+actions:
+  definitions:
+    - display_name: lint
+      id: lint
+      run: bun run biome check
+      triggers:
+        - git_hooks:
+            - pre-commit
+    - display_name: typecheck
+      id: typecheck
+      run: bun run typecheck
+      triggers:
+        - git_hooks:
+            - pre-commit
+  enabled:
+#    - lint
+#    - typecheck
+    - trunk-announce
+    - trunk-check-pre-push
+    - trunk-fmt-pre-commit
+    - trunk-upgrade-available
+cli:
+  version: 1.24.0
+lint:
+  # https://docs.trunk.io/check/configuration
+  disabled:
+    - vale
+    - stylelint
+    - codespell
+    - markdown-link-check
+    - prettier
+  enabled:
+    - eslint@9.27.0
+    - hadolint@2.12.1-beta
+    - shellcheck@0.10.0
+    - shfmt@3.6.0
+    - svgo@3.3.2
+    - oxipng@9.1.5
+    - sourcery@1.37.0
+    - semgrep@1.122.0
+    - biome@1.9.4
+    - dustilock@1.2.0
+    - gitleaks@8.26.0
+    - osv-scanner@2.0.2
+    - taplo@0.9.3
+    - trunk-toolbox@0.5.4
+    - actionlint@1.7.7
+    - checkov@3.2.435
+    - git-diff-check
+    - markdownlint@0.45.0
+    - trufflehog@3.88.34
+    - yamllint@1.37.1
+  ignore:
+    - linters:
+        - trunk-toolbox
+      paths:
+        - "**/*.jpg"
+        - "**/*.png"
+        - "**/*.ico"
+plugins:
+  # https://docs.trunk.io/plugins
+  sources:
+    - id: trunk
+      ref: v1.7.0
+      uri: https://github.com/trunk-io/plugins
+runtimes:
+  # https://docs.trunk.io/runtimes
+  enabled:
+    - go@1.21.0
+    - node@22.16.0
+    - python@3.10.8
+version: 0.1
