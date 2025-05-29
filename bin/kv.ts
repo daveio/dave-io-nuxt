@@ -80,10 +80,35 @@ function keyMatchesPatterns(key: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(key))
 }
 
-// Get all KV keys with their values, filtering by patterns if specified
-async function getAllKVData(backupAll = false) {
-  console.log(`📊 Fetching ${backupAll ? "all" : "selected"} keys from KV namespace...`)
+// Fetch all keys from Cloudflare KV namespace
+async function fetchAllKeys(cloudflare: Cloudflare, accountId: string): Promise<string[]> {
+  const response = await cloudflare.kv.namespaces.keys.list(KV_NAMESPACE_ID, { account_id: accountId })
+  return response.result?.map((key: { name: string }) => key.name) || []
+}
 
+// Fetch values for a list of keys
+async function fetchKeyValues(cloudflare: Cloudflare, accountId: string, keys: string[]): Promise<Record<string, unknown>> {
+  const kvData: Record<string, unknown> = {}
+
+  for (const key of keys) {
+    try {
+      console.log("📥 Fetching value for key:", key)
+      const valueResponse = await cloudflare.kv.namespaces.values.get(KV_NAMESPACE_ID, key, { account_id: accountId })
+
+      if (valueResponse) {
+        const valueStr = await valueResponse.text()
+        kvData[key] = tryParseJson(valueStr)
+      }
+    } catch (error) {
+      console.error("❌ Failed to get value for key:", key, error)
+    }
+  }
+
+  return kvData
+}
+
+// Validate Cloudflare configuration and return client details
+function validateCloudflareConfig(): { cloudflare: Cloudflare; accountId: string } {
   const cloudflare = createCloudflareClient()
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
 
@@ -93,36 +118,29 @@ async function getAllKVData(backupAll = false) {
     process.exit(1)
   }
 
-  try {
-    // Use Cloudflare SDK to list keys
-    const response = await cloudflare.kv.namespaces.keys.list(KV_NAMESPACE_ID, { account_id: accountId })
-    const allKeys = response.result?.map((key: { name: string }) => key.name) || []
+  return { cloudflare, accountId }
+}
 
-    // Filter keys if not backing up all
-    const keys = backupAll ? allKeys : allKeys.filter((key: string) => keyMatchesPatterns(key, BACKUP_KEY_PATTERNS))
+// Filter keys based on backup patterns
+function filterKeys(allKeys: string[], backupAll: boolean): string[] {
+  return backupAll ? allKeys : allKeys.filter((key: string) => keyMatchesPatterns(key, BACKUP_KEY_PATTERNS))
+}
+
+// Get all KV keys with their values, filtering by patterns if specified
+async function getAllKVData(backupAll = false) {
+  console.log(`📊 Fetching ${backupAll ? "all" : "selected"} keys from KV namespace...`)
+
+  const { cloudflare, accountId } = validateCloudflareConfig()
+
+  try {
+    const allKeys = await fetchAllKeys(cloudflare, accountId)
+    const keys = filterKeys(allKeys, backupAll)
 
     console.log(
-      `🔍 Found ${keys.length} keys ${!backupAll ? `matching patterns (out of ${allKeys.length} total)` : ""}`
+      `🔍 Found ${keys.length} keys ${backupAll ? "" : `matching patterns (out of ${allKeys.length} total)`}`
     )
 
-    const kvData: Record<string, unknown> = {}
-
-    // Get values for each key using Cloudflare SDK
-    for (const key of keys) {
-      try {
-        console.log("📥 Fetching value for key:", key)
-        const valueResponse = await cloudflare.kv.namespaces.values.get(KV_NAMESPACE_ID, key, { account_id: accountId })
-
-        if (valueResponse) {
-          const valueStr = await valueResponse.text()
-          kvData[key] = tryParseJson(valueStr)
-        }
-      } catch (error) {
-        console.error("❌ Failed to get value for key:", key, error)
-      }
-    }
-
-    return kvData
+    return await fetchKeyValues(cloudflare, accountId, keys)
   } catch (error) {
     console.error("❌ Failed to fetch keys from Cloudflare KV:", error)
     throw error
