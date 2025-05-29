@@ -114,10 +114,10 @@ export async function trackTokenUsage(
     }
 
     const countKey = `token_usage:${jti}`
-    
+
     // Get current count from KV
     const countStr = await env.DATA.get(countKey)
-    const currentCount = countStr ? parseInt(countStr, 10) : 0
+    const currentCount = countStr ? Number.parseInt(countStr, 10) : 0
 
     if (currentCount >= maxRequests) {
       return { allowed: false, currentCount }

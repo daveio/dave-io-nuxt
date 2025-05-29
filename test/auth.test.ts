@@ -13,15 +13,14 @@ function mockH3Event(headers: Record<string, string> = {}, query: Record<string,
     query
   }
 }
-
 // Mock getHeader function
-global.getHeader = (event: unknown, name: string) => {
-  return event.node?.req?.headers?.[name.toLowerCase()]
+;(global as any).getHeader = (event: any, name: string) => {
+  return event?.node?.req?.headers?.[name.toLowerCase()]
 }
 
 // Mock getQuery function
-global.getQuery = (event: unknown) => {
-  return event.query || {}
+;(global as any).getQuery = (event: any) => {
+  return event?.query || {}
 }
 
 describe("Authentication System", () => {
@@ -37,7 +36,7 @@ describe("Authentication System", () => {
         authorization: "Bearer test-token-here"
       })
 
-      const token = extractToken(event)
+      const token = extractToken(event as any)
       expect(token).toBe("test-token-here")
     })
 
@@ -49,7 +48,7 @@ describe("Authentication System", () => {
         }
       )
 
-      const token = extractToken(event)
+      const token = extractToken(event as any)
       expect(token).toBe("query-token-here")
     })
 
@@ -63,14 +62,14 @@ describe("Authentication System", () => {
         }
       )
 
-      const token = extractToken(event)
+      const token = extractToken(event as any)
       expect(token).toBe("header-token")
     })
 
     it("should return null when no token is found", () => {
       const event = mockH3Event()
 
-      const token = extractToken(event)
+      const token = extractToken(event as any)
       expect(token).toBeNull()
     })
 
@@ -79,7 +78,7 @@ describe("Authentication System", () => {
         authorization: "Basic some-basic-auth"
       })
 
-      const token = extractToken(event)
+      const token = extractToken(event as any)
       expect(token).toBeNull()
     })
   })

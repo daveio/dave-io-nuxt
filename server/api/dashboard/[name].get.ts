@@ -15,31 +15,83 @@ interface DashboardResponse {
   timestamp: number
 }
 
-// Simulated demo data (in production this would come from KV)
-const demoItems: DashboardItem[] = [
-  {
-    title: "API Endpoints",
-    subtitle: "12 active endpoints",
-    linkURL: "/api/docs"
-  },
-  {
-    title: "JWT Tokens",
-    subtitle: "3 active tokens",
-    linkURL: "/api/auth"
-  },
-  {
-    title: "System Health",
-    subtitle: "All systems operational",
-    linkURL: "/api/ping"
-  },
-  {
-    title: "Metrics",
-    subtitle: "View API metrics",
-    linkURL: "/api/metrics"
+// Get dashboard configuration from KV storage
+async function getDashboardItems(name: string, kv?: KVNamespace): Promise<DashboardItem[]> {
+  if (!kv) {
+    return getFallbackDashboardItems(name)
   }
-]
 
-async function fetchHackerNews(): Promise<DashboardItem[]> {
+  try {
+    const dashboardKey = `dashboard:${name}:config`
+    const cachedConfig = await kv.get(dashboardKey)
+
+    if (cachedConfig) {
+      return JSON.parse(cachedConfig)
+    } else {
+      // Store default config in KV for future use
+      const fallbackItems = getFallbackDashboardItems(name)
+      await kv.put(dashboardKey, JSON.stringify(fallbackItems), {
+        expirationTtl: 86400 // 24 hours
+      })
+      return fallbackItems
+    }
+  } catch (error) {
+    console.error("Failed to get dashboard from KV:", error)
+    return getFallbackDashboardItems(name)
+  }
+}
+
+// Fallback dashboard items when KV is unavailable
+function getFallbackDashboardItems(name: string): DashboardItem[] {
+  switch (name) {
+    case "demo":
+      return [
+        {
+          title: "API Endpoints",
+          subtitle: "12 active endpoints",
+          linkURL: "/api/docs"
+        },
+        {
+          title: "JWT Tokens",
+          subtitle: "3 active tokens",
+          linkURL: "/api/auth"
+        },
+        {
+          title: "System Health",
+          subtitle: "All systems operational",
+          linkURL: "/api/ping"
+        },
+        {
+          title: "Metrics",
+          subtitle: "View API metrics",
+          linkURL: "/api/metrics"
+        }
+      ]
+    default:
+      return []
+  }
+}
+
+async function fetchHackerNews(kv?: KVNamespace): Promise<DashboardItem[]> {
+  const cacheKey = "dashboard:hackernews:cache"
+  const cacheTtl = 1800 // 30 minutes
+
+  // Try to get cached data first
+  if (kv) {
+    try {
+      const cached = await kv.get(cacheKey)
+      if (cached) {
+        const parsedCache = JSON.parse(cached)
+        if (Date.now() - parsedCache.timestamp < cacheTtl * 1000) {
+          return parsedCache.items
+        }
+      }
+    } catch (error) {
+      console.error("Failed to get cached Hacker News data:", error)
+    }
+  }
+
+  // Fetch fresh data
   try {
     const response = await fetch("https://news.ycombinator.com/rss")
     if (!response.ok) {
@@ -68,6 +120,22 @@ async function fetchHackerNews(): Promise<DashboardItem[]> {
       }
     }
 
+    // Cache the results
+    if (kv && items.length > 0) {
+      try {
+        await kv.put(
+          cacheKey,
+          JSON.stringify({
+            items,
+            timestamp: Date.now()
+          }),
+          { expirationTtl: cacheTtl }
+        )
+      } catch (error) {
+        console.error("Failed to cache Hacker News data:", error)
+      }
+    }
+
     return items
   } catch (error) {
     console.error("Error fetching Hacker News:", error)
@@ -88,21 +156,36 @@ export default defineEventHandler(async (event) => {
       throw createApiError(400, "Dashboard name is required")
     }
 
+    // Get environment bindings
+    const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
+
     let items: DashboardItem[]
     const error: string | null = null
 
     switch (name) {
       case "demo":
-        items = demoItems
+        items = await getDashboardItems(name, env?.DATA)
         break
 
       case "hacker-news":
       case "hackernews":
-        items = await fetchHackerNews()
+        items = await fetchHackerNews(env?.DATA)
         break
 
       default:
-        throw createApiError(404, `Dashboard '${name}' not found`)
+        // Check if custom dashboard exists in KV
+        if (env?.DATA) {
+          try {
+            items = await getDashboardItems(name, env.DATA)
+            if (items.length === 0) {
+              throw createApiError(404, `Dashboard '${name}' not found`)
+            }
+          } catch {
+            throw createApiError(404, `Dashboard '${name}' not found`)
+          }
+        } else {
+          throw createApiError(404, `Dashboard '${name}' not found`)
+        }
     }
 
     const response: DashboardResponse = {

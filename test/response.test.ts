@@ -77,10 +77,7 @@ describe("Response Utils", () => {
 
     it("should create response with metadata", () => {
       const meta = {
-        requestId: "req-123",
-        cfRay: "ray-456",
-        datacenter: "SJC",
-        country: "US"
+        request_id: "req-123"
       }
       const response = createApiResponse(undefined, undefined, meta)
 
@@ -91,7 +88,7 @@ describe("Response Utils", () => {
     it("should create complete response with all fields", () => {
       const data = { result: "success" }
       const message = "All good"
-      const meta = { requestId: "req-789" }
+      const meta = { request_id: "req-789" }
 
       const response = createApiResponse(data, message, meta)
 

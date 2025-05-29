@@ -60,23 +60,24 @@ export default defineEventHandler(async (event) => {
     // Use Cloudflare AI for image analysis
     let altText: string
     let confidence: number
-    
+
     if (env?.AI) {
       try {
-        const result = await env.AI.run("@cf/llava-hf/llava-1.5-7b-hf", {
+        const result = (await env.AI.run("@cf/llava-hf/llava-1.5-7b-hf", {
           image: Array.from(new Uint8Array(imageData)),
-          prompt: 'Describe this image in detail for use as alt text. Focus on the main subjects, actions, and important visual elements that would help someone understand the image content. Be concise but descriptive.',
+          prompt:
+            "Describe this image in detail for use as alt text. Focus on the main subjects, actions, and important visual elements that would help someone understand the image content. Be concise but descriptive.",
           max_tokens: 150
-        }) as { description?: string; text?: string }
+        })) as { description?: string; text?: string }
 
         altText = result.description || result.text || "Unable to generate description"
-        
+
         // Clean up the AI response
         altText = altText.trim()
         if (altText.length > 300) {
           altText = altText.substring(0, 297) + "..."
         }
-        
+
         // Set confidence based on response quality
         confidence = altText.length > 20 ? 0.92 : 0.75
       } catch (error) {

@@ -226,7 +226,7 @@ describe("API Schemas", () => {
       expect(result.success).toBe(true)
       if (result.success) {
         expect(result.data.data.valid).toBe(true)
-        expect(result.data.data.user.id).toBe("api:metrics")
+        expect(result.data.data.user?.id).toBe("api:metrics")
       }
     })
 

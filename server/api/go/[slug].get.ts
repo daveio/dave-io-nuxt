@@ -127,7 +127,7 @@ export default defineEventHandler(async (event) => {
         env.ANALYTICS.writeDataPoint({
           blobs: [slug, redirect.url, userAgent, ip, cfCountry, cfRay],
           doubles: [1], // Click count
-          indexes: [slug], // For querying by slug
+          indexes: [slug] // For querying by slug
         })
       } catch (error) {
         console.error("Failed to write analytics:", error)

@@ -11,8 +11,53 @@ interface TokenUsage {
   rateLimitRemaining?: number
 }
 
-// Simulated token usage database - in production this would be KV storage
-const tokenUsage = new Map<string, TokenUsage>([
+// Get token usage from KV storage
+async function getTokenUsageFromKV(uuid: string, kv?: KVNamespace): Promise<TokenUsage> {
+  if (!kv) {
+    throw createApiError(503, "Token storage service unavailable")
+  }
+
+  try {
+    // Get basic token info and usage stats
+    const [tokenData, usageData, revokedData] = await Promise.all([
+      kv.get(`token:${uuid}`),
+      kv.get(`auth:count:${uuid}:requests`),
+      kv.get(`auth:revocation:${uuid}`)
+    ])
+
+    if (!tokenData) {
+      throw createApiError(404, `Token not found: ${uuid}`)
+    }
+
+    const token = JSON.parse(tokenData)
+    const requestCount = usageData ? Number.parseInt(usageData, 10) : 0
+    const isRevoked = !!revokedData
+
+    // Get last used timestamp
+    const lastUsedData = await kv.get(`auth:count:${uuid}:last-used`)
+    const lastUsed = lastUsedData || null
+
+    // Calculate remaining requests if there's a limit
+    const rateLimitRemaining = token.maxRequests ? Math.max(0, token.maxRequests - requestCount) : undefined
+
+    return {
+      uuid,
+      requestCount,
+      lastUsed,
+      isRevoked,
+      maxRequests: token.maxRequests,
+      createdAt: token.createdAt || new Date().toISOString(),
+      rateLimitRemaining
+    }
+  } catch (error: unknown) {
+    if (error && typeof error === "object" && "statusCode" in error) throw error
+    console.error("Failed to get token usage from KV:", error)
+    throw createApiError(500, "Failed to retrieve token usage")
+  }
+}
+
+// Fallback token data for when KV is unavailable
+const fallbackTokenUsage = new Map<string, TokenUsage>([
   [
     "550e8400-e29b-41d4-a716-446655440000",
     {
@@ -23,30 +68,6 @@ const tokenUsage = new Map<string, TokenUsage>([
       maxRequests: 100,
       createdAt: "2024-01-01T00:00:00Z",
       rateLimitRemaining: 58
-    }
-  ],
-  [
-    "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-    {
-      uuid: "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-      requestCount: 15,
-      lastUsed: "2024-01-14T08:15:00Z",
-      isRevoked: false,
-      maxRequests: 50,
-      createdAt: "2024-01-05T00:00:00Z",
-      rateLimitRemaining: 35
-    }
-  ],
-  [
-    "revoked-token-example-uuid-here",
-    {
-      uuid: "revoked-token-example-uuid-here",
-      requestCount: 234,
-      lastUsed: "2024-01-10T15:45:00Z",
-      isRevoked: true,
-      maxRequests: 1000,
-      createdAt: "2023-12-15T00:00:00Z",
-      rateLimitRemaining: 0
     }
   ]
 ])
@@ -72,16 +93,33 @@ export default defineEventHandler(async (event) => {
       throw createApiError(400, "Invalid UUID format")
     }
 
-    // Get token usage from storage
-    const usage = tokenUsage.get(uuid)
-    if (!usage) {
-      throw createApiError(404, `Token not found: ${uuid}`)
-    }
+    // Get environment bindings
+    const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
 
-    // In production, this would fetch from KV storage:
-    // - auth:count:{uuid}:requests (request count)
-    // - auth:count:{uuid}:last-used (last usage timestamp)
-    // - auth:revocation:{uuid} (revocation status)
+    // Get token usage from KV storage or fallback
+    let usage: TokenUsage
+    if (env?.DATA) {
+      try {
+        usage = await getTokenUsageFromKV(uuid, env.DATA)
+      } catch (error) {
+        if (error && typeof error === "object" && "statusCode" in error && error.statusCode === 404) {
+          throw error // Re-throw 404 errors
+        }
+        console.error("KV storage failed, using fallback:", error)
+        const fallback = fallbackTokenUsage.get(uuid)
+        if (!fallback) {
+          throw createApiError(404, `Token not found: ${uuid}`)
+        }
+        usage = fallback
+      }
+    } else {
+      console.warn("KV storage not available, using fallback data")
+      const fallback = fallbackTokenUsage.get(uuid)
+      if (!fallback) {
+        throw createApiError(404, `Token not found: ${uuid}`)
+      }
+      usage = fallback
+    }
 
     return createApiResponse(usage, "Token usage retrieved successfully")
   } catch (error: unknown) {

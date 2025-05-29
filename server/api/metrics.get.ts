@@ -29,7 +29,7 @@ async function getMetricsFromAnalytics(
     // For now, we'll generate realistic metrics based on current timestamp
     const now = Date.now()
     const baseRequests = 1000 + Math.floor((now / 1000 / 3600) % 100) * 10 // Varies by hour
-    
+
     const metricsData = {
       total_requests: baseRequests + Math.floor(Math.random() * 200),
       successful_requests: Math.floor(baseRequests * 0.95 + Math.random() * 50),
@@ -44,10 +44,14 @@ async function getMetricsFromAnalytics(
 
     // Cache the results if KV is available
     if (kv) {
-      await kv.put("api_metrics_cache", JSON.stringify({
-        data: metricsData,
-        cached_at: now
-      }), { expirationTtl: 300 }) // 5 minutes
+      await kv.put(
+        "api_metrics_cache",
+        JSON.stringify({
+          data: metricsData,
+          cached_at: now
+        }),
+        { expirationTtl: 300 }
+      ) // 5 minutes
     }
 
     return metricsData

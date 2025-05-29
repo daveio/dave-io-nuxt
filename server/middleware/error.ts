@@ -17,8 +17,11 @@ export default defineEventHandler(async (event) => {
 
     // Apply rate limiting only to API routes (not redirects)
     if (url.startsWith("/api/")) {
+      const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
       const rateLimitKey = `${ip}:${method}:${url}`
-      if (!checkRateLimit(rateLimitKey, 100, 60000)) {
+
+      const rateLimit = await checkRateLimit(rateLimitKey, env?.DATA, 100, 60000)
+      if (!rateLimit.allowed) {
         throw createError({
           statusCode: 429,
           statusMessage: "Too Many Requests",
@@ -31,7 +34,7 @@ export default defineEventHandler(async (event) => {
         })
       }
 
-      const rateLimitInfo = getRateLimitInfo(rateLimitKey)
+      const rateLimitInfo = await getRateLimitInfo(rateLimitKey, env?.DATA, 100, 60000)
 
       // Add API-specific headers
       setHeaders(event, {

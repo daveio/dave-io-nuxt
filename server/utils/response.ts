@@ -170,7 +170,7 @@ export async function checkRateLimit(
     if (kv) {
       // Use KV storage for persistent rate limiting
       const countStr = await kv.get(rateLimitKey)
-      const currentCount = countStr ? parseInt(countStr, 10) : 0
+      const currentCount = countStr ? Number.parseInt(countStr, 10) : 0
 
       if (currentCount >= limit) {
         return {
@@ -182,7 +182,7 @@ export async function checkRateLimit(
 
       // Increment count with window expiration
       const newCount = currentCount + 1
-      await kv.put(rateLimitKey, newCount.toString(), { 
+      await kv.put(rateLimitKey, newCount.toString(), {
         expirationTtl: Math.ceil(windowMs / 1000) + 10 // Add 10s buffer
       })
 
@@ -245,19 +245,19 @@ export async function getRateLimitInfo(
   try {
     if (kv) {
       const countStr = await kv.get(rateLimitKey)
-      const currentCount = countStr ? parseInt(countStr, 10) : 0
-      return { 
-        remaining: Math.max(0, limit - currentCount), 
-        resetTime: windowEnd 
+      const currentCount = countStr ? Number.parseInt(countStr, 10) : 0
+      return {
+        remaining: Math.max(0, limit - currentCount),
+        resetTime: windowEnd
       }
     } else {
       const record = fallbackRateLimitMap.get(identifier)
       if (!record || now > record.resetTime) {
         return { remaining: limit, resetTime: windowEnd }
       }
-      return { 
-        remaining: Math.max(0, limit - record.count), 
-        resetTime: record.resetTime 
+      return {
+        remaining: Math.max(0, limit - record.count),
+        resetTime: record.resetTime
       }
     }
   } catch (error) {

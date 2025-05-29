@@ -58,11 +58,15 @@ export default defineEventHandler(async (event) => {
     try {
       if (body.revoked) {
         // Add token to revocation blacklist with 30-day expiration
-        await env.DATA.put(revokedKey, JSON.stringify({
-          revoked_at: now,
-          revoked_by: auth.payload?.sub,
-          reason: "Manual revocation via API"
-        }), { expirationTtl: 86400 * 30 }) // 30 days
+        await env.DATA.put(
+          revokedKey,
+          JSON.stringify({
+            revoked_at: now,
+            revoked_by: auth.payload?.sub,
+            reason: "Manual revocation via API"
+          }),
+          { expirationTtl: 86400 * 30 }
+        ) // 30 days
       } else {
         // Remove token from revocation blacklist
         await env.DATA.delete(revokedKey)

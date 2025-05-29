@@ -13,12 +13,68 @@ interface RouteROSData {
   cacheHit: boolean
 }
 
-// Simulated cache (in production this would be KV storage)
-let cachedData: RouteROSData | null = null
-let lastFetch = 0
 const CACHE_TTL = 3600000 // 1 hour
 
-async function fetchPutIOData(): Promise<RouteROSData> {
+// Get cached data from KV storage
+async function getCachedData(kv?: KVNamespace): Promise<RouteROSData | null> {
+  if (!kv) return null
+
+  try {
+    const [ipv4Data, ipv6Data, metadata] = await Promise.all([
+      kv.get("routeros:putio:ipv4"),
+      kv.get("routeros:putio:ipv6"),
+      kv.get("routeros:putio:metadata:last-updated")
+    ])
+
+    if (ipv4Data && ipv6Data && metadata) {
+      const lastUpdated = new Date(metadata)
+      if (Date.now() - lastUpdated.getTime() < CACHE_TTL) {
+        const ipv4Ranges = JSON.parse(ipv4Data)
+        const ipv6Ranges = JSON.parse(ipv6Data)
+        const script = generateRouterOSScript(ipv4Ranges, ipv6Ranges)
+
+        return {
+          ipv4Ranges,
+          ipv6Ranges,
+          script,
+          lastUpdated: metadata,
+          cacheHit: true
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Failed to get cached data from KV:", error)
+  }
+
+  return null
+}
+
+// Store data in KV storage
+async function storeDataInKV(data: RouteROSData, kv?: KVNamespace): Promise<void> {
+  if (!kv) return
+
+  try {
+    await Promise.all([
+      kv.put("routeros:putio:ipv4", JSON.stringify(data.ipv4Ranges)),
+      kv.put("routeros:putio:ipv6", JSON.stringify(data.ipv6Ranges)),
+      kv.put("routeros:putio:script", data.script),
+      kv.put("routeros:putio:metadata:last-updated", data.lastUpdated)
+    ])
+
+    // Update cache hit metrics
+    const hits = await kv.get("metrics:routeros:cache-hits")
+    const hitCount = hits ? Number.parseInt(hits, 10) + 1 : 1
+    await kv.put("metrics:routeros:cache-hits", hitCount.toString())
+  } catch (error) {
+    console.error("Failed to store data in KV:", error)
+  }
+}
+
+// In-memory fallback cache
+let fallbackCachedData: RouteROSData | null = null
+let fallbackLastFetch = 0
+
+async function fetchPutIOData(kv?: KVNamespace): Promise<RouteROSData> {
   try {
     // Fetch from RIPE STAT API
     const ripeResponse = await fetch("https://stat.ripe.net/data/announced-prefixes/data.json?resource=AS9009")
@@ -26,7 +82,7 @@ async function fetchPutIOData(): Promise<RouteROSData> {
     let ipv6Ranges: string[] = []
 
     if (ripeResponse.ok) {
-      const ripeData = await ripeResponse.json()
+      const ripeData = (await ripeResponse.json()) as any
       const prefixes = ripeData.data?.prefixes || []
 
       for (const prefix of prefixes) {
@@ -44,7 +100,7 @@ async function fetchPutIOData(): Promise<RouteROSData> {
     if (ipv4Ranges.length === 0 && ipv6Ranges.length === 0) {
       const bgpResponse = await fetch("https://api.bgpview.io/asn/9009/prefixes")
       if (bgpResponse.ok) {
-        const bgpData = await bgpResponse.json()
+        const bgpData = (await bgpResponse.json()) as any
         const prefixes = bgpData.data?.ipv4_prefixes || []
         const ipv6Prefixes = bgpData.data?.ipv6_prefixes || []
 
@@ -64,9 +120,12 @@ async function fetchPutIOData(): Promise<RouteROSData> {
       cacheHit: false
     }
 
-    // Cache the data
-    cachedData = data
-    lastFetch = Date.now()
+    // Store in KV cache
+    await storeDataInKV(data, kv)
+
+    // Also cache in memory as fallback
+    fallbackCachedData = data
+    fallbackLastFetch = Date.now()
 
     return data
   } catch (error) {
@@ -115,14 +174,34 @@ export default defineEventHandler(async (event) => {
     const query = getQuery(event)
     const format = (query.format as string) || "script"
 
-    // Check cache
-    const now = Date.now()
+    // Get environment bindings
+    const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
+
+    // Check KV cache first, then memory fallback
     let data: RouteROSData
 
-    if (cachedData && now - lastFetch < CACHE_TTL) {
-      data = { ...cachedData, cacheHit: true }
+    const cachedData = await getCachedData(env?.DATA)
+    if (cachedData) {
+      data = cachedData
     } else {
-      data = await fetchPutIOData()
+      // Check memory fallback
+      const now = Date.now()
+      if (fallbackCachedData && now - fallbackLastFetch < CACHE_TTL) {
+        data = { ...fallbackCachedData, cacheHit: true }
+      } else {
+        data = await fetchPutIOData(env?.DATA)
+
+        // Update cache miss metrics
+        if (env?.DATA) {
+          try {
+            const misses = await env.DATA.get("metrics:routeros:cache-misses")
+            const missCount = misses ? Number.parseInt(misses, 10) + 1 : 1
+            await env.DATA.put("metrics:routeros:cache-misses", missCount.toString())
+          } catch (error) {
+            console.error("Failed to update cache miss metrics:", error)
+          }
+        }
+      }
     }
 
     // Return based on format

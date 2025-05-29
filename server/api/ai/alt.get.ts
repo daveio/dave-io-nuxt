@@ -2,7 +2,7 @@ import { authorizeEndpoint } from "~/server/utils/auth"
 import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 
 async function checkAIRateLimit(
-  userId: string, 
+  userId: string,
   kv?: KVNamespace
 ): Promise<{ allowed: boolean; remaining: number; resetTime: Date }> {
   const now = Date.now()
@@ -16,7 +16,7 @@ async function checkAIRateLimit(
   try {
     if (kv) {
       const countStr = await kv.get(key)
-      const currentCount = countStr ? parseInt(countStr, 10) : 0
+      const currentCount = countStr ? Number.parseInt(countStr, 10) : 0
 
       if (currentCount >= maxRequests) {
         return {
@@ -27,7 +27,7 @@ async function checkAIRateLimit(
       }
 
       const newCount = currentCount + 1
-      await kv.put(key, newCount.toString(), { 
+      await kv.put(key, newCount.toString(), {
         expirationTtl: Math.ceil(hourMs / 1000) + 60 // Add 1 minute buffer
       })
 
@@ -139,18 +139,19 @@ export default defineEventHandler(async (event) => {
 
     // Use Cloudflare AI for image analysis
     let altText: string
-    let aiModel = "@cf/llava-hf/llava-1.5-7b-hf"
-    
+    let aiModel = "@cf/llava-hf/llava-1.5-7b-hf" as const
+
     if (env?.AI) {
       try {
-        const result = await env.AI.run(aiModel, {
+        const result = (await env.AI.run(aiModel, {
           image: Array.from(new Uint8Array(imageBuffer)),
-          prompt: 'Describe this image in detail for use as alt text. Focus on the main subjects, actions, and important visual elements that would help someone understand the image content. Be concise but descriptive.',
+          prompt:
+            "Describe this image in detail for use as alt text. Focus on the main subjects, actions, and important visual elements that would help someone understand the image content. Be concise but descriptive.",
           max_tokens: 150
-        }) as { description?: string; text?: string }
+        })) as { description?: string; text?: string }
 
         altText = result.description || result.text || "Unable to generate description"
-        
+
         // Clean up the AI response
         altText = altText.trim()
         if (altText.length > 300) {
@@ -160,12 +161,12 @@ export default defineEventHandler(async (event) => {
         console.error("AI processing failed:", error)
         // Fallback to a generic message if AI fails
         altText = "Image content could not be analyzed automatically"
-        aiModel = "fallback"
+        aiModel = "fallback" as any
       }
     } else {
       console.warn("AI binding not available, using fallback")
       altText = "AI service temporarily unavailable - image analysis could not be performed"
-      aiModel = "unavailable"
+      aiModel = "unavailable" as any
     }
 
     const processingTime = Date.now() - processingStart
