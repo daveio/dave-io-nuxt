@@ -26,5 +26,7 @@ logs
 # wrangler files
 .wrangler
 .dev.vars*
+!.dev.vars.example
 worker-configuration.d.ts
 env.d.ts
+.codacy/

@@ -1,5 +1,5 @@
 {
-  "$schema": ".trunk/configs/biome_schema.json",
+  "$schema": "node_modules/@biomejs/biome/configuration_schema.json",
   "extends": [".trunk/configs/biome.json"],
   "files": {
     "ignore": [
@@ -12,7 +12,9 @@
       ".wrangler",
       "components.d.ts",
       "auto-imports.d.ts",
-      ".nuxt"
+      ".nuxt",
+      ".codacy",
+      ".output"
     ]
   }
 }

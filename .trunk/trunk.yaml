@@ -58,6 +58,7 @@ lint:
         - "**/*.jpg"
         - "**/*.png"
         - "**/*.ico"
+        - "**/*.mdc"
 plugins:
   # https://docs.trunk.io/plugins
   sources:

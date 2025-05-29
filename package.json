@@ -3,18 +3,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "bun run nuxt build",
-    "dev": "bun run nuxt dev",
-    "generate": "bun run nuxt generate",
+    "build": "bun run types && bun run nuxt build",
+    "dev": "bun run types && bun run nuxt dev",
+    "generate": "bun run types && bun run nuxt generate",
     "preview": "bun run preview:cloudflare",
-    "preview:cloudflare": "bun run build && wrangler dev",
-    "preview:nuxt": "bun run nuxt preview",
-    "postinstall": "bun run nuxt prepare",
-    "deploy": "bun run build && bun run wrangler deploy",
+    "preview:cloudflare": "bun run types && bun run build && wrangler dev",
+    "preview:nuxt": "bun run types && bun run nuxt preview",
+    "postinstall": "bun run types && bun run nuxt prepare",
+    "deploy": "bun run types && bun run build && bun run wrangler deploy",
     "cf-typegen": "bun run wrangler types",
     "types": "bun run cf-typegen",
     "packages": "bun run rimraf node_modules bun.lock && bun install",
-    "clean": "bun run rimraf .nuxt *.d.ts"
+    "clean": "bun run rimraf .nuxt .output .wrangler *.d.ts && bun run types"
   },
   "dependencies": {
     "@nuxt/content": "3.5.1",

@@ -1,5 +1,5 @@
 ---
-description:
+description: Building Cloudflare Workers and Agents
 globs:
 alwaysApply: true
 ---
