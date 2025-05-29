@@ -3,7 +3,7 @@ import { createApiError, createApiResponse, isApiError } from "~/server/utils/re
 import { TokenMetricsSchema } from "~/server/utils/schemas"
 
 async function getMetricsFromAnalytics(
-  analytics?: AnalyticsEngineDataset,
+  _analytics?: AnalyticsEngineDataset,
   kv?: KVNamespace
 ): Promise<{
   total_requests: number

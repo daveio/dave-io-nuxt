@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
         ]
 
         // Delete all cache keys in parallel
-        await Promise.all(keysToDelete.map((key) => env.DATA!.delete(key)))
+        await Promise.all(keysToDelete.map((key) => env.DATA?.delete(key)))
 
         // Reset metrics counters
         await Promise.all([

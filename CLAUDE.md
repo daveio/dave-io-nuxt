@@ -16,7 +16,7 @@ This is a Nuxt 3 application serving as Dave Williams' personal website with a c
 - **Code Quality**: Biome for linting/formatting, TypeScript strict mode
 
 ### Project Structure
-```
+```plaintext
 ├── server/api/              # API endpoints (Nuxt server routes)
 │   ├── _worker-info.get.ts  # Worker runtime information
 │   ├── auth.get.ts          # JWT token validation and introspection
@@ -120,7 +120,7 @@ interface JWTTokenPayload {
 #### `GET /api/metrics`
 - **Purpose**: Comprehensive API metrics and statistics
 - **Authentication**: Required (`api:metrics` or `api` or `admin`)
-- **Query Parameters**: 
+- **Query Parameters**:
   - `format`: `json` (default), `yaml`, `prometheus`
 - **Response**: Request/response statistics, system metrics in specified format
 
@@ -134,7 +134,7 @@ interface JWTTokenPayload {
 #### `GET /api/ai/alt`
 - **Purpose**: Generate alt-text for images via URL parameter
 - **Authentication**: Required (`ai:alt`, `ai`, or `admin`)
-- **Query Parameters**: 
+- **Query Parameters**:
   - `url`: Image URL to process
 - **Response**: Generated alt-text with confidence and metadata
 
@@ -260,7 +260,7 @@ NUXT_PUBLIC_API_BASE_URL=/api  # Public API base URL
 - **Location**: `test/` directory
 - **Framework**: Vitest with happy-dom environment for browser API simulation
 - **Coverage**: Authentication logic, schema validation, response utilities
-- **Commands**: 
+- **Commands**:
   - `bun run test` - Standard test run
   - `bun run test:ui` - Interactive test UI
   - `bun run test:coverage` - Coverage report
@@ -268,7 +268,7 @@ NUXT_PUBLIC_API_BASE_URL=/api  # Public API base URL
 ### HTTP API Testing (Custom Suite)
 - **Location**: `bin/api-test.ts`
 - **Purpose**: End-to-end HTTP testing of all API endpoints
-- **Features**: 
+- **Features**:
   - Automatic JWT token generation for testing
   - Comprehensive endpoint testing with authentication
   - Support for different endpoint categories

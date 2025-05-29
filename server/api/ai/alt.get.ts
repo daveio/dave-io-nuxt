@@ -36,14 +36,13 @@ async function checkAIRateLimit(
         remaining: maxRequests - newCount,
         resetTime: new Date(windowEnd)
       }
-    } else {
-      // Fallback to basic rate limiting without persistence
-      console.warn("KV not available for AI rate limiting")
-      return {
-        allowed: true,
-        remaining: maxRequests - 1,
-        resetTime: new Date(windowEnd)
-      }
+    }
+    // Fallback to basic rate limiting without persistence
+    console.warn("KV not available for AI rate limiting")
+    return {
+      allowed: true,
+      remaining: maxRequests - 1,
+      resetTime: new Date(windowEnd)
     }
   } catch (error) {
     console.error("AI rate limiting error:", error)
@@ -139,11 +138,11 @@ export default defineEventHandler(async (event) => {
 
     // Use Cloudflare AI for image analysis
     let altText: string
-    let aiModel = "@cf/llava-hf/llava-1.5-7b-hf" as const
+    let aiModel = "@cf/llava-hf/llava-1.5-7b-hf"
 
     if (env?.AI) {
       try {
-        const result = (await env.AI.run(aiModel, {
+        const result = (await env.AI.run(aiModel as "@cf/llava-hf/llava-1.5-7b-hf", {
           image: Array.from(new Uint8Array(imageBuffer)),
           prompt:
             "Describe this image in detail for use as alt text. Focus on the main subjects, actions, and important visual elements that would help someone understand the image content. Be concise but descriptive.",
@@ -155,18 +154,18 @@ export default defineEventHandler(async (event) => {
         // Clean up the AI response
         altText = altText.trim()
         if (altText.length > 300) {
-          altText = altText.substring(0, 297) + "..."
+          altText = `${altText.substring(0, 297)}...`
         }
       } catch (error) {
         console.error("AI processing failed:", error)
         // Fallback to a generic message if AI fails
         altText = "Image content could not be analyzed automatically"
-        aiModel = "fallback" as any
+        aiModel = "fallback"
       }
     } else {
       console.warn("AI binding not available, using fallback")
       altText = "AI service temporarily unavailable - image analysis could not be performed"
-      aiModel = "unavailable" as any
+      aiModel = "unavailable"
     }
 
     const processingTime = Date.now() - processingStart

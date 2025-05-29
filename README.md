@@ -319,7 +319,7 @@ bun run preview:cloudflare
 
 ## Project Structure (For the Curious)
 
-```
+```plaintext
 ├── server/
 │   ├── api/              # API endpoints
 │   │   ├── auth.get.ts   # JWT validation

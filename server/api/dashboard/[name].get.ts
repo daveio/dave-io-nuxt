@@ -27,14 +27,13 @@ async function getDashboardItems(name: string, kv?: KVNamespace): Promise<Dashbo
 
     if (cachedConfig) {
       return JSON.parse(cachedConfig)
-    } else {
-      // Store default config in KV for future use
-      const fallbackItems = getFallbackDashboardItems(name)
-      await kv.put(dashboardKey, JSON.stringify(fallbackItems), {
-        expirationTtl: 86400 // 24 hours
-      })
-      return fallbackItems
     }
+    // Store default config in KV for future use
+    const fallbackItems = getFallbackDashboardItems(name)
+    await kv.put(dashboardKey, JSON.stringify(fallbackItems), {
+      expirationTtl: 86400 // 24 hours
+    })
+    return fallbackItems
   } catch (error) {
     console.error("Failed to get dashboard from KV:", error)
     return getFallbackDashboardItems(name)

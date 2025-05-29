@@ -75,7 +75,7 @@ export default defineEventHandler(async (event) => {
         // Clean up the AI response
         altText = altText.trim()
         if (altText.length > 300) {
-          altText = altText.substring(0, 297) + "..."
+          altText = `${altText.substring(0, 297)}...`
         }
 
         // Set confidence based on response quality

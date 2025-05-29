@@ -5,6 +5,19 @@ interface BGPPrefix {
   exact?: boolean
 }
 
+interface RipeAPIResponse {
+  data?: {
+    prefixes?: BGPPrefix[]
+  }
+}
+
+interface BGPViewAPIResponse {
+  data?: {
+    ipv4_prefixes?: BGPPrefix[]
+    ipv6_prefixes?: BGPPrefix[]
+  }
+}
+
 interface RouteROSData {
   ipv4Ranges: string[]
   ipv6Ranges: string[]
@@ -82,7 +95,7 @@ async function fetchPutIOData(kv?: KVNamespace): Promise<RouteROSData> {
     let ipv6Ranges: string[] = []
 
     if (ripeResponse.ok) {
-      const ripeData = (await ripeResponse.json()) as any
+      const ripeData = (await ripeResponse.json()) as RipeAPIResponse
       const prefixes = ripeData.data?.prefixes || []
 
       for (const prefix of prefixes) {
@@ -100,7 +113,7 @@ async function fetchPutIOData(kv?: KVNamespace): Promise<RouteROSData> {
     if (ipv4Ranges.length === 0 && ipv6Ranges.length === 0) {
       const bgpResponse = await fetch("https://api.bgpview.io/asn/9009/prefixes")
       if (bgpResponse.ok) {
-        const bgpData = (await bgpResponse.json()) as any
+        const bgpData = (await bgpResponse.json()) as BGPViewAPIResponse
         const prefixes = bgpData.data?.ipv4_prefixes || []
         const ipv6Prefixes = bgpData.data?.ipv6_prefixes || []
 

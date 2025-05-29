@@ -65,7 +65,17 @@ export default defineEventHandler(async (event) => {
     const env = event.context.cloudflare?.env as { DATA?: KVNamespace; ANALYTICS?: AnalyticsEngineDataset }
 
     // Get redirect from KV storage first, fallback to in-memory
-    let redirectData: any
+    let redirectData:
+      | {
+          slug: string
+          url: string
+          title?: string
+          description?: string
+          clicks: number
+          created_at: string
+          updated_at: string
+        }
+      | undefined
     const redirectKey = `redirect:${slug}`
 
     if (env?.DATA) {

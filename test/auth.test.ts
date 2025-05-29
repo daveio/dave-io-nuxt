@@ -13,13 +13,24 @@ function mockH3Event(headers: Record<string, string> = {}, query: Record<string,
     query
   }
 }
+interface MockEvent {
+  node?: {
+    req?: {
+      headers?: Record<string, string>
+    }
+  }
+  query?: Record<string, unknown>
+}
 // Mock getHeader function
-;(global as any).getHeader = (event: any, name: string) => {
+;(global as unknown as { getHeader: (event: MockEvent, name: string) => string | undefined }).getHeader = (
+  event: MockEvent,
+  name: string
+) => {
   return event?.node?.req?.headers?.[name.toLowerCase()]
 }
 
 // Mock getQuery function
-;(global as any).getQuery = (event: any) => {
+;(global as unknown as { getQuery: (event: MockEvent) => Record<string, unknown> }).getQuery = (event: MockEvent) => {
   return event?.query || {}
 }
 
@@ -36,6 +47,7 @@ describe("Authentication System", () => {
         authorization: "Bearer test-token-here"
       })
 
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock requires any type
       const token = extractToken(event as any)
       expect(token).toBe("test-token-here")
     })
@@ -48,6 +60,7 @@ describe("Authentication System", () => {
         }
       )
 
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock requires any type
       const token = extractToken(event as any)
       expect(token).toBe("query-token-here")
     })
@@ -62,6 +75,7 @@ describe("Authentication System", () => {
         }
       )
 
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock requires any type
       const token = extractToken(event as any)
       expect(token).toBe("header-token")
     })
@@ -69,6 +83,7 @@ describe("Authentication System", () => {
     it("should return null when no token is found", () => {
       const event = mockH3Event()
 
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock requires any type
       const token = extractToken(event as any)
       expect(token).toBeNull()
     })
@@ -78,6 +93,7 @@ describe("Authentication System", () => {
         authorization: "Basic some-basic-auth"
       })
 
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock requires any type
       const token = extractToken(event as any)
       expect(token).toBeNull()
     })

@@ -191,34 +191,33 @@ export async function checkRateLimit(
         remaining: limit - newCount,
         resetTime: new Date(windowEnd)
       }
-    } else {
-      // Fallback to in-memory rate limiting
-      const record = fallbackRateLimitMap.get(identifier)
+    }
+    // Fallback to in-memory rate limiting
+    const record = fallbackRateLimitMap.get(identifier)
 
-      if (!record || now > record.resetTime) {
-        const newRecord = { count: 1, resetTime: windowEnd }
-        fallbackRateLimitMap.set(identifier, newRecord)
-        return {
-          allowed: true,
-          remaining: limit - newRecord.count,
-          resetTime: new Date(windowEnd)
-        }
-      }
-
-      if (record.count >= limit) {
-        return {
-          allowed: false,
-          remaining: 0,
-          resetTime: new Date(record.resetTime)
-        }
-      }
-
-      record.count++
+    if (!record || now > record.resetTime) {
+      const newRecord = { count: 1, resetTime: windowEnd }
+      fallbackRateLimitMap.set(identifier, newRecord)
       return {
         allowed: true,
-        remaining: limit - record.count,
+        remaining: limit - newRecord.count,
+        resetTime: new Date(windowEnd)
+      }
+    }
+
+    if (record.count >= limit) {
+      return {
+        allowed: false,
+        remaining: 0,
         resetTime: new Date(record.resetTime)
       }
+    }
+
+    record.count++
+    return {
+      allowed: true,
+      remaining: limit - record.count,
+      resetTime: new Date(record.resetTime)
     }
   } catch (error) {
     console.error("Rate limiting error:", error)
@@ -250,15 +249,14 @@ export async function getRateLimitInfo(
         remaining: Math.max(0, limit - currentCount),
         resetTime: windowEnd
       }
-    } else {
-      const record = fallbackRateLimitMap.get(identifier)
-      if (!record || now > record.resetTime) {
-        return { remaining: limit, resetTime: windowEnd }
-      }
-      return {
-        remaining: Math.max(0, limit - record.count),
-        resetTime: record.resetTime
-      }
+    }
+    const record = fallbackRateLimitMap.get(identifier)
+    if (!record || now > record.resetTime) {
+      return { remaining: limit, resetTime: windowEnd }
+    }
+    return {
+      remaining: Math.max(0, limit - record.count),
+      resetTime: record.resetTime
     }
   } catch (error) {
     console.error("Rate limit info error:", error)

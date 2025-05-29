@@ -63,6 +63,7 @@ lint:
         - "**/*.png"
         - "**/*.ico"
         - "**/*.mdc"
+        - "**/nuxt.config.ts"
 plugins:
   # https://docs.trunk.io/plugins
   sources:

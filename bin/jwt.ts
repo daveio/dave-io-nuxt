@@ -87,11 +87,8 @@ async function createToken(options: JWTRequest, secret: string): Promise<{ token
 function parseExpiration(expiresIn: string): number {
   let milliseconds: number | undefined
   try {
-    const result = ms(expiresIn as any) // ms library has inconsistent types
-    if (typeof result === "string") {
-      throw new Error(`Invalid duration format: ${expiresIn}`)
-    }
-    milliseconds = typeof result === "number" ? result : undefined
+    // Use our custom parsing function
+    milliseconds = parseCompoundDuration(expiresIn)
   } catch {
     milliseconds = undefined
   }
