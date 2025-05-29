@@ -38,7 +38,7 @@
   "private": true,
   "scripts": {
     "build": "bun run types && bun run nuxt build",
-    "check": "bun run types && bun run build && bun run format && bun run lint && bun run typecheck",
+    "check": "bun run types && bun run build && bun run format && bun run lint && bun run typecheck && bun run test",
     "cf-typegen": "bun run wrangler types",
     "clean": "bun run rimraf .nuxt .output .wrangler *.d.ts",
     "deploy": "bun run types && bun run build && bun run wrangler deploy",
