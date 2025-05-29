@@ -56,21 +56,6 @@ async function getTokenUsageFromKV(uuid: string, kv?: KVNamespace): Promise<Toke
   }
 }
 
-// Fallback token data for when KV is unavailable
-const fallbackTokenUsage = new Map<string, TokenUsage>([
-  [
-    "550e8400-e29b-41d4-a716-446655440000",
-    {
-      uuid: "550e8400-e29b-41d4-a716-446655440000",
-      requestCount: 42,
-      lastUsed: "2024-01-15T12:30:00Z",
-      isRevoked: false,
-      maxRequests: 100,
-      createdAt: "2024-01-01T00:00:00Z",
-      rateLimitRemaining: 58
-    }
-  ]
-])
 
 export default defineEventHandler(async (event) => {
   try {
@@ -96,30 +81,12 @@ export default defineEventHandler(async (event) => {
     // Get environment bindings
     const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
 
-    // Get token usage from KV storage or fallback
-    let usage: TokenUsage
-    if (env?.DATA) {
-      try {
-        usage = await getTokenUsageFromKV(uuid, env.DATA)
-      } catch (error) {
-        if (error && typeof error === "object" && "statusCode" in error && error.statusCode === 404) {
-          throw error // Re-throw 404 errors
-        }
-        console.error("KV storage failed, using fallback:", error)
-        const fallback = fallbackTokenUsage.get(uuid)
-        if (!fallback) {
-          throw createApiError(404, `Token not found: ${uuid}`)
-        }
-        usage = fallback
-      }
-    } else {
-      console.warn("KV storage not available, using fallback data")
-      const fallback = fallbackTokenUsage.get(uuid)
-      if (!fallback) {
-        throw createApiError(404, `Token not found: ${uuid}`)
-      }
-      usage = fallback
+    if (!env?.DATA) {
+      throw createApiError(503, "Token service not available")
     }
+
+    // Get token usage from KV storage
+    const usage = await getTokenUsageFromKV(uuid, env.DATA)
 
     return createApiResponse(usage, "Token usage retrieved successfully")
   } catch (error: unknown) {

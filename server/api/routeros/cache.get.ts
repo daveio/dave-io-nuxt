@@ -53,36 +53,18 @@ async function getCacheStatsFromKV(kv?: KVNamespace): Promise<CacheStats> {
   }
 }
 
-// Fallback cache statistics for when KV is unavailable
-const fallbackCacheStats: CacheStats = {
-  ipv4Count: 42,
-  ipv6Count: 8,
-  lastUpdated: new Date(Date.now() - 1800000).toISOString(), // 30 minutes ago
-  cacheAge: 1800, // 30 minutes
-  isStale: false,
-  cacheHits: 156,
-  cacheMisses: 12,
-  refreshCount: 3
-}
 
 export default defineEventHandler(async (event) => {
   try {
     // Get environment bindings
     const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
 
-    // Get cache statistics from KV storage or fallback
-    let stats: CacheStats
-    if (env?.DATA) {
-      try {
-        stats = await getCacheStatsFromKV(env.DATA)
-      } catch (error) {
-        console.error("KV storage failed, using fallback:", error)
-        stats = fallbackCacheStats
-      }
-    } else {
-      console.warn("KV storage not available, using fallback data")
-      stats = fallbackCacheStats
+    if (!env?.DATA) {
+      throw createApiError(503, "Cache service not available")
     }
+
+    // Get cache statistics from KV storage
+    const stats = await getCacheStatsFromKV(env.DATA)
 
     return createApiResponse(stats, "RouterOS cache status retrieved successfully")
   } catch (error: unknown) {

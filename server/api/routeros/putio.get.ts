@@ -63,8 +63,7 @@ async function getCachedData(kv?: KVNamespace): Promise<RouteROSData | null> {
 }
 
 // Store data in KV storage
-async function storeDataInKV(data: RouteROSData, kv?: KVNamespace): Promise<void> {
-  if (!kv) return
+async function storeDataInKV(data: RouteROSData, kv: KVNamespace): Promise<void> {
 
   try {
     await Promise.all([
@@ -83,11 +82,8 @@ async function storeDataInKV(data: RouteROSData, kv?: KVNamespace): Promise<void
   }
 }
 
-// In-memory fallback cache
-let fallbackCachedData: RouteROSData | null = null
-let fallbackLastFetch = 0
 
-async function fetchPutIOData(kv?: KVNamespace): Promise<RouteROSData> {
+async function fetchPutIOData(kv: KVNamespace): Promise<RouteROSData> {
   try {
     // Fetch from RIPE STAT API
     const ripeResponse = await fetch("https://stat.ripe.net/data/announced-prefixes/data.json?resource=AS9009")
@@ -135,10 +131,6 @@ async function fetchPutIOData(kv?: KVNamespace): Promise<RouteROSData> {
 
     // Store in KV cache
     await storeDataInKV(data, kv)
-
-    // Also cache in memory as fallback
-    fallbackCachedData = data
-    fallbackLastFetch = Date.now()
 
     return data
   } catch (error) {
@@ -190,30 +182,26 @@ export default defineEventHandler(async (event) => {
     // Get environment bindings
     const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
 
-    // Check KV cache first, then memory fallback
+    if (!env?.DATA) {
+      throw createApiError(503, "RouterOS service not available")
+    }
+
+    // Check KV cache first
     let data: RouteROSData
 
-    const cachedData = await getCachedData(env?.DATA)
+    const cachedData = await getCachedData(env.DATA)
     if (cachedData) {
       data = cachedData
     } else {
-      // Check memory fallback
-      const now = Date.now()
-      if (fallbackCachedData && now - fallbackLastFetch < CACHE_TTL) {
-        data = { ...fallbackCachedData, cacheHit: true }
-      } else {
-        data = await fetchPutIOData(env?.DATA)
+      data = await fetchPutIOData(env.DATA)
 
-        // Update cache miss metrics
-        if (env?.DATA) {
-          try {
-            const misses = await env.DATA.get("metrics:routeros:cache-misses")
-            const missCount = misses ? Number.parseInt(misses, 10) + 1 : 1
-            await env.DATA.put("metrics:routeros:cache-misses", missCount.toString())
-          } catch (error) {
-            console.error("Failed to update cache miss metrics:", error)
-          }
-        }
+      // Update cache miss metrics
+      try {
+        const misses = await env.DATA.get("metrics:routeros:cache-misses")
+        const missCount = misses ? Number.parseInt(misses, 10) + 1 : 1
+        await env.DATA.put("metrics:routeros:cache-misses", missCount.toString())
+      } catch (error) {
+        console.error("Failed to update cache miss metrics:", error)
       }
     }
 

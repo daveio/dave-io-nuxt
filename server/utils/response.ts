@@ -152,12 +152,10 @@ export function sanitizeInput(input: unknown): string {
 // Helper for circular reference detection
 const seen = new WeakSet()
 
-// KV-based rate limiting with in-memory fallback
-const fallbackRateLimitMap = new Map<string, { count: number; resetTime: number }>()
-
+// KV-based rate limiting (requires KV storage)
 export async function checkRateLimit(
   identifier: string,
-  kv?: KVNamespace,
+  kv: KVNamespace,
   limit = 100,
   windowMs = 60000
 ): Promise<{ allowed: boolean; remaining: number; resetTime: Date }> {
@@ -167,72 +165,38 @@ export async function checkRateLimit(
   const rateLimitKey = `rate_limit:${identifier}:${windowStart}`
 
   try {
-    if (kv) {
-      // Use KV storage for persistent rate limiting
-      const countStr = await kv.get(rateLimitKey)
-      const currentCount = countStr ? Number.parseInt(countStr, 10) : 0
+    // Use KV storage for persistent rate limiting
+    const countStr = await kv.get(rateLimitKey)
+    const currentCount = countStr ? Number.parseInt(countStr, 10) : 0
 
-      if (currentCount >= limit) {
-        return {
-          allowed: false,
-          remaining: 0,
-          resetTime: new Date(windowEnd)
-        }
-      }
-
-      // Increment count with window expiration
-      const newCount = currentCount + 1
-      await kv.put(rateLimitKey, newCount.toString(), {
-        expirationTtl: Math.ceil(windowMs / 1000) + 10 // Add 10s buffer
-      })
-
-      return {
-        allowed: true,
-        remaining: limit - newCount,
-        resetTime: new Date(windowEnd)
-      }
-    }
-    // Fallback to in-memory rate limiting
-    const record = fallbackRateLimitMap.get(identifier)
-
-    if (!record || now > record.resetTime) {
-      const newRecord = { count: 1, resetTime: windowEnd }
-      fallbackRateLimitMap.set(identifier, newRecord)
-      return {
-        allowed: true,
-        remaining: limit - newRecord.count,
-        resetTime: new Date(windowEnd)
-      }
-    }
-
-    if (record.count >= limit) {
+    if (currentCount >= limit) {
       return {
         allowed: false,
         remaining: 0,
-        resetTime: new Date(record.resetTime)
+        resetTime: new Date(windowEnd)
       }
     }
 
-    record.count++
+    // Increment count with window expiration
+    const newCount = currentCount + 1
+    await kv.put(rateLimitKey, newCount.toString(), {
+      expirationTtl: Math.ceil(windowMs / 1000) + 10 // Add 10s buffer
+    })
+
     return {
       allowed: true,
-      remaining: limit - record.count,
-      resetTime: new Date(record.resetTime)
+      remaining: limit - newCount,
+      resetTime: new Date(windowEnd)
     }
   } catch (error) {
     console.error("Rate limiting error:", error)
-    // Fail open - allow the request but log the error
-    return {
-      allowed: true,
-      remaining: limit - 1,
-      resetTime: new Date(windowEnd)
-    }
+    throw error
   }
 }
 
 export async function getRateLimitInfo(
   identifier: string,
-  kv?: KVNamespace,
+  kv: KVNamespace,
   limit = 100,
   windowMs = 60000
 ): Promise<{ remaining: number; resetTime: number }> {
@@ -242,21 +206,11 @@ export async function getRateLimitInfo(
   const rateLimitKey = `rate_limit:${identifier}:${windowStart}`
 
   try {
-    if (kv) {
-      const countStr = await kv.get(rateLimitKey)
-      const currentCount = countStr ? Number.parseInt(countStr, 10) : 0
-      return {
-        remaining: Math.max(0, limit - currentCount),
-        resetTime: windowEnd
-      }
-    }
-    const record = fallbackRateLimitMap.get(identifier)
-    if (!record || now > record.resetTime) {
-      return { remaining: limit, resetTime: windowEnd }
-    }
+    const countStr = await kv.get(rateLimitKey)
+    const currentCount = countStr ? Number.parseInt(countStr, 10) : 0
     return {
-      remaining: Math.max(0, limit - record.count),
-      resetTime: record.resetTime
+      remaining: Math.max(0, limit - currentCount),
+      resetTime: windowEnd
     }
   } catch (error) {
     console.error("Rate limit info error:", error)

@@ -18,9 +18,21 @@ export default defineEventHandler(async (event) => {
     // Apply rate limiting only to API routes (not redirects)
     if (url.startsWith("/api/")) {
       const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
-      const rateLimitKey = `${ip}:${method}:${url}`
+      
+      if (!env?.DATA) {
+        throw createError({
+          statusCode: 503,
+          statusMessage: "Service Unavailable",
+          data: {
+            success: false,
+            error: "Rate limiting service not available",
+            timestamp: new Date().toISOString()
+          }
+        })
+      }
 
-      const rateLimit = await checkRateLimit(rateLimitKey, env?.DATA, 100, 60000)
+      const rateLimitKey = `${ip}:${method}:${url}`
+      const rateLimit = await checkRateLimit(rateLimitKey, env.DATA, 100, 60000)
       if (!rateLimit.allowed) {
         throw createError({
           statusCode: 429,

@@ -2,113 +2,55 @@ import { getHeader, sendRedirect } from "h3"
 import { createApiError, isApiError } from "~/server/utils/response"
 import { UrlRedirectSchema } from "~/server/utils/schemas"
 
-// Simulated redirect database - in production this would be KV storage
-const redirects = new Map<
-  string,
-  {
-    slug: string
-    url: string
-    title?: string
-    description?: string
-    clicks: number
-    created_at: string
-    updated_at: string
-  }
->([
-  [
-    "gh",
-    {
-      slug: "gh",
-      url: "https://github.com/daveio",
-      title: "Dave Williams on GitHub",
-      description: "My GitHub profile",
-      clicks: 42,
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-15T12:00:00Z"
-    }
-  ],
-  [
-    "tw",
-    {
-      slug: "tw",
-      url: "https://twitter.com/daveio",
-      title: "Dave Williams on Twitter",
-      description: "My Twitter profile",
-      clicks: 28,
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-10T08:30:00Z"
-    }
-  ],
-  [
-    "li",
-    {
-      slug: "li",
-      url: "https://linkedin.com/in/daveio",
-      title: "Dave Williams on LinkedIn",
-      description: "My LinkedIn profile",
-      clicks: 15,
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-05T14:20:00Z"
-    }
-  ]
-])
+interface RedirectData {
+  slug: string
+  url: string
+  title?: string
+  description?: string
+  clicks: number
+  created_at: string
+  updated_at: string
+}
 
 export default defineEventHandler(async (event) => {
   try {
+    const env = event.context.cloudflare?.env as { 
+      KV?: KVNamespace
+      ANALYTICS?: AnalyticsEngineDataset 
+    }
+
+    if (!env?.KV || !env?.ANALYTICS) {
+      throw createApiError(503, "Redirect service not available")
+    }
+
     const slug = getRouterParam(event, "slug")
 
     if (!slug) {
-      createApiError(400, "Slug parameter is required")
+      throw createApiError(400, "Slug parameter is required")
     }
 
-    // Get environment bindings
-    const env = event.context.cloudflare?.env as { DATA?: KVNamespace; ANALYTICS?: AnalyticsEngineDataset }
-
-    // Get redirect from KV storage first, fallback to in-memory
-    let redirectData:
-      | {
-          slug: string
-          url: string
-          title?: string
-          description?: string
-          clicks: number
-          created_at: string
-          updated_at: string
-        }
-      | undefined
+    // Get redirect from KV storage
     const redirectKey = `redirect:${slug}`
+    let redirectData: RedirectData | undefined
 
-    if (env?.DATA) {
-      try {
-        const kvData = await env.DATA.get(redirectKey)
-        if (kvData) {
-          redirectData = JSON.parse(kvData)
-        } else {
-          // Fallback to in-memory data and store in KV for future use
-          const fallbackData = redirects.get(slug)
-          if (fallbackData) {
-            redirectData = fallbackData
-            // Store in KV for next time
-            await env.DATA.put(redirectKey, JSON.stringify(fallbackData))
-          }
-        }
-      } catch (error) {
-        console.error("KV redirect lookup failed:", error)
-        redirectData = redirects.get(slug)
+    try {
+      const kvData = await env.KV.get(redirectKey)
+      if (kvData) {
+        redirectData = JSON.parse(kvData)
       }
-    } else {
-      // No KV available, use in-memory
-      redirectData = redirects.get(slug)
+    } catch (error) {
+      console.error("KV redirect lookup failed:", error)
+      throw createApiError(500, "Failed to lookup redirect")
     }
 
     if (!redirectData) {
-      createApiError(404, `Redirect not found for slug: ${slug}`)
+      throw createApiError(404, `Redirect not found for slug: ${slug}`)
     }
 
     // Validate redirect data
     const redirect = UrlRedirectSchema.parse(redirectData)
 
-    // Increment click count in KV or in-memory
+    // Increment click count in KV
     const clickCount = (redirect.clicks || 0) + 1
     const updatedRedirect = {
       ...redirect,
@@ -116,14 +58,11 @@ export default defineEventHandler(async (event) => {
       updated_at: new Date().toISOString()
     }
 
-    if (env?.DATA) {
-      try {
-        await env.DATA.put(redirectKey, JSON.stringify(updatedRedirect))
-      } catch (error) {
-        console.error("Failed to update redirect in KV:", error)
-      }
-    } else {
-      redirects.set(slug, updatedRedirect)
+    try {
+      await env.KV.put(redirectKey, JSON.stringify(updatedRedirect))
+    } catch (error) {
+      console.error("Failed to update redirect in KV:", error)
+      // Continue with redirect even if click tracking fails
     }
 
     // Log analytics to Analytics Engine
@@ -132,16 +71,15 @@ export default defineEventHandler(async (event) => {
     const cfCountry = getHeader(event, "cf-ipcountry") || "unknown"
     const cfRay = getHeader(event, "cf-ray") || "unknown"
 
-    if (env?.ANALYTICS) {
-      try {
-        env.ANALYTICS.writeDataPoint({
-          blobs: [slug, redirect.url, userAgent, ip, cfCountry, cfRay],
-          doubles: [1], // Click count
-          indexes: [slug] // For querying by slug
-        })
-      } catch (error) {
-        console.error("Failed to write analytics:", error)
-      }
+    try {
+      env.ANALYTICS.writeDataPoint({
+        blobs: [slug, redirect.url, userAgent, ip, cfCountry, cfRay],
+        doubles: [1], // Click count
+        indexes: [slug] // For querying by slug
+      })
+    } catch (error) {
+      console.error("Failed to write analytics:", error)
+      // Continue with redirect even if analytics fails
     }
 
     console.log(

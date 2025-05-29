@@ -140,32 +140,28 @@ export default defineEventHandler(async (event) => {
     let altText: string
     let aiModel = "@cf/llava-hf/llava-1.5-7b-hf"
 
-    if (env?.AI) {
-      try {
-        const result = (await env.AI.run(aiModel as "@cf/llava-hf/llava-1.5-7b-hf", {
-          image: Array.from(new Uint8Array(imageBuffer)),
-          prompt:
-            "Describe this image in detail for use as alt text. Focus on the main subjects, actions, and important visual elements that would help someone understand the image content. Be concise but descriptive.",
-          max_tokens: 150
-        })) as { description?: string; text?: string }
+    if (!env?.AI) {
+      throw createApiError(503, "AI service not available")
+    }
 
-        altText = result.description || result.text || "Unable to generate description"
+    try {
+      const result = (await env.AI.run(aiModel as "@cf/llava-hf/llava-1.5-7b-hf", {
+        image: Array.from(new Uint8Array(imageBuffer)),
+        prompt:
+          "Describe this image in detail for use as alt text. Focus on the main subjects, actions, and important visual elements that would help someone understand the image content. Be concise but descriptive.",
+        max_tokens: 150
+      })) as { description?: string; text?: string }
 
-        // Clean up the AI response
-        altText = altText.trim()
-        if (altText.length > 300) {
-          altText = `${altText.substring(0, 297)}...`
-        }
-      } catch (error) {
-        console.error("AI processing failed:", error)
-        // Fallback to a generic message if AI fails
-        altText = "Image content could not be analyzed automatically"
-        aiModel = "fallback"
+      altText = result.description || result.text || "Unable to generate description"
+
+      // Clean up the AI response
+      altText = altText.trim()
+      if (altText.length > 300) {
+        altText = `${altText.substring(0, 297)}...`
       }
-    } else {
-      console.warn("AI binding not available, using fallback")
-      altText = "AI service temporarily unavailable - image analysis could not be performed"
-      aiModel = "unavailable"
+    } catch (error) {
+      console.error("AI processing failed:", error)
+      throw createApiError(500, "Failed to process image with AI")
     }
 
     const processingTime = Date.now() - processingStart

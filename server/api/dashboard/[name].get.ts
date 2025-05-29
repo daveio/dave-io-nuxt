@@ -15,11 +15,7 @@ interface DashboardResponse {
 }
 
 // Get dashboard configuration from KV storage
-async function getDashboardItems(name: string, kv?: KVNamespace): Promise<DashboardItem[]> {
-  if (!kv) {
-    return getFallbackDashboardItems(name)
-  }
-
+async function getDashboardItems(name: string, kv: KVNamespace): Promise<DashboardItem[]> {
   try {
     const dashboardKey = `dashboard:${name}:config`
     const cachedConfig = await kv.get(dashboardKey)
@@ -27,66 +23,30 @@ async function getDashboardItems(name: string, kv?: KVNamespace): Promise<Dashbo
     if (cachedConfig) {
       return JSON.parse(cachedConfig)
     }
-    // Store default config in KV for future use
-    const fallbackItems = getFallbackDashboardItems(name)
-    await kv.put(dashboardKey, JSON.stringify(fallbackItems), {
-      expirationTtl: 86400 // 24 hours
-    })
-    return fallbackItems
+    
+    throw new Error(`Dashboard configuration not found for: ${name}`)
   } catch (error) {
     console.error("Failed to get dashboard from KV:", error)
-    return getFallbackDashboardItems(name)
+    throw error
   }
 }
 
-// Fallback dashboard items when KV is unavailable
-function getFallbackDashboardItems(name: string): DashboardItem[] {
-  switch (name) {
-    case "demo":
-      return [
-        {
-          title: "API Endpoints",
-          subtitle: "12 active endpoints",
-          linkURL: "/api/docs"
-        },
-        {
-          title: "JWT Tokens",
-          subtitle: "3 active tokens",
-          linkURL: "/api/auth"
-        },
-        {
-          title: "System Health",
-          subtitle: "All systems operational",
-          linkURL: "/api/ping"
-        },
-        {
-          title: "Metrics",
-          subtitle: "View API metrics",
-          linkURL: "/api/metrics"
-        }
-      ]
-    default:
-      return []
-  }
-}
 
-async function fetchHackerNews(kv?: KVNamespace): Promise<DashboardItem[]> {
+async function fetchHackerNews(kv: KVNamespace): Promise<DashboardItem[]> {
   const cacheKey = "dashboard:hackernews:cache"
   const cacheTtl = 1800 // 30 minutes
 
   // Try to get cached data first
-  if (kv) {
-    try {
-      const cached = await kv.get(cacheKey)
-      if (cached) {
-        const parsedCache = JSON.parse(cached)
-        if (Date.now() - parsedCache.timestamp < cacheTtl * 1000) {
-          return parsedCache.items
-        }
+  try {
+    const cached = await kv.get(cacheKey)
+    if (cached) {
+      const parsedCache = JSON.parse(cached)
+      if (Date.now() - parsedCache.timestamp < cacheTtl * 1000) {
+        return parsedCache.items
       }
-    } catch (error) {
-      console.error("Failed to get cached Hacker News data:", error)
     }
+  } catch (error) {
+    console.error("Failed to get cached Hacker News data:", error)
   }
 
   // Fetch fresh data
@@ -119,7 +79,7 @@ async function fetchHackerNews(kv?: KVNamespace): Promise<DashboardItem[]> {
     }
 
     // Cache the results
-    if (kv && items.length > 0) {
+    if (items.length > 0) {
       try {
         await kv.put(
           cacheKey,
@@ -157,31 +117,31 @@ export default defineEventHandler(async (event) => {
     // Get environment bindings
     const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
 
+    if (!env?.DATA) {
+      throw createApiError(503, "Dashboard service not available")
+    }
+
     let items: DashboardItem[]
     const error: string | null = null
 
     switch (name) {
       case "demo":
-        items = await getDashboardItems(name, env?.DATA)
+        items = await getDashboardItems(name, env.DATA)
         break
 
       case "hacker-news":
       case "hackernews":
-        items = await fetchHackerNews(env?.DATA)
+        items = await fetchHackerNews(env.DATA)
         break
 
       default:
         // Check if custom dashboard exists in KV
-        if (env?.DATA) {
-          try {
-            items = await getDashboardItems(name, env.DATA)
-            if (items.length === 0) {
-              throw createApiError(404, `Dashboard '${name}' not found`)
-            }
-          } catch {
+        try {
+          items = await getDashboardItems(name, env.DATA)
+          if (items.length === 0) {
             throw createApiError(404, `Dashboard '${name}' not found`)
           }
-        } else {
+        } catch {
           throw createApiError(404, `Dashboard '${name}' not found`)
         }
     }

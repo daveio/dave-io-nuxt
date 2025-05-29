@@ -48,28 +48,7 @@ function createCloudflareClient(): Cloudflare | null {
   })
 }
 
-// Simulated KV data for development fallback
-const simulatedKV = new Map<string, string>([
-  [
-    "dashboard:demo:items",
-    JSON.stringify([
-      { title: "API Endpoints", subtitle: "12 active endpoints", linkURL: "/api/docs" },
-      { title: "JWT Tokens", subtitle: "3 active tokens", linkURL: "/api/auth" },
-      { title: "System Health", subtitle: "All systems operational", linkURL: "/api/ping" }
-    ])
-  ],
-  ["redirect:gh", "https://github.com/daveio"],
-  ["redirect:tw", "https://twitter.com/daveio"],
-  ["redirect:li", "https://linkedin.com/in/daveio"],
-  ["metrics:status:200", "11567"],
-  ["metrics:status:404", "145"],
-  ["metrics:status:500", "67"],
-  ["auth:count:550e8400-e29b-41d4-a716-446655440000:requests", "42"],
-  ["auth:revocation:revoked-token-example", "true"],
-  ["routeros:putio:ipv4", JSON.stringify(["1.2.3.0/24", "4.5.6.0/24"])],
-  ["routeros:putio:ipv6", JSON.stringify(["2001:db8::/32"])],
-  ["routeros:putio:metadata:last-updated", new Date().toISOString()]
-])
+// KV Admin Tool - requires Cloudflare credentials
 
 const program = new Command()
 
@@ -109,22 +88,9 @@ async function getAllKVData(backupAll = false) {
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
 
   if (!cloudflare || !accountId) {
-    // Fallback to simulated data for development
-    const allKeys = Array.from(simulatedKV.keys())
-    const keys = backupAll ? allKeys : allKeys.filter((key) => keyMatchesPatterns(key, BACKUP_KEY_PATTERNS))
-
-    console.log(
-      `🔍 Found ${keys.length} keys ${!backupAll ? `matching patterns (out of ${allKeys.length} total)` : ""} (simulated)`
-    )
-
-    const kvData: Record<string, unknown> = {}
-    for (const key of keys) {
-      const valueRaw = simulatedKV.get(key)
-      if (valueRaw !== undefined) {
-        kvData[key] = tryParseJson(valueRaw)
-      }
-    }
-    return kvData
+    console.error("❌ Cloudflare credentials not configured")
+    console.error("   Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID environment variables")
+    process.exit(1)
   }
 
   try {
@@ -227,16 +193,9 @@ async function restoreKV(filename: string) {
     const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
 
     if (!cloudflare || !accountId) {
-      // Fallback to simulated restore for development
-      console.log("\n🔄 Simulated restore (development mode):")
-      for (const [key, value] of Object.entries(kvData)) {
-        const valueStr = typeof value === "string" ? value : JSON.stringify(value)
-        const preview = valueStr.substring(0, 100) + (valueStr.length > 100 ? "..." : "")
-        console.log("  ✓", key + ":", preview)
-        simulatedKV.set(key, typeof value === "string" ? value : JSON.stringify(value))
-      }
-      console.log("\n✅ Simulated restore completed!")
-      return true
+      console.error("❌ Cloudflare credentials not configured")
+      console.error("   Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID environment variables")
+      process.exit(1)
     }
 
     // Use Cloudflare SDK to restore data
@@ -276,20 +235,9 @@ async function wipeKV() {
     const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
 
     if (!cloudflare || !accountId) {
-      // Simulated wipe for development
-      console.log("📊 Fetching all keys from simulated KV...")
-      const keys = Array.from(simulatedKV.keys())
-      console.log(`🔍 Found ${keys.length} keys to delete (simulated)`)
-
-      if (keys.length === 0) {
-        console.log("✅ No keys to delete. KV namespace is already empty.")
-        return true
-      }
-
-      console.log("ℹ️  Simulated wipe operation (development mode)")
-      simulatedKV.clear()
-      console.log("✅ Simulated KV data cleared")
-      return true
+      console.error("❌ Cloudflare credentials not configured")
+      console.error("   Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID environment variables")
+      process.exit(1)
     }
 
     // Real KV wipe using Cloudflare SDK
@@ -378,29 +326,9 @@ program
       const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
 
       if (!cloudflare || !accountId) {
-        // Fallback to simulated data
-        const keys = Array.from(simulatedKV.keys())
-        let filteredKeys = keys
-        if (options.pattern) {
-          try {
-            const pattern = new RegExp(options.pattern, "i")
-            filteredKeys = keys.filter((key) => pattern.test(key))
-          } catch {
-            console.error("❌ Invalid regex pattern:", options.pattern)
-            return
-          }
-        }
-
-        console.log(
-          `\n🔍 Found ${filteredKeys.length} keys${options.pattern ? ` matching "${options.pattern}"` : ""} (simulated):`
-        )
-
-        for (const key of filteredKeys) {
-          const value = simulatedKV.get(key) || ""
-          const preview = value.substring(0, 50) + (value.length > 50 ? "..." : "")
-          console.log('  📄', key + ':', preview)
-        }
-        return
+        console.error("❌ Cloudflare credentials not configured")
+        console.error("   Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID environment variables")
+        process.exit(1)
       }
 
       // Use Cloudflare SDK to list keys

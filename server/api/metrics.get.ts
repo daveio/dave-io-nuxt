@@ -3,7 +3,7 @@ import { createApiError, isApiError } from "~/server/utils/response"
 import { TokenMetricsSchema } from "~/server/utils/schemas"
 
 async function getMetricsFromAnalytics(
-  _analytics?: AnalyticsEngineDataset,
+  analytics?: AnalyticsEngineDataset,
   kv?: KVNamespace
 ): Promise<{
   total_requests: number
@@ -12,33 +12,49 @@ async function getMetricsFromAnalytics(
   rate_limited_requests: number
   last_24h: { total: number; successful: number; failed: number }
 }> {
+  if (!analytics || !kv) {
+    throw new Error("Analytics Engine and KV storage are required for metrics")
+  }
+
   try {
-    if (kv) {
-      // Try to get cached metrics from KV first
-      const cachedMetrics = await kv.get("api_metrics_cache")
-      if (cachedMetrics) {
-        const parsed = JSON.parse(cachedMetrics)
-        // Check if cache is less than 5 minutes old
-        if (Date.now() - parsed.cached_at < 5 * 60 * 1000) {
-          return parsed.data
-        }
+    // Try to get cached metrics from KV first
+    const cachedMetrics = await kv.get("api_metrics_cache")
+    if (cachedMetrics) {
+      const parsed = JSON.parse(cachedMetrics)
+      // Check if cache is less than 5 minutes old
+      if (Date.now() - parsed.cached_at < 5 * 60 * 1000) {
+        return parsed.data
       }
     }
 
-    // In a real implementation, we would query Analytics Engine
-    // For now, we'll generate realistic metrics based on current timestamp
-    const now = Date.now()
-    const baseRequests = 1000 + Math.floor((now / 1000 / 3600) % 100) * 10 // Varies by hour
+    // Query real metrics from Analytics Engine
+    const now = new Date()
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+
+    // Get total API requests from KV counters
+    const [totalRequests, successfulRequests, failedRequests, rateLimitedRequests] = await Promise.all([
+      kv.get("metrics:requests:total").then(v => parseInt(v || "0")),
+      kv.get("metrics:requests:successful").then(v => parseInt(v || "0")),
+      kv.get("metrics:requests:failed").then(v => parseInt(v || "0")),
+      kv.get("metrics:requests:rate_limited").then(v => parseInt(v || "0"))
+    ])
+
+    // Get 24h metrics from KV (these should be updated by Analytics Engine processing)
+    const [last24hTotal, last24hSuccessful, last24hFailed] = await Promise.all([
+      kv.get("metrics:24h:total").then(v => parseInt(v || "0")),
+      kv.get("metrics:24h:successful").then(v => parseInt(v || "0")),
+      kv.get("metrics:24h:failed").then(v => parseInt(v || "0"))
+    ])
 
     const metricsData = {
-      total_requests: baseRequests + Math.floor(Math.random() * 200),
-      successful_requests: Math.floor(baseRequests * 0.95 + Math.random() * 50),
-      failed_requests: Math.floor(baseRequests * 0.03 + Math.random() * 20),
-      rate_limited_requests: Math.floor(baseRequests * 0.02 + Math.random() * 10),
+      total_requests: totalRequests,
+      successful_requests: successfulRequests,
+      failed_requests: failedRequests,
+      rate_limited_requests: rateLimitedRequests,
       last_24h: {
-        total: Math.floor(baseRequests * 0.15 + Math.random() * 30),
-        successful: Math.floor(baseRequests * 0.14 + Math.random() * 25),
-        failed: Math.floor(baseRequests * 0.01 + Math.random() * 5)
+        total: last24hTotal,
+        successful: last24hSuccessful,
+        failed: last24hFailed
       }
     }
 
@@ -57,14 +73,7 @@ async function getMetricsFromAnalytics(
     return metricsData
   } catch (error) {
     console.error("Failed to get metrics:", error)
-    // Return fallback metrics
-    return {
-      total_requests: 0,
-      successful_requests: 0,
-      failed_requests: 0,
-      rate_limited_requests: 0,
-      last_24h: { total: 0, successful: 0, failed: 0 }
-    }
+    throw error
   }
 }
 
@@ -80,12 +89,16 @@ export default defineEventHandler(async (event) => {
     // Get environment bindings
     const env = event.context.cloudflare?.env as { DATA?: KVNamespace; ANALYTICS?: AnalyticsEngineDataset }
 
+    if (!env?.DATA || !env?.ANALYTICS) {
+      throw createApiError(503, "Analytics services not available")
+    }
+
     // Get query parameters for format
     const query = getQuery(event)
     const format = (query.format as string) || "json"
 
     // Get metrics data from Analytics Engine/KV
-    const metricsData = await getMetricsFromAnalytics(env?.ANALYTICS, env?.DATA)
+    const metricsData = await getMetricsFromAnalytics(env.ANALYTICS, env.DATA)
 
     // Validate and format metrics data
     const metrics = TokenMetricsSchema.parse({
