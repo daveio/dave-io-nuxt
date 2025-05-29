@@ -1,0 +1,30 @@
+{
+  "dashboard:demo:items": [
+    {
+      "title": "API Endpoints",
+      "subtitle": "12 active endpoints",
+      "linkURL": "/api/docs"
+    },
+    {
+      "title": "JWT Tokens",
+      "subtitle": "3 active tokens",
+      "linkURL": "/api/auth"
+    },
+    {
+      "title": "System Health",
+      "subtitle": "All systems operational",
+      "linkURL": "/api/ping"
+    }
+  ],
+  "redirect:gh": "https://github.com/daveio",
+  "redirect:tw": "https://twitter.com/daveio",
+  "redirect:li": "https://linkedin.com/in/daveio",
+  "metrics:status:200": 11567,
+  "metrics:status:404": 145,
+  "metrics:status:500": 67,
+  "auth:count:550e8400-e29b-41d4-a716-446655440000:requests": 42,
+  "auth:revocation:revoked-token-example": true,
+  "routeros:putio:ipv4": ["1.2.3.0/24", "4.5.6.0/24"],
+  "routeros:putio:ipv6": ["2001:db8::/32"],
+  "routeros:putio:metadata:last-updated": "2025-05-29T20:38:26.707Z"
+}

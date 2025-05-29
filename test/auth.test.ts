@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest"
 import { checkEndpointPermission, extractToken, getUserFromPayload, verifyJWT } from "~/server/utils/auth"
 
 // Mock H3Event for testing
-function mockH3Event(headers: Record<string, string> = {}, query: Record<string, unknown> = {}): unknown {
+function mockH3Event(headers: Record<string, string> = {}, query: Record<string, unknown> = {}): MockEvent {
   return {
     node: {
       req: {
@@ -47,8 +47,7 @@ describe("Authentication System", () => {
         authorization: "Bearer test-token-here"
       })
 
-      // biome-ignore lint/suspicious/noExplicitAny: Test mock requires any type
-      const token = extractToken(event as any)
+      const token = extractToken(event as MockEvent)
       expect(token).toBe("test-token-here")
     })
 
@@ -60,8 +59,7 @@ describe("Authentication System", () => {
         }
       )
 
-      // biome-ignore lint/suspicious/noExplicitAny: Test mock requires any type
-      const token = extractToken(event as any)
+      const token = extractToken(event as MockEvent)
       expect(token).toBe("query-token-here")
     })
 
@@ -75,16 +73,14 @@ describe("Authentication System", () => {
         }
       )
 
-      // biome-ignore lint/suspicious/noExplicitAny: Test mock requires any type
-      const token = extractToken(event as any)
+      const token = extractToken(event as MockEvent)
       expect(token).toBe("header-token")
     })
 
     it("should return null when no token is found", () => {
       const event = mockH3Event()
 
-      // biome-ignore lint/suspicious/noExplicitAny: Test mock requires any type
-      const token = extractToken(event as any)
+      const token = extractToken(event as MockEvent)
       expect(token).toBeNull()
     })
 
@@ -93,8 +89,7 @@ describe("Authentication System", () => {
         authorization: "Basic some-basic-auth"
       })
 
-      // biome-ignore lint/suspicious/noExplicitAny: Test mock requires any type
-      const token = extractToken(event as any)
+      const token = extractToken(event as MockEvent)
       expect(token).toBeNull()
     })
   })

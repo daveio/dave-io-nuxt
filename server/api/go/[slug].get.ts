@@ -1,5 +1,5 @@
 import { getHeader, sendRedirect } from "h3"
-import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
+import { createApiError, isApiError } from "~/server/utils/response"
 import { UrlRedirectSchema } from "~/server/utils/schemas"
 
 // Simulated redirect database - in production this would be KV storage

@@ -1,4 +1,3 @@
-import { authorizeEndpoint } from "~/server/utils/auth"
 import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 
 interface DashboardItem {

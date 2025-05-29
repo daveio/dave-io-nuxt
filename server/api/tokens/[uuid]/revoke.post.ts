@@ -37,7 +37,7 @@ export default defineEventHandler(async (event) => {
     let body: RevokeRequest
     try {
       body = await readBody(event)
-    } catch (_error) {
+    } catch {
       throw createApiError(400, "Invalid JSON body")
     }
 

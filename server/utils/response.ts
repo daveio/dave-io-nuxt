@@ -101,7 +101,7 @@ export function sanitizeInput(input: unknown): string {
   } else if (typeof input === "object") {
     try {
       stringValue = JSON.stringify(input)
-    } catch (_error) {
+    } catch {
       // Handle circular references
       try {
         stringValue = JSON.stringify(input, (_key, value) => {

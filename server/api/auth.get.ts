@@ -1,5 +1,5 @@
 import { extractToken, getUserFromPayload, verifyJWT } from "~/server/utils/auth"
-import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
+import { createApiError, isApiError } from "~/server/utils/response"
 import { AuthSuccessResponseSchema } from "~/server/utils/schemas"
 
 export default defineEventHandler(async (event) => {

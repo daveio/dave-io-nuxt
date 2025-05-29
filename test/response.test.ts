@@ -10,7 +10,7 @@ function sanitizeInput(input: unknown): string {
 
   try {
     return JSON.stringify(input).length > 1000 ? `${JSON.stringify(input).slice(0, 997)}...` : JSON.stringify(input)
-  } catch (_error) {
+  } catch {
     return "[Circular]"
   }
 }

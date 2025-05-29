@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
 import { SignJWT, jwtVerify } from "jose"
-import ms from "ms"
 import readlineSync from "readline-sync"
 import { v4 as uuidv4 } from "uuid"
 

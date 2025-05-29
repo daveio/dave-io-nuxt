@@ -1,5 +1,5 @@
 import { authorizeEndpoint } from "~/server/utils/auth"
-import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
+import { createApiError, isApiError } from "~/server/utils/response"
 import { AiAltTextRequestSchema, AiAltTextResponseSchema } from "~/server/utils/schemas"
 
 export default defineEventHandler(async (event) => {
@@ -44,7 +44,7 @@ export default defineEventHandler(async (event) => {
       // Decode base64 image
       try {
         imageData = Buffer.from(request.image, "base64")
-      } catch (_error) {
+      } catch {
         createApiError(400, "Invalid base64 image data")
       }
     } else {

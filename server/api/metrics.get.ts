@@ -1,5 +1,5 @@
 import { authorizeEndpoint } from "~/server/utils/auth"
-import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
+import { createApiError, isApiError } from "~/server/utils/response"
 import { TokenMetricsSchema } from "~/server/utils/schemas"
 
 async function getMetricsFromAnalytics(
