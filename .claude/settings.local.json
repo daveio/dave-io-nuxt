@@ -8,7 +8,9 @@
       "Bash(rm /Users/dave/src/github.com/daveio/dave-io-nuxt/server/api/upload.post.ts)",
       "Bash(rm /Users/dave/src/github.com/daveio/dave-io-nuxt/server/api/posts -rf)",
       "Bash(rm -rf /Users/dave/src/github.com/daveio/dave-io-nuxt/server/api/posts)",
-      "Bash(bun add zod jose)"
+      "Bash(bun add zod jose)",
+      "mcp__sharedMemory__search_nodes",
+      "mcp__sharedMemory__create_entities"
     ]
   },
   "enableAllProjectMcpServers": false

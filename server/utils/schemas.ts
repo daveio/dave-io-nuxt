@@ -1,17 +1,19 @@
-import { z } from 'zod'
+import { z } from "zod"
 
 // Common response schemas
 export const ApiSuccessResponseSchema = z.object({
   success: z.literal(true),
   data: z.any().optional(),
   message: z.string().optional(),
-  meta: z.object({
-    total: z.number().optional(),
-    page: z.number().optional(),
-    per_page: z.number().optional(),
-    total_pages: z.number().optional(),
-    request_id: z.string().optional()
-  }).optional(),
+  meta: z
+    .object({
+      total: z.number().optional(),
+      page: z.number().optional(),
+      per_page: z.number().optional(),
+      total_pages: z.number().optional(),
+      request_id: z.string().optional()
+    })
+    .optional(),
   timestamp: z.string()
 })
 
@@ -19,9 +21,11 @@ export const ApiErrorResponseSchema = z.object({
   success: z.literal(false),
   error: z.string(),
   details: z.any().optional(),
-  meta: z.object({
-    request_id: z.string().optional()
-  }).optional(),
+  meta: z
+    .object({
+      request_id: z.string().optional()
+    })
+    .optional(),
   timestamp: z.string()
 })
 
@@ -52,7 +56,7 @@ export const AuthSuccessResponseSchema = z.object({
 
 // Health check schemas
 export const HealthCheckSchema = z.object({
-  status: z.enum(['ok', 'error']),
+  status: z.enum(["ok", "error"]),
   timestamp: z.string(),
   version: z.string(),
   environment: z.string(),
@@ -106,7 +110,11 @@ export const WorkerInfoSchema = z.object({
 
 // URL redirect schemas (for /go endpoints)
 export const UrlRedirectSchema = z.object({
-  slug: z.string().min(1).max(50).regex(/^[a-zA-Z0-9\-_]+$/),
+  slug: z
+    .string()
+    .min(1)
+    .max(50)
+    .regex(/^[a-zA-Z0-9\-_]+$/),
   url: z.string().url(),
   title: z.string().optional(),
   description: z.string().optional(),
@@ -116,19 +124,25 @@ export const UrlRedirectSchema = z.object({
 })
 
 export const CreateRedirectSchema = z.object({
-  slug: z.string().min(1).max(50).regex(/^[a-zA-Z0-9\-_]+$/),
+  slug: z
+    .string()
+    .min(1)
+    .max(50)
+    .regex(/^[a-zA-Z0-9\-_]+$/),
   url: z.string().url(),
   title: z.string().optional(),
   description: z.string().optional()
 })
 
 // AI service schemas
-export const AiAltTextRequestSchema = z.object({
-  url: z.string().url().optional(),
-  image: z.string().optional() // base64 encoded image
-}).refine(data => data.url || data.image, {
-  message: "Either url or image must be provided"
-})
+export const AiAltTextRequestSchema = z
+  .object({
+    url: z.string().url().optional(),
+    image: z.string().optional() // base64 encoded image
+  })
+  .refine((data) => data.url || data.image, {
+    message: "Either url or image must be provided"
+  })
 
 export const AiAltTextResponseSchema = z.object({
   success: z.literal(true),

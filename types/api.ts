@@ -14,7 +14,7 @@ export type {
   AiAltTextResponse,
   TokenUsage,
   TokenMetrics
-} from '~/server/utils/schemas'
+} from "~/server/utils/schemas"
 
 // Legacy interfaces for backward compatibility
 export interface ApiMeta {
