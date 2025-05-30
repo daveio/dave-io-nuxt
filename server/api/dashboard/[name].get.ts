@@ -204,7 +204,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Log successful request
-    logRequest(event, `dashboard/{name}`, "GET", 200, {
+    logRequest(event, "dashboard/{name}", "GET", 200, {
       dashboardName: name,
       source,
       itemCount: items.length
@@ -218,7 +218,7 @@ export default defineEventHandler(async (event) => {
     // biome-ignore lint/suspicious/noExplicitAny: Type assertion needed for error handling
     const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
     const name = getRouterParam(event, "name") || "unknown"
-    logRequest(event, `dashboard/{name}`, "GET", statusCode, {
+    logRequest(event, "dashboard/{name}", "GET", statusCode, {
       dashboardName: name,
       source: "error",
       itemCount: 0
@@ -229,6 +229,7 @@ export default defineEventHandler(async (event) => {
       const env = getCloudflareEnv(event)
       const cfInfo = getCloudflareRequestInfo(event)
       const responseTime = Date.now() - startTime
+      // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
       const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
       const name = getRouterParam(event, "name") || "unknown"
 

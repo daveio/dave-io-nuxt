@@ -25,10 +25,10 @@ const { logPageVisit } = usePageLogging()
 
 onMounted(() => {
   // Log page visit to access denied page
-  logPageVisit('/go', {
-    title: 'Access Denied',
-    theme: 'jurassic-park',
-    reason: 'no-magic-word'
+  logPageVisit("/go", {
+    title: "Access Denied",
+    theme: "jurassic-park",
+    reason: "no-magic-word"
   })
 })
 </script>

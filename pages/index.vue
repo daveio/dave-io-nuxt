@@ -133,15 +133,15 @@ const { logPageVisit, logInteraction } = usePageLogging()
 
 onMounted(() => {
   // Log page visit
-  logPageVisit('/', {
-    title: 'Homepage',
-    colorMode: 'dark',
-    services: ['redirector', 'api']
+  logPageVisit("/", {
+    title: "Homepage",
+    colorMode: "dark",
+    services: ["redirector", "api"]
   })
 })
 
 // Log button interactions
-const handleServiceClick = (service) => {
-  logInteraction('click', 'service-button', { service })
+const _handleServiceClick = (service) => {
+  logInteraction("click", "service-button", { service })
 }
 </script>

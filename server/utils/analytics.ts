@@ -48,18 +48,17 @@ function createCloudflareClient(): Cloudflare {
       apiKey: apiKey,
       apiEmail: email
     })
-  } else {
-    // Use preferred API Token authentication
-    const apiToken = getEnvironmentVariable("CLOUDFLARE_API_TOKEN", true)
-
-    if (!apiToken) {
-      throw new Error("CLOUDFLARE_API_TOKEN is required for Analytics Engine queries")
-    }
-
-    return new Cloudflare({
-      apiToken: apiToken
-    })
   }
+  // Use preferred API Token authentication
+  const apiToken = getEnvironmentVariable("CLOUDFLARE_API_TOKEN", true)
+
+  if (!apiToken) {
+    throw new Error("CLOUDFLARE_API_TOKEN is required for Analytics Engine queries")
+  }
+
+  return new Cloudflare({
+    apiToken: apiToken
+  })
 }
 
 /**
@@ -533,7 +532,7 @@ export async function queryAnalyticsEngine(
 
   try {
     // Create Cloudflare client with appropriate authentication method
-    const client = createCloudflareClient()
+    const _client = createCloudflareClient()
 
     // Build SQL query based on parameters
     const sqlQuery = buildAnalyticsEngineQuery(params)
@@ -561,7 +560,7 @@ export async function queryAnalyticsEngine(
       if (!apiToken) {
         throw new Error("CLOUDFLARE_API_TOKEN is required for Analytics Engine queries")
       }
-      authHeaders["Authorization"] = `Bearer ${apiToken}`
+      authHeaders.Authorization = `Bearer ${apiToken}`
     }
 
     const response = await fetch(apiUrl, {
@@ -601,6 +600,7 @@ export async function queryAnalyticsEngine(
  * Build Analytics Engine SQL query based on query parameters
  */
 function buildAnalyticsEngineQuery(params: AnalyticsQueryParams): string {
+  // biome-ignore lint/correctness/noUnusedVariables: offset destructured but used in offsetClause conditionally
   const { timeRange, customStart, customEnd, eventTypes, limit = 1000, offset = 0 } = params
 
   // Calculate time boundaries
@@ -713,12 +713,13 @@ interface KVCounterEntry {
  */
 function normalizeKVKey(key: string): string {
   // Ensure it starts with metrics:
-  if (!key.startsWith("metrics:")) {
-    key = `metrics:${key}`
+  let normalizedKey = key
+  if (!normalizedKey.startsWith("metrics:")) {
+    normalizedKey = `metrics:${normalizedKey}`
   }
 
   // Convert to kebab-case and normalize separators
-  return key
+  return normalizedKey
     .toLowerCase()
     .replace(/[^a-z0-9:]/g, "-") // Replace non-alphanumeric (except colons) with dashes
     .replace(/-+/g, "-") // Remove multiple consecutive dashes
@@ -761,7 +762,7 @@ export async function writeAnalytics(
               await kvNamespace.put(normalizedKey, String(currentValue + increment))
             }
           } catch (error) {
-            console.error(`Failed to update KV counter ${counter.key}:`, error)
+            console.error("Failed to update KV counter:", counter.key, error)
             // Continue with other counters even if one fails
           }
         })
@@ -912,7 +913,7 @@ export function createRateLimitKVCounters(
   action: string,
   endpoint: string,
   tokenSubject: string | undefined,
-  requestsInWindow: number,
+  _requestsInWindow: number,
   cfInfo: { country: string },
   extraCounters?: KVCounterEntry[]
 ): KVCounterEntry[] {
@@ -1192,13 +1193,13 @@ export async function writeAnalyticsEvent(analytics: AnalyticsEngineDataset, eve
     const indexes = [mapping.index1 || ""] // Analytics Engine only supports 1 index
 
     console.log(`Writing analytics event: ${event.type} with index: ${indexes[0]}`)
-    
+
     await analytics.writeDataPoint({
       blobs,
       doubles,
       indexes
     })
-    
+
     console.log(`✅ Analytics event written successfully: ${event.type}`)
   } catch (error) {
     console.error("❌ Failed to write analytics event:", error)
@@ -1261,22 +1262,22 @@ export function buildTimeSeriesQuery(params: AnalyticsQueryParams): string {
   }
 
   // Determine time bucket size based on range
-  let timeBucket: string
+  let _timeBucket: string
   switch (params.timeRange) {
     case "1h":
-      timeBucket = "5 MINUTE"
+      _timeBucket = "5 MINUTE"
       break
     case "24h":
-      timeBucket = "1 HOUR"
+      _timeBucket = "1 HOUR"
       break
     case "7d":
-      timeBucket = "6 HOUR"
+      _timeBucket = "6 HOUR"
       break
     case "30d":
-      timeBucket = "1 DAY"
+      _timeBucket = "1 DAY"
       break
     default:
-      timeBucket = "1 HOUR"
+      _timeBucket = "1 HOUR"
   }
 
   // Simple query without aggregate functions that aren't supported
@@ -1331,7 +1332,7 @@ export async function queryTimeSeriesData(
       if (!apiToken) {
         throw new Error("CLOUDFLARE_API_TOKEN is required for Analytics Engine queries")
       }
-      authHeaders["Authorization"] = `Bearer ${apiToken}`
+      authHeaders.Authorization = `Bearer ${apiToken}`
     }
 
     const response = await fetch(apiUrl, {

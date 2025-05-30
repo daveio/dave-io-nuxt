@@ -224,6 +224,7 @@ export default defineEventHandler(async (event) => {
       const env = getCloudflareEnv(event)
       const cfInfo = getCloudflareRequestInfo(event)
       const responseTime = Date.now() - startTime
+      // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
       const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
       const endpoint = `/api/tokens/${uuid || "unknown"}${path ? `/${path}` : ""}`
 

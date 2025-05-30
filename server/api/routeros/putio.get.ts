@@ -240,10 +240,12 @@ export default defineEventHandler(async (event) => {
     setHeader(event, "Content-Disposition", 'attachment; filename="putio-routeros.rsc"')
     return data.script
   } catch (error: unknown) {
+    // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
     const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
 
     // Log failed request
     logRequest(event, "routeros/putio", "GET", statusCode, {
+      // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusMessage property exists
       error: isApiError(error) ? (error as any).statusMessage || "Unknown error" : "Internal error"
     })
 

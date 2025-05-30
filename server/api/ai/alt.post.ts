@@ -192,6 +192,7 @@ export default defineEventHandler(async (event) => {
       const env = getCloudflareEnv(event)
       const cfInfo = getCloudflareRequestInfo(event)
       const body = await readBody(event).catch(() => ({}))
+      // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
       const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
 
       if (env?.ANALYTICS) {

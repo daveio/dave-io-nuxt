@@ -1,10 +1,6 @@
 import { setHeader, setResponseStatus } from "h3"
 import { writeAnalytics } from "~/server/utils/analytics"
-import {
-  getCloudflareEnv,
-  getCloudflareRequestInfo,
-  getKVNamespace
-} from "~/server/utils/cloudflare"
+import { getCloudflareEnv, getCloudflareRequestInfo, getKVNamespace } from "~/server/utils/cloudflare"
 import { createApiError, isApiError, logRequest } from "~/server/utils/response"
 import { UrlRedirectSchema } from "~/server/utils/schemas"
 
@@ -93,7 +89,7 @@ export default defineEventHandler(async (event) => {
     // Write analytics using standardized system
     try {
       const cfInfo = getCloudflareRequestInfo(event)
-      
+
       const analyticsEvent = {
         type: "redirect" as const,
         timestamp: new Date().toISOString(),
@@ -109,9 +105,9 @@ export default defineEventHandler(async (event) => {
       const kvCounters = [
         { key: "redirect:total:clicks" },
         { key: `redirect:${slug}:clicks`, value: clickCount },
-        { key: `redirect:targets:${redirect.url.replace(/[^a-z0-9]/g, '-')}` },
+        { key: `redirect:targets:${redirect.url.replace(/[^a-z0-9]/g, "-")}` },
         { key: `redirect:countries:${cfInfo.country.toLowerCase()}` },
-        { key: `redirect:daily:${new Date().toISOString().split('T')[0]}` }
+        { key: `redirect:daily:${new Date().toISOString().split("T")[0]}` }
       ]
 
       await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
@@ -132,11 +128,13 @@ export default defineEventHandler(async (event) => {
     setHeader(event, "Location", redirect.url)
     return
   } catch (error: unknown) {
+    // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
     const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
     const slug = getRouterParam(event, "slug")
-    
+
     // Log failed redirect request
     logRequest(event, `go/${slug || "unknown"}`, "GET", statusCode, {
+      // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusMessage property exists
       error: isApiError(error) ? (error as any).statusMessage || "Unknown error" : "Internal error"
     })
 

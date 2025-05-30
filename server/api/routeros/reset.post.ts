@@ -62,7 +62,7 @@ export default defineEventHandler(async (event) => {
     // Write successful analytics using standardized system
     try {
       const cfInfo = getCloudflareRequestInfo(event)
-      const responseTime = Date.now() - startTime
+      const _responseTime = Date.now() - startTime
 
       const analyticsEvent = {
         type: "routeros" as const,
@@ -80,7 +80,7 @@ export default defineEventHandler(async (event) => {
         { key: "routeros:reset:total" },
         { key: "routeros:reset:success" },
         { key: "routeros:reset:keys-deleted", value: keysDeleted },
-        { key: "routeros:reset:by-user:" + (authToken || "anonymous") },
+        { key: `routeros:reset:by-user:${authToken || "anonymous"}` },
         { key: "routeros:cache:manual-resets" }
       ])
 
@@ -121,6 +121,7 @@ export default defineEventHandler(async (event) => {
       const env = getCloudflareEnv(event)
       const cfInfo = getCloudflareRequestInfo(event)
       const responseTime = Date.now() - startTime
+      // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
       const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
 
       const analyticsEvent = {

@@ -9,14 +9,16 @@ export function usePageLogging() {
    */
   const logPageVisit = (route: string, extras?: Record<string, unknown>) => {
     if (!process.client) return // Only run on client side
-    
-    const referrer = document.referrer || 'direct'
-    const userAgent = navigator.userAgent.substring(0, 50) + (navigator.userAgent.length > 50 ? '...' : '')
-    const extrasStr = extras ? ` | ${Object.entries(extras).map(([k, v]) => `${k}: ${v}`).join(' | ')}` : ''
-    
-    console.log(
-      `[PAGE] ${route} | referrer: ${referrer} | UA: ${userAgent}${extrasStr}`
-    )
+
+    const referrer = document.referrer || "direct"
+    const userAgent = navigator.userAgent.substring(0, 50) + (navigator.userAgent.length > 50 ? "..." : "")
+    const extrasStr = extras
+      ? ` | ${Object.entries(extras)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(" | ")}`
+      : ""
+
+    console.log(`[PAGE] ${route} | referrer: ${referrer} | UA: ${userAgent}${extrasStr}`)
   }
 
   /**
@@ -25,26 +27,35 @@ export function usePageLogging() {
    */
   const logInteraction = (action: string, element: string, extras?: Record<string, unknown>) => {
     if (!process.client) return // Only run on client side
-    
-    const extrasStr = extras ? ` | ${Object.entries(extras).map(([k, v]) => `${k}: ${v}`).join(' | ')}` : ''
-    
-    console.log(
-      `[INTERACTION] ${action} | element: ${element}${extrasStr}`
-    )
+
+    const extrasStr = extras
+      ? ` | ${Object.entries(extras)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(" | ")}`
+      : ""
+
+    console.log(`[INTERACTION] ${action} | element: ${element}${extrasStr}`)
   }
 
   /**
    * Log navigation event
    * Format: [NAVIGATION] from -> to | method | extras
    */
-  const logNavigation = (from: string, to: string, method: 'push' | 'replace' | 'external' = 'push', extras?: Record<string, unknown>) => {
+  const logNavigation = (
+    from: string,
+    to: string,
+    method: "push" | "replace" | "external" = "push",
+    extras?: Record<string, unknown>
+  ) => {
     if (!process.client) return // Only run on client side
-    
-    const extrasStr = extras ? ` | ${Object.entries(extras).map(([k, v]) => `${k}: ${v}`).join(' | ')}` : ''
-    
-    console.log(
-      `[NAVIGATION] ${from} -> ${to} | method: ${method}${extrasStr}`
-    )
+
+    const extrasStr = extras
+      ? ` | ${Object.entries(extras)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(" | ")}`
+      : ""
+
+    console.log(`[NAVIGATION] ${from} -> ${to} | method: ${method}${extrasStr}`)
   }
 
   return {

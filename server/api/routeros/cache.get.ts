@@ -100,7 +100,7 @@ export default defineEventHandler(async (event) => {
     // Write successful analytics using standardized system
     try {
       const cfInfo = getCloudflareRequestInfo(event)
-      const responseTime = Date.now() - startTime
+      const _responseTime = Date.now() - startTime
 
       const analyticsEvent = {
         type: "routeros" as const,
@@ -116,7 +116,7 @@ export default defineEventHandler(async (event) => {
 
       const kvCounters = createAPIRequestKVCounters("/api/routeros/cache", "GET", 200, cfInfo, [
         { key: "routeros:cache:checks:total" },
-        { key: "routeros:cache:status:" + (stats.isStale ? "stale" : "fresh") },
+        { key: `routeros:cache:status:${stats.isStale ? "stale" : "fresh"}` },
         { key: "routeros:cache:ipv4-count", value: stats.ipv4Count },
         { key: "routeros:cache:ipv6-count", value: stats.ipv6Count },
         { key: "routeros:cache:age-seconds", value: stats.cacheAge },
@@ -156,6 +156,7 @@ export default defineEventHandler(async (event) => {
       const env = getCloudflareEnv(event)
       const cfInfo = getCloudflareRequestInfo(event)
       const responseTime = Date.now() - startTime
+      // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
       const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
 
       if (env?.ANALYTICS) {

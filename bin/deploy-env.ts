@@ -14,8 +14,8 @@
  * - Ensures secure API token usage over legacy API key
  */
 
-import { existsSync, readFileSync } from "fs"
-import { join } from "path"
+import { existsSync, readFileSync } from "node:fs"
+import { join } from "node:path"
 import { spawn } from "bun"
 
 interface EnvVars {
@@ -141,12 +141,11 @@ async function deploySecret(key: string, value: string): Promise<boolean> {
     if (result === 0) {
       console.log(`✅ Successfully deployed: ${key}`)
       return true
-    } else {
-      console.error(`❌ Failed to deploy: ${key}`)
-      return false
     }
+    console.error(`❌ Failed to deploy: ${key}`)
+    return false
   } catch (error) {
-    console.error(`❌ Error deploying ${key}:`, error)
+    console.error("❌ Error deploying variable:", key, error)
     return false
   }
 }

@@ -54,8 +54,8 @@ export default defineEventHandler(async (event) => {
       const kvCounters = createAuthKVCounters(true, responseTime, payload.sub, cfInfo, [
         { key: "auth:token-verifications:total" },
         { key: "auth:token-verifications:success" },
-        { key: "auth:users:active:" + payload.sub },
-        { key: "auth:tokens:verified:" + (payload.jti || "unknown") }
+        { key: `auth:users:active:${payload.sub}` },
+        { key: `auth:tokens:verified:${payload.jti || "unknown"}` }
       ])
 
       await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
@@ -103,7 +103,8 @@ export default defineEventHandler(async (event) => {
       const env = getCloudflareEnv(event)
       const cfInfo = getCloudflareRequestInfo(event)
       const responseTime = Date.now() - startTime
-      const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
+      // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
+      const _statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
 
       const analyticsEvent = {
         type: "auth" as const,
@@ -131,6 +132,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Log error request
+    // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
     const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
     logRequest(event, "auth", "GET", statusCode, {
       user: authToken || "unknown",

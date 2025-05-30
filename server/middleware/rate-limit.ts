@@ -204,12 +204,12 @@ export async function applyRateLimit(event: H3Event, config?: RateLimitConfig): 
   }
 
   const env = getCloudflareEnv(event)
-  
+
   // Skip rate limiting if required services are not available
   if (!env.DATA || !env.ANALYTICS) {
     return
   }
-  
+
   const kv = getKVNamespace(env)
   const analytics = getAnalyticsBinding(env)
   const cloudflareInfo = getCloudflareRequestInfo(event)
@@ -335,7 +335,7 @@ export async function getRateLimitStatus(
   }
 
   const env = getCloudflareEnv(event)
-  
+
   // Return disabled state if KV storage is not available
   if (!env.DATA) {
     return {
@@ -347,7 +347,7 @@ export async function getRateLimitStatus(
       windowMs: rateLimitConfig.windowMs
     }
   }
-  
+
   const kv = getKVNamespace(env)
 
   const rateLimitKey = generateRateLimitKey(event, rateLimitConfig)
@@ -503,12 +503,12 @@ export async function rateLimitMiddleware(event: H3Event): Promise<void> {
   }
 
   const env = getCloudflareEnv(event)
-  
+
   // Skip rate limiting if KV storage is not available (allows proper 404s)
   if (!env.DATA) {
     return
   }
-  
+
   const kv = getKVNamespace(env)
   const analytics = getAnalyticsBinding(env)
   const cloudflareInfo = getCloudflareRequestInfo(event)

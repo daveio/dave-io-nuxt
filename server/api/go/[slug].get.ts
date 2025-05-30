@@ -126,10 +126,12 @@ export default defineEventHandler(async (event) => {
     // Perform redirect (302 Found)
     return sendRedirect(event, redirect.url, 302)
   } catch (error: unknown) {
+    // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
     const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
 
     // Log failed redirect request
     logRequest(event, `go/${slug || "unknown"}`, "GET", statusCode, {
+      // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusMessage property exists
       error: isApiError(error) ? (error as any).statusMessage || "Unknown error" : "Internal error"
     })
 

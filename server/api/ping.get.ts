@@ -33,10 +33,10 @@ export default defineEventHandler(async (event) => {
 
     const kvCounters = createAPIRequestKVCounters("/api/ping", "GET", 200, cfInfo, [
       { key: "ping:total" },
-      { key: "ping:by-datacenter:" + cfInfo.datacenter.toLowerCase() },
+      { key: `ping:by-datacenter:${cfInfo.datacenter.toLowerCase()}` },
       { key: "ping:response-time:bucket", increment: responseTime < 10 ? 1 : 0 }, // Fast pings
       {
-        key: "ping:unique-ips:daily:" + new Date().toISOString().split("T")[0] + ":" + cfInfo.ip.replace(/\./g, "-"),
+        key: `ping:unique-ips:daily:${new Date().toISOString().split("T")[0]}:${cfInfo.ip.replace(/\./g, "-")}`,
         increment: 0,
         value: 1
       } // Unique daily IPs
