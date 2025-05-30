@@ -1,10 +1,11 @@
+import { createAIKVCounters, writeAnalytics } from "~/server/utils/analytics"
 import {
   checkAIRateLimit as checkAIRateLimitAuth,
   requireAIAuth,
   setRateLimitHeaders
 } from "~/server/utils/auth-helpers"
 import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
-import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
+import { createApiError, createApiResponse, isApiError, logRequest } from "~/server/utils/response"
 import { validateImageURL } from "~/server/utils/validation"
 
 // Local function removed - using shared helper from auth-helpers
@@ -77,32 +78,55 @@ export default defineEventHandler(async (event) => {
 
     const processingTime = Date.now() - processingStart
 
-    // Write analytics data to Analytics Engine
+    // Write analytics using standardized system
     try {
       const cfInfo = getCloudflareRequestInfo(event)
-      if (env?.ANALYTICS) {
-        env.ANALYTICS.writeDataPoint({
-          blobs: [
-            "ai",
-            "alt-text",
-            "get",
-            imageUrl,
-            aiSuccess ? altText.substring(0, 100) : "",
-            auth.payload?.sub || "anonymous",
-            cfInfo.userAgent,
-            cfInfo.ip,
-            cfInfo.country,
-            cfInfo.ray,
-            aiSuccess ? "success" : aiErrorType || "error"
-          ],
-          doubles: [processingTime, imageBuffer.byteLength], // Processing time and image size
-          indexes: ["ai", "alt-text", auth.payload?.sub || "anonymous"] // For querying AI operations
-        })
+
+      const analyticsEvent = {
+        type: "ai" as const,
+        timestamp: new Date().toISOString(),
+        cloudflare: cfInfo,
+        data: {
+          operation: "alt-text" as const,
+          method: "GET" as "GET" | "POST",
+          imageSource: imageUrl,
+          processingTimeMs: processingTime,
+          imageSizeBytes: imageBuffer.byteLength,
+          generatedText: aiSuccess ? altText.substring(0, 100) : undefined,
+          userId: auth.payload?.sub || undefined,
+          success: aiSuccess,
+          errorType: aiSuccess ? undefined : aiErrorType || "unknown"
+        }
       }
+
+      const kvCounters = createAIKVCounters(
+        "alt-text",
+        aiSuccess,
+        processingTime,
+        imageBuffer.byteLength,
+        auth.payload?.sub,
+        cfInfo,
+        [
+          { key: "ai:alt-text:requests:total" },
+          { key: `ai:alt-text:models:${aiModel.replace(/[^a-z0-9]/g, "-")}` },
+          { key: "ai:alt-text:rate-limit:used", increment: 1 },
+          { key: "ai:alt-text:rate-limit:remaining", value: rateLimit.remaining }
+        ]
+      )
+
+      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
     } catch (error) {
       console.error("Failed to write AI analytics:", error)
       // Continue with response even if analytics fails
     }
+
+    // Log successful request
+    logRequest(event, "ai/alt", "GET", 200, {
+      user: auth.payload?.sub || "anonymous",
+      imageSize: imageBuffer.byteLength,
+      processingTime,
+      success: true
+    })
 
     return createApiResponse(
       {
@@ -121,6 +145,16 @@ export default defineEventHandler(async (event) => {
     )
   } catch (error: unknown) {
     console.error("AI alt text error:", error)
+
+    // Log error request
+    // biome-ignore lint/suspicious/noExplicitAny: Type assertion needed for error handling
+    const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
+    logRequest(event, "ai/alt", "GET", statusCode, {
+      user: "unknown",
+      imageSize: 0,
+      processingTime: 0,
+      success: false
+    })
 
     // Write failure analytics if we have enough context
     try {

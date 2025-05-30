@@ -166,7 +166,6 @@ export interface RateLimitEvent extends AnalyticsEvent {
   }
 }
 
-
 /**
  * Aggregated analytics metrics
  */
@@ -271,7 +270,6 @@ export interface AnalyticsQueryParams {
   limit?: number
   offset?: number
 }
-
 
 /**
  * Analytics API response structure

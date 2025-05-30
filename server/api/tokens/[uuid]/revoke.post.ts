@@ -1,4 +1,6 @@
+import { createAPIRequestKVCounters, writeAnalytics } from "~/server/utils/analytics"
 import { authorizeEndpoint } from "~/server/utils/auth"
+import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
 import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 
 interface RevokeRequest {
@@ -13,6 +15,11 @@ interface RevokeResponse {
 }
 
 export default defineEventHandler(async (event) => {
+  const startTime = Date.now()
+  let authToken: string | null = null
+  let uuid: string | undefined
+  let operation: "revoke" | "unrevoke" | undefined
+
   try {
     // Check authorization for token management
     const authFunc = await authorizeEndpoint("api", "tokens")
@@ -21,7 +28,9 @@ export default defineEventHandler(async (event) => {
       throw createApiError(401, auth.error || "Unauthorized")
     }
 
-    const uuid = getRouterParam(event, "uuid")
+    authToken = auth.payload?.sub || null
+
+    uuid = getRouterParam(event, "uuid")
 
     if (!uuid) {
       throw createApiError(400, "Token UUID is required")
@@ -45,10 +54,11 @@ export default defineEventHandler(async (event) => {
       throw createApiError(400, 'Field "revoked" must be a boolean')
     }
 
+    operation = body.revoked ? "revoke" : "unrevoke"
     const now = new Date().toISOString()
 
-    // Get KV binding for token revocation
-    const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
+    // Get environment bindings using helper
+    const env = getCloudflareEnv(event)
     if (!env?.DATA) {
       throw createApiError(500, "KV storage not available")
     }
@@ -93,12 +103,80 @@ export default defineEventHandler(async (event) => {
       response.revokedAt = now
     }
 
+    // Write successful analytics using standardized system
+    try {
+      const cfInfo = getCloudflareRequestInfo(event)
+      const responseTime = Date.now() - startTime
+
+      const analyticsEvent = {
+        type: "api_request" as const,
+        timestamp: new Date().toISOString(),
+        cloudflare: cfInfo,
+        data: {
+          endpoint: `/api/tokens/${uuid}/revoke`,
+          method: "POST",
+          statusCode: 200,
+          responseTimeMs: responseTime,
+          tokenSubject: authToken || undefined
+        }
+      }
+
+      const kvCounters = createAPIRequestKVCounters(`/api/tokens/${uuid}/revoke`, "POST", 200, cfInfo, [
+        { key: "tokens:revocations:total" },
+        { key: `tokens:revocations:${operation}` },
+        { key: `tokens:revoked:${uuid}:operations` },
+        { key: `tokens:revocations:by-user:${authToken || "unknown"}` }
+      ])
+
+      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
+    } catch (analyticsError) {
+      console.error("Failed to write token revocation success analytics:", analyticsError)
+    }
+
     return createApiResponse(
       response,
       body.revoked ? "Token revoked successfully" : "Token revocation removed successfully"
     )
   } catch (error: unknown) {
     console.error("Token revocation error:", error)
+
+    // Write analytics for failed requests
+    try {
+      const env = getCloudflareEnv(event)
+      const cfInfo = getCloudflareRequestInfo(event)
+      const responseTime = Date.now() - startTime
+      const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
+
+      const analyticsEvent = {
+        type: "api_request" as const,
+        timestamp: new Date().toISOString(),
+        cloudflare: cfInfo,
+        data: {
+          endpoint: `/api/tokens/${uuid || "unknown"}/revoke`,
+          method: "POST",
+          statusCode: statusCode,
+          responseTimeMs: responseTime,
+          tokenSubject: authToken || undefined
+        }
+      }
+
+      const kvCounters = createAPIRequestKVCounters(
+        `/api/tokens/${uuid || "unknown"}/revoke`,
+        "POST",
+        statusCode,
+        cfInfo,
+        [
+          { key: "tokens:revocations:total" },
+          { key: "tokens:revocations:errors:total" },
+          { key: `tokens:revocations:errors:${statusCode}` },
+          { key: operation ? `tokens:revocations:${operation}:errors` : "tokens:revocations:unknown:errors" }
+        ]
+      )
+
+      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
+    } catch (analyticsError) {
+      console.error("Failed to write token revocation error analytics:", analyticsError)
+    }
 
     if (isApiError(error)) {
       throw error

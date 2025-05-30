@@ -1,3 +1,5 @@
+import type { H3Event } from "h3"
+import { getCloudflareRequestInfo } from "./cloudflare"
 import type { ApiErrorResponse, ApiSuccessResponse } from "./schemas"
 
 export interface ApiResponse<T = unknown> {
@@ -228,4 +230,27 @@ function generateRequestId(): string {
 // Type guard for API errors
 export function isApiError(error: unknown): error is { statusCode: number; message?: string } {
   return typeof error === "object" && error !== null && "statusCode" in error
+}
+
+/**
+ * Standardized request logging for all endpoints
+ * Format: [ENDPOINT] method | status | IP | Country | Ray | UA | extras
+ */
+export function logRequest(
+  event: H3Event,
+  endpoint: string,
+  method: string,
+  statusCode: number,
+  extras?: Record<string, unknown>
+): void {
+  const cfInfo = getCloudflareRequestInfo(event)
+  const extrasStr = extras
+    ? ` | ${Object.entries(extras)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(" | ")}`
+    : ""
+
+  console.log(
+    `[${endpoint.toUpperCase()}] ${method} | ${statusCode} | IP: ${cfInfo.ip} | Country: ${cfInfo.country} | Ray: ${cfInfo.ray} | UA: ${cfInfo.userAgent.substring(0, 50)}${cfInfo.userAgent.length > 50 ? "..." : ""}${extrasStr}`
+  )
 }

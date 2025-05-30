@@ -8,16 +8,18 @@ import {
   queryTimeSeriesData
 } from "~/server/utils/analytics"
 import { requireAPIAuth } from "~/server/utils/auth-helpers"
-import { getCloudflareEnv, getKVNamespace } from "~/server/utils/cloudflare"
+import { getCloudflareEnv, getCloudflareRequestInfo, getKVNamespace } from "~/server/utils/cloudflare"
 import { createApiError, createApiResponse } from "~/server/utils/response"
 import type { AnalyticsMetrics, AnalyticsQueryParams, AnalyticsResponse } from "~/types/analytics"
 
 export default defineEventHandler(async (event) => {
   const startTime = Date.now()
+  let authToken: string | null = null
 
   try {
     // Require analytics permissions
-    await requireAPIAuth(event, "analytics")
+    const authResult = await requireAPIAuth(event, "analytics")
+    authToken = authResult?.sub || null
 
     const env = getCloudflareEnv(event)
     const kv = getKVNamespace(env)
@@ -119,6 +121,72 @@ export default defineEventHandler(async (event) => {
       }),
       { expirationTtl: 300 }
     ) // 5 minutes
+
+    // Write analytics about analytics query (meta!)
+    try {
+      const cfInfo = getCloudflareRequestInfo(event)
+      const responseTime = Date.now() - startTime
+
+      if (env?.ANALYTICS) {
+        env.ANALYTICS.writeDataPoint({
+          blobs: [
+            "api_request",
+            "/api/analytics",
+            "GET",
+            cfInfo.userAgent,
+            cfInfo.ip,
+            cfInfo.country,
+            cfInfo.ray,
+            authToken || "anonymous",
+            params.timeRange,
+            JSON.stringify(params.eventTypes || [])
+          ],
+          doubles: [
+            responseTime,
+            200,
+            1, // success
+            metrics.overview.totalRequests,
+            metrics.overview.successfulRequests,
+            metrics.overview.failedRequests,
+            metrics.redirects.totalClicks,
+            metrics.ai.totalOperations,
+            cached ? 1 : 0, // was cached
+            engineResults.length // number of raw events
+          ],
+          indexes: ["api_request", "/api/analytics", authToken || "anonymous"]
+        })
+      }
+
+      // Update KV counters for analytics usage
+      if (env?.DATA) {
+        await env.DATA.put(
+          "metrics:analytics:queries:total",
+          String((await env.DATA.get("metrics:analytics:queries:total").then((v) => Number.parseInt(v || "0"))) + 1)
+        )
+
+        // Track which time ranges are most popular
+        const timeRangeKey = `metrics:analytics:time_ranges:${params.timeRange}:count`
+        await env.DATA.put(
+          timeRangeKey,
+          String((await env.DATA.get(timeRangeKey).then((v) => Number.parseInt(v || "0"))) + 1)
+        )
+
+        // Track cache hit rate
+        if (cached) {
+          await env.DATA.put(
+            "metrics:analytics:cache:hits",
+            String((await env.DATA.get("metrics:analytics:cache:hits").then((v) => Number.parseInt(v || "0"))) + 1)
+          )
+        } else {
+          await env.DATA.put(
+            "metrics:analytics:cache:misses",
+            String((await env.DATA.get("metrics:analytics:cache:misses").then((v) => Number.parseInt(v || "0"))) + 1)
+          )
+        }
+      }
+    } catch (analyticsError) {
+      console.error("Failed to write analytics query analytics:", analyticsError)
+    }
 
     return createApiResponse(metrics, "Analytics data retrieved successfully", {
       request_id: crypto.randomUUID()

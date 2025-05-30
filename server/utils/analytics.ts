@@ -37,9 +37,11 @@ function createCloudflareClient(): Cloudflare {
     // Use legacy API Key authentication (requires email + API key)
     const apiKey = getEnvironmentVariable("CLOUDFLARE_API_KEY", true)
     const email = getEnvironmentVariable("CLOUDFLARE_EMAIL", true)
-    
+
     if (!apiKey || !email) {
-      throw new Error("CLOUDFLARE_API_KEY and CLOUDFLARE_EMAIL are required when using dangerous global key authentication")
+      throw new Error(
+        "CLOUDFLARE_API_KEY and CLOUDFLARE_EMAIL are required when using dangerous global key authentication"
+      )
     }
 
     return new Cloudflare({
@@ -49,7 +51,7 @@ function createCloudflareClient(): Cloudflare {
   } else {
     // Use preferred API Token authentication
     const apiToken = getEnvironmentVariable("CLOUDFLARE_API_TOKEN", true)
-    
+
     if (!apiToken) {
       throw new Error("CLOUDFLARE_API_TOKEN is required for Analytics Engine queries")
     }
@@ -98,8 +100,8 @@ export function getTimeRangeBoundaries(
 export function buildAnalyticsQuery(params: AnalyticsQueryParams): string {
   const { start, end } = getTimeRangeBoundaries(params.timeRange, params.customStart, params.customEnd)
 
-  const startDateTime = start.toISOString().replace('T', ' ').substring(0, 19)
-  const endDateTime = end.toISOString().replace('T', ' ').substring(0, 19)
+  const startDateTime = start.toISOString().replace("T", " ").substring(0, 19)
+  const endDateTime = end.toISOString().replace("T", " ").substring(0, 19)
   let whereClause = `"timestamp" >= toDateTime('${startDateTime}') AND "timestamp" <= toDateTime('${endDateTime}')`
 
   if (params.eventTypes && params.eventTypes.length > 0) {
@@ -539,29 +541,31 @@ export async function queryAnalyticsEngine(
     // Make direct HTTP request to Analytics Engine SQL API
     // The API expects the query as raw text in the request body
     const apiUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/analytics_engine/sql`
-    
+
     const authHeaders: Record<string, string> = {
-      'Content-Type': 'text/plain'
+      "Content-Type": "text/plain"
     }
 
     if (isDangerousGlobalKeyEnabled()) {
       const apiKey = getEnvironmentVariable("CLOUDFLARE_API_KEY", true)
       const email = getEnvironmentVariable("CLOUDFLARE_EMAIL", true)
       if (!apiKey || !email) {
-        throw new Error("CLOUDFLARE_API_KEY and CLOUDFLARE_EMAIL are required when using dangerous global key authentication")
+        throw new Error(
+          "CLOUDFLARE_API_KEY and CLOUDFLARE_EMAIL are required when using dangerous global key authentication"
+        )
       }
-      authHeaders['X-Auth-Email'] = email
-      authHeaders['X-Auth-Key'] = apiKey
+      authHeaders["X-Auth-Email"] = email
+      authHeaders["X-Auth-Key"] = apiKey
     } else {
       const apiToken = getEnvironmentVariable("CLOUDFLARE_API_TOKEN", true)
       if (!apiToken) {
         throw new Error("CLOUDFLARE_API_TOKEN is required for Analytics Engine queries")
       }
-      authHeaders['Authorization'] = `Bearer ${apiToken}`
+      authHeaders["Authorization"] = `Bearer ${apiToken}`
     }
 
     const response = await fetch(apiUrl, {
-      method: 'POST',
+      method: "POST",
       headers: authHeaders,
       body: sqlQuery
     })
@@ -571,7 +575,7 @@ export async function queryAnalyticsEngine(
       throw new Error(`Analytics Engine HTTP error: ${response.status} - ${errorText}`)
     }
 
-    const result = await response.json() as AnalyticsEngineSQLResponse
+    const result = (await response.json()) as AnalyticsEngineSQLResponse
 
     // Check if the response has the expected structure
     if (!result.data) {
@@ -603,9 +607,12 @@ function buildAnalyticsEngineQuery(params: AnalyticsQueryParams): string {
   const { start, end } = getTimeRangeBoundaries(timeRange, customStart, customEnd)
 
   // Build WHERE conditions - use toDateTime function for proper comparison
-  const startDateTime = start.toISOString().replace('T', ' ').substring(0, 19)
-  const endDateTime = end.toISOString().replace('T', ' ').substring(0, 19)
-  const conditions: string[] = [`"timestamp" >= toDateTime('${startDateTime}')`, `"timestamp" <= toDateTime('${endDateTime}')`]
+  const startDateTime = start.toISOString().replace("T", " ").substring(0, 19)
+  const endDateTime = end.toISOString().replace("T", " ").substring(0, 19)
+  const conditions: string[] = [
+    `"timestamp" >= toDateTime('${startDateTime}')`,
+    `"timestamp" <= toDateTime('${endDateTime}')`
+  ]
 
   // Filter by event types if specified
   if (eventTypes && eventTypes.length > 0) {
@@ -693,146 +700,506 @@ function transformSQLResponseToAnalyticsResults(data: Array<Record<string, unkno
 }
 
 /**
- * Write analytics event to Analytics Engine
+ * KV counter entry for simple increments or value sets
+ */
+interface KVCounterEntry {
+  key: string
+  increment?: number
+  value?: string | number
+}
+
+/**
+ * Normalize key to kebab-case with colons and ensure metrics: prefix
+ */
+function normalizeKVKey(key: string): string {
+  // Ensure it starts with metrics:
+  if (!key.startsWith("metrics:")) {
+    key = `metrics:${key}`
+  }
+
+  // Convert to kebab-case and normalize separators
+  return key
+    .toLowerCase()
+    .replace(/[^a-z0-9:]/g, "-") // Replace non-alphanumeric (except colons) with dashes
+    .replace(/-+/g, "-") // Remove multiple consecutive dashes
+    .replace(/-:/g, ":") // Clean up dash-colon combinations
+    .replace(/:-/g, ":") // Clean up colon-dash combinations
+    .replace(/^-/, "") // Remove leading dash
+    .replace(/-$/, "") // Remove trailing dash
+}
+
+/**
+ * Main analytics function that can write to Analytics Engine only, or Analytics Engine + KV
+ */
+export async function writeAnalytics(
+  kv: boolean,
+  analytics: AnalyticsEngineDataset | undefined,
+  kvNamespace: KVNamespace | undefined,
+  event: AnalyticsEvent,
+  kvCounters?: KVCounterEntry[]
+): Promise<void> {
+  try {
+    // Always write to Analytics Engine
+    if (analytics) {
+      writeAnalyticsEvent(analytics, event)
+    }
+
+    // Write to KV only if kv flag is true
+    if (kv && kvNamespace && kvCounters) {
+      await Promise.all(
+        kvCounters.map(async (counter) => {
+          try {
+            const normalizedKey = normalizeKVKey(counter.key)
+
+            if (counter.value !== undefined) {
+              // Set specific value
+              await kvNamespace.put(normalizedKey, String(counter.value))
+            } else {
+              // Increment by specified amount (default 1)
+              const currentValue = await kvNamespace.get(normalizedKey).then((v) => Number.parseInt(v || "0"))
+              const increment = counter.increment || 1
+              await kvNamespace.put(normalizedKey, String(currentValue + increment))
+            }
+          } catch (error) {
+            console.error(`Failed to update KV counter ${counter.key}:`, error)
+            // Continue with other counters even if one fails
+          }
+        })
+      )
+    }
+  } catch (error) {
+    console.error("Failed to write analytics:", error)
+    // Don't throw - analytics should never break the main flow
+  }
+}
+
+/**
+ * Helper to create standard KV counters for API requests
+ */
+export function createAPIRequestKVCounters(
+  endpoint: string,
+  method: string,
+  statusCode: number,
+  cfInfo: { country: string; datacenter: string },
+  extraCounters?: KVCounterEntry[]
+): KVCounterEntry[] {
+  const success = statusCode < 400
+  const endpointSlug = endpoint.replace(/^\/api\//, "").replace(/[^a-z0-9]/g, "-")
+
+  const baseCounters: KVCounterEntry[] = [
+    { key: "requests:total" },
+    { key: success ? "requests:successful" : "requests:failed" },
+    { key: `requests:by-status:${statusCode}` },
+    { key: `requests:by-method:${method.toLowerCase()}` },
+    { key: `requests:by-endpoint:${endpointSlug}:total` },
+    {
+      key: success ? `requests:by-endpoint:${endpointSlug}:successful` : `requests:by-endpoint:${endpointSlug}:failed`
+    },
+    { key: `requests:by-country:${cfInfo.country.toLowerCase()}` },
+    { key: `requests:by-datacenter:${cfInfo.datacenter.toLowerCase()}` }
+  ]
+
+  return [...baseCounters, ...(extraCounters || [])]
+}
+
+/**
+ * Helper to create standard KV counters for auth events
+ */
+export function createAuthKVCounters(
+  endpoint: string,
+  success: boolean,
+  tokenSubject: string | undefined,
+  cfInfo: { country: string },
+  extraCounters?: KVCounterEntry[]
+): KVCounterEntry[] {
+  const endpointSlug = endpoint.replace(/[^a-z0-9]/g, "-")
+
+  const baseCounters: KVCounterEntry[] = [
+    { key: "auth:total" },
+    { key: success ? "auth:successful" : "auth:failed" },
+    { key: `auth:by-endpoint:${endpointSlug}:total` },
+    { key: success ? `auth:by-endpoint:${endpointSlug}:successful` : `auth:by-endpoint:${endpointSlug}:failed` },
+    { key: `auth:by-country:${cfInfo.country.toLowerCase()}` }
+  ]
+
+  // Add token-specific counters if we have a token subject
+  if (tokenSubject) {
+    const tokenSlug = tokenSubject.replace(/[^a-z0-9]/g, "-")
+    baseCounters.push(
+      { key: `auth:by-token:${tokenSlug}:total` },
+      { key: success ? `auth:by-token:${tokenSlug}:successful` : `auth:by-token:${tokenSlug}:failed` }
+    )
+  }
+
+  // Failed auth by country for security monitoring
+  if (!success) {
+    baseCounters.push({ key: `auth:failed:by-country:${cfInfo.country.toLowerCase()}` })
+  }
+
+  return [...baseCounters, ...(extraCounters || [])]
+}
+
+/**
+ * Helper to create KV counters for redirect events
+ */
+export function createRedirectKVCounters(
+  slug: string,
+  destinationUrl: string,
+  clickCount: number,
+  cfInfo: { country: string },
+  extraCounters?: KVCounterEntry[]
+): KVCounterEntry[] {
+  const slugNormalized = slug.replace(/[^a-z0-9]/g, "-")
+  const domainMatch = destinationUrl.match(/^https?:\/\/([^\/]+)/)
+  const domain = domainMatch ? domainMatch[1].replace(/[^a-z0-9]/g, "-") : "unknown"
+
+  const baseCounters: KVCounterEntry[] = [
+    { key: "redirects:total", increment: clickCount },
+    { key: `redirects:by-slug:${slugNormalized}`, increment: clickCount },
+    { key: `redirects:by-domain:${domain}`, increment: clickCount },
+    { key: `redirects:by-country:${cfInfo.country.toLowerCase()}`, increment: clickCount }
+  ]
+
+  return [...baseCounters, ...(extraCounters || [])]
+}
+
+/**
+ * Helper to create KV counters for AI events
+ */
+export function createAIKVCounters(
+  operation: string,
+  success: boolean,
+  processingTimeMs: number,
+  imageSizeBytes: number | undefined,
+  userId: string | undefined,
+  cfInfo: { country: string },
+  extraCounters?: KVCounterEntry[]
+): KVCounterEntry[] {
+  const baseCounters: KVCounterEntry[] = [
+    { key: "ai:total" },
+    { key: success ? "ai:successful" : "ai:failed" },
+    { key: `ai:by-operation:${operation}:total` },
+    { key: success ? `ai:by-operation:${operation}:successful` : `ai:by-operation:${operation}:failed` },
+    { key: `ai:by-country:${cfInfo.country.toLowerCase()}` }
+  ]
+
+  // Add processing time buckets for performance monitoring
+  const timeBucket = processingTimeMs < 1000 ? "fast" : processingTimeMs < 5000 ? "medium" : "slow"
+  baseCounters.push({ key: `ai:by-speed:${timeBucket}` })
+
+  // Add image size buckets if available
+  if (imageSizeBytes) {
+    const sizeBucket = imageSizeBytes < 100000 ? "small" : imageSizeBytes < 1000000 ? "medium" : "large"
+    baseCounters.push({ key: `ai:by-image-size:${sizeBucket}` })
+  }
+
+  // Add user-specific counters if available
+  if (userId) {
+    const userSlug = userId.replace(/[^a-z0-9]/g, "-")
+    baseCounters.push(
+      { key: `ai:by-user:${userSlug}:total` },
+      { key: success ? `ai:by-user:${userSlug}:successful` : `ai:by-user:${userSlug}:failed` }
+    )
+  }
+
+  return [...baseCounters, ...(extraCounters || [])]
+}
+
+/**
+ * Helper to create KV counters for rate limit events
+ */
+export function createRateLimitKVCounters(
+  action: string,
+  endpoint: string,
+  tokenSubject: string | undefined,
+  requestsInWindow: number,
+  cfInfo: { country: string },
+  extraCounters?: KVCounterEntry[]
+): KVCounterEntry[] {
+  const endpointSlug = endpoint.replace(/[^a-z0-9]/g, "-")
+
+  const baseCounters: KVCounterEntry[] = [
+    { key: "rate-limits:total" },
+    { key: `rate-limits:by-action:${action}` },
+    { key: `rate-limits:by-endpoint:${endpointSlug}` },
+    { key: `rate-limits:by-country:${cfInfo.country.toLowerCase()}` }
+  ]
+
+  // Add token-specific rate limit tracking
+  if (tokenSubject) {
+    const tokenSlug = tokenSubject.replace(/[^a-z0-9]/g, "-")
+    baseCounters.push(
+      { key: `rate-limits:by-token:${tokenSlug}:total` },
+      { key: `rate-limits:by-token:${tokenSlug}:${action}` }
+    )
+  }
+
+  return [...baseCounters, ...(extraCounters || [])]
+}
+
+/**
+ * Standard Analytics Engine field mapping for consistent data structure
+ */
+interface StandardAnalyticsMapping {
+  // Blob fields (strings) - standardized positions
+  blob1: string // event_type (api_request, auth, ai, redirect, etc.)
+  blob2: string // endpoint/operation/slug
+  blob3: string // method/action/status
+  blob4: string // user_agent
+  blob5: string // ip_address
+  blob6: string // country
+  blob7: string // ray_id
+  blob8: string // token_subject/user_id
+  blob9: string // additional_context_1
+  blob10: string // additional_context_2
+
+  // Double fields (numbers) - standardized positions
+  double1: number // response_time_ms
+  double2: number // status_code
+  double3: number // success_flag (1/0)
+  double4: number // size_bytes (image size, payload size, etc.)
+  double5: number // duration_ms (processing time, cache age, etc.)
+  double6: number // count (click count, request count, etc.)
+  double7: number // rate_limit_current
+  double8: number // rate_limit_max
+  double9: number // custom_metric_1
+  double10: number // custom_metric_2
+
+  // Index fields - for fast querying
+  index1: string // event_type (same as blob1, for fast filtering)
+  index2: string // primary_identifier (endpoint, slug, operation, etc.)
+  index3: string // secondary_identifier (token_subject, user_id, etc.)
+}
+
+/**
+ * Create standardized Analytics Engine data point from event
+ */
+function createStandardAnalyticsMapping(event: AnalyticsEvent): Partial<StandardAnalyticsMapping> {
+  const base = {
+    blob1: event.type,
+    blob4: event.cloudflare.userAgent,
+    blob5: event.cloudflare.ip,
+    blob6: event.cloudflare.country,
+    blob7: event.cloudflare.ray,
+    index1: event.type
+  }
+
+  switch (event.type) {
+    case "api_request": {
+      const data = event.data as APIRequestEvent["data"]
+      return {
+        ...base,
+        blob2: data.endpoint,
+        blob3: data.method,
+        blob8: data.tokenSubject || "anonymous",
+        blob9: data.statusCode.toString(),
+        blob10: "",
+        double1: data.responseTimeMs,
+        double2: data.statusCode,
+        double3: data.statusCode < 400 ? 1 : 0,
+        double4: 0,
+        double5: 0,
+        double6: 1,
+        double7: 0,
+        double8: 0,
+        double9: 0,
+        double10: 0,
+        index2: data.endpoint,
+        index3: data.tokenSubject || "anonymous"
+      }
+    }
+
+    case "auth": {
+      const data = event.data as AuthEvent["data"]
+      return {
+        ...base,
+        blob2: data.endpoint || "",
+        blob3: data.success ? "success" : "failed",
+        blob8: data.tokenSubject,
+        blob9: "",
+        blob10: "",
+        double1: 0,
+        double2: data.success ? 200 : 401,
+        double3: data.success ? 1 : 0,
+        double4: 0,
+        double5: 0,
+        double6: 1,
+        double7: 0,
+        double8: 0,
+        double9: 0,
+        double10: 0,
+        index2: data.endpoint || "",
+        index3: data.tokenSubject
+      }
+    }
+
+    case "redirect": {
+      const data = event.data as RedirectEvent["data"]
+      return {
+        ...base,
+        blob2: data.slug,
+        blob3: data.destinationUrl,
+        blob8: "",
+        blob9: "",
+        blob10: "",
+        double1: 0,
+        double2: 200,
+        double3: 1,
+        double4: 0,
+        double5: 0,
+        double6: data.clickCount,
+        double7: 0,
+        double8: 0,
+        double9: 0,
+        double10: 0,
+        index2: data.slug,
+        index3: ""
+      }
+    }
+
+    case "ai": {
+      const data = event.data as AIEvent["data"]
+      return {
+        ...base,
+        blob2: data.operation,
+        blob3: data.method,
+        blob8: data.userId || "anonymous",
+        blob9: data.success ? "success" : data.errorType || "failed",
+        blob10: data.imageSource,
+        double1: data.processingTimeMs,
+        double2: data.success ? 200 : 500,
+        double3: data.success ? 1 : 0,
+        double4: data.imageSizeBytes || 0,
+        double5: 0,
+        double6: 1,
+        double7: 0,
+        double8: 0,
+        double9: 0,
+        double10: 0,
+        index2: data.operation,
+        index3: data.userId || "anonymous"
+      }
+    }
+
+    case "rate_limit": {
+      const data = event.data as RateLimitEvent["data"]
+      return {
+        ...base,
+        blob2: data.endpoint,
+        blob3: data.action,
+        blob8: data.tokenSubject || "anonymous",
+        blob9: data.resetTime,
+        blob10: "",
+        double1: 0,
+        double2: data.action === "blocked" ? 429 : 200,
+        double3: data.action === "allowed" ? 1 : 0,
+        double4: 0,
+        double5: data.windowSizeMs,
+        double6: data.requestsInWindow,
+        double7: data.requestsInWindow,
+        double8: data.maxRequests,
+        double9: data.remainingRequests,
+        double10: 0,
+        index2: data.endpoint,
+        index3: data.tokenSubject || "anonymous"
+      }
+    }
+
+    case "routeros": {
+      const data = event.data as RouterOSEvent["data"]
+      return {
+        ...base,
+        blob2: data.operation,
+        blob3: data.cacheStatus || "",
+        blob8: "",
+        blob9: "",
+        blob10: "",
+        double1: 0,
+        double2: 200,
+        double3: 1,
+        double4: 0,
+        double5: 0,
+        double6: 1,
+        double7: data.ipv4Count || 0,
+        double8: data.ipv6Count || 0,
+        double9: 0,
+        double10: 0,
+        index2: data.operation,
+        index3: ""
+      }
+    }
+
+    case "ping": {
+      const data = event.data as PingEvent["data"]
+      return {
+        ...base,
+        blob2: "ping",
+        blob3: "",
+        blob8: "",
+        blob9: "",
+        blob10: "",
+        double1: 0,
+        double2: 200,
+        double3: 1,
+        double4: 0,
+        double5: 0,
+        double6: data.pingCount,
+        double7: 0,
+        double8: 0,
+        double9: 0,
+        double10: 0,
+        index2: "ping",
+        index3: ""
+      }
+    }
+
+    default:
+      return base
+  }
+}
+
+/**
+ * Write analytics event to Analytics Engine with standardized field mapping
  */
 export function writeAnalyticsEvent(analytics: AnalyticsEngineDataset, event: AnalyticsEvent): void {
   try {
-    switch (event.type) {
-      case "redirect": {
-        const redirectData = event.data as RedirectEvent["data"]
-        analytics.writeDataPoint({
-          blobs: [
-            "redirect",
-            redirectData.slug,
-            redirectData.destinationUrl,
-            event.cloudflare.userAgent,
-            event.cloudflare.ip,
-            event.cloudflare.country,
-            event.cloudflare.ray
-          ],
-          doubles: [redirectData.clickCount],
-          indexes: ["redirect", redirectData.slug]
-        })
-        break
-      }
+    // Use standardized mapping for consistent field positions
+    const mapping = createStandardAnalyticsMapping(event)
 
-      case "auth": {
-        const authData = event.data as AuthEvent["data"]
-        analytics.writeDataPoint({
-          blobs: [
-            "auth",
-            authData.success ? "success" : "failed",
-            authData.tokenSubject,
-            authData.endpoint || "",
-            event.cloudflare.userAgent,
-            event.cloudflare.ip,
-            event.cloudflare.country,
-            event.cloudflare.ray
-          ],
-          doubles: [1],
-          indexes: ["auth", authData.tokenSubject]
-        })
-        break
-      }
+    // Convert mapping to arrays for Analytics Engine
+    const blobs = [
+      mapping.blob1 || "",
+      mapping.blob2 || "",
+      mapping.blob3 || "",
+      mapping.blob4 || "",
+      mapping.blob5 || "",
+      mapping.blob6 || "",
+      mapping.blob7 || "",
+      mapping.blob8 || "",
+      mapping.blob9 || "",
+      mapping.blob10 || ""
+    ]
 
-      case "ai": {
-        const aiData = event.data as AIEvent["data"]
-        analytics.writeDataPoint({
-          blobs: [
-            "ai",
-            aiData.operation,
-            aiData.method,
-            aiData.imageSource,
-            event.cloudflare.userAgent,
-            event.cloudflare.ip,
-            event.cloudflare.country,
-            event.cloudflare.ray,
-            aiData.generatedText || "",
-            aiData.userId || ""
-          ],
-          doubles: [aiData.processingTimeMs, aiData.imageSizeBytes || 0],
-          indexes: ["ai", aiData.operation, aiData.userId || "anonymous"]
-        })
-        break
-      }
+    const doubles = [
+      mapping.double1 || 0,
+      mapping.double2 || 0,
+      mapping.double3 || 0,
+      mapping.double4 || 0,
+      mapping.double5 || 0,
+      mapping.double6 || 0,
+      mapping.double7 || 0,
+      mapping.double8 || 0,
+      mapping.double9 || 0,
+      mapping.double10 || 0
+    ]
 
-      case "routeros": {
-        const routerosData = event.data as RouterOSEvent["data"]
-        analytics.writeDataPoint({
-          blobs: [
-            "routeros",
-            routerosData.operation,
-            routerosData.cacheStatus || "",
-            event.cloudflare.userAgent,
-            event.cloudflare.ip,
-            event.cloudflare.country,
-            event.cloudflare.ray
-          ],
-          doubles: [routerosData.ipv4Count || 0, routerosData.ipv6Count || 0],
-          indexes: ["routeros", routerosData.operation]
-        })
-        break
-      }
+    const indexes = [mapping.index1 || "", mapping.index2 || "", mapping.index3 || ""]
 
-      case "ping":
-        analytics.writeDataPoint({
-          blobs: [
-            "ping",
-            event.cloudflare.userAgent,
-            event.cloudflare.ip,
-            event.cloudflare.country,
-            event.cloudflare.ray
-          ],
-          doubles: [1],
-          indexes: ["ping"]
-        })
-        break
-
-      case "api_request": {
-        const apiData = event.data as APIRequestEvent["data"]
-        analytics.writeDataPoint({
-          blobs: [
-            "api_request",
-            apiData.endpoint,
-            apiData.method,
-            apiData.statusCode.toString(),
-            event.cloudflare.userAgent,
-            event.cloudflare.ip,
-            event.cloudflare.country,
-            event.cloudflare.ray,
-            apiData.tokenSubject || ""
-          ],
-          doubles: [apiData.responseTimeMs, apiData.statusCode],
-          indexes: ["api_request", apiData.endpoint, apiData.tokenSubject || "anonymous"]
-        })
-        break
-      }
-
-      case "rate_limit": {
-        const rateLimitData = event.data as RateLimitEvent["data"]
-        analytics.writeDataPoint({
-          blobs: [
-            "rate_limit",
-            rateLimitData.action,
-            rateLimitData.endpoint,
-            event.cloudflare.userAgent,
-            event.cloudflare.ip,
-            event.cloudflare.country,
-            event.cloudflare.ray,
-            rateLimitData.tokenSubject || "",
-            rateLimitData.resetTime
-          ],
-          doubles: [
-            rateLimitData.requestsInWindow,
-            rateLimitData.windowSizeMs,
-            rateLimitData.maxRequests,
-            rateLimitData.remainingRequests
-          ],
-          indexes: ["rate_limit", rateLimitData.action, rateLimitData.tokenSubject || "anonymous"]
-        })
-        break
-      }
-    }
+    analytics.writeDataPoint({
+      blobs,
+      doubles,
+      indexes
+    })
   } catch (error) {
     console.error("Failed to write analytics event:", error)
     // Don't throw - analytics should never break the main flow
@@ -874,8 +1241,8 @@ export function getAnalyticsCacheKey(params: AnalyticsQueryParams): string {
 export function buildTimeSeriesQuery(params: AnalyticsQueryParams): string {
   const { start, end } = getTimeRangeBoundaries(params.timeRange, params.customStart, params.customEnd)
 
-  const startDateTime = start.toISOString().replace('T', ' ').substring(0, 19)
-  const endDateTime = end.toISOString().replace('T', ' ').substring(0, 19)
+  const startDateTime = start.toISOString().replace("T", " ").substring(0, 19)
+  const endDateTime = end.toISOString().replace("T", " ").substring(0, 19)
   let whereClause = `"timestamp" >= toDateTime('${startDateTime}') AND "timestamp" <= toDateTime('${endDateTime}')`
 
   if (params.eventTypes && params.eventTypes.length > 0) {
@@ -942,29 +1309,31 @@ export async function queryTimeSeriesData(
 
     // Make direct HTTP request to Analytics Engine SQL API
     const apiUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/analytics_engine/sql`
-    
+
     const authHeaders: Record<string, string> = {
-      'Content-Type': 'text/plain'
+      "Content-Type": "text/plain"
     }
 
     if (isDangerousGlobalKeyEnabled()) {
       const apiKey = getEnvironmentVariable("CLOUDFLARE_API_KEY", true)
       const email = getEnvironmentVariable("CLOUDFLARE_EMAIL", true)
       if (!apiKey || !email) {
-        throw new Error("CLOUDFLARE_API_KEY and CLOUDFLARE_EMAIL are required when using dangerous global key authentication")
+        throw new Error(
+          "CLOUDFLARE_API_KEY and CLOUDFLARE_EMAIL are required when using dangerous global key authentication"
+        )
       }
-      authHeaders['X-Auth-Email'] = email
-      authHeaders['X-Auth-Key'] = apiKey
+      authHeaders["X-Auth-Email"] = email
+      authHeaders["X-Auth-Key"] = apiKey
     } else {
       const apiToken = getEnvironmentVariable("CLOUDFLARE_API_TOKEN", true)
       if (!apiToken) {
         throw new Error("CLOUDFLARE_API_TOKEN is required for Analytics Engine queries")
       }
-      authHeaders['Authorization'] = `Bearer ${apiToken}`
+      authHeaders["Authorization"] = `Bearer ${apiToken}`
     }
 
     const response = await fetch(apiUrl, {
-      method: 'POST',
+      method: "POST",
       headers: authHeaders,
       body: sqlQuery
     })
@@ -974,7 +1343,7 @@ export async function queryTimeSeriesData(
       throw new Error(`Analytics Engine HTTP error: ${response.status} - ${errorText}`)
     }
 
-    const result = await response.json() as AnalyticsEngineSQLResponse
+    const result = (await response.json()) as AnalyticsEngineSQLResponse
 
     // Check if the response has the expected structure
     if (!result.data) {

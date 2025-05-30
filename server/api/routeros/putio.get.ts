@@ -1,6 +1,7 @@
+import { writeAnalytics } from "~/server/utils/analytics"
 import { getCloudflareRequestInfo } from "~/server/utils/cloudflare"
 import { generateRouterOSScript, handleResponseFormat } from "~/server/utils/formatters"
-import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
+import { createApiError, createApiResponse, isApiError, logRequest } from "~/server/utils/response"
 
 interface BGPPrefix {
   prefix: string
@@ -178,50 +179,73 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Write analytics data to Analytics Engine
+    // Write analytics using standardized system
     try {
       const cfInfo = getCloudflareRequestInfo(event)
-      if (env?.ANALYTICS) {
-        env.ANALYTICS.writeDataPoint({
-          blobs: [
-            "routeros",
-            "putio",
-            data.cacheHit ? "cache-hit" : "cache-miss",
-            cfInfo.userAgent,
-            cfInfo.ip,
-            cfInfo.country,
-            cfInfo.ray
-          ],
-          doubles: [data.ipv4Ranges.length, data.ipv6Ranges.length], // IPv4 and IPv6 range counts
-          indexes: ["routeros", "putio"] // For querying RouterOS operations
-        })
+
+      const analyticsEvent = {
+        type: "routeros" as const,
+        timestamp: new Date().toISOString(),
+        cloudflare: cfInfo,
+        data: {
+          operation: "putio" as "putio" | "cache" | "reset",
+          cacheStatus: data.cacheHit ? "hit" : "miss",
+          ipv4Count: data.ipv4Ranges.length,
+          ipv6Count: data.ipv6Ranges.length
+        }
       }
+
+      const kvCounters = [
+        { key: "routeros:putio:requests:total" },
+        { key: `routeros:putio:cache:${data.cacheHit ? "hits" : "misses"}` },
+        { key: "routeros:putio:ipv4-ranges", value: data.ipv4Ranges.length },
+        { key: "routeros:putio:ipv6-ranges", value: data.ipv6Ranges.length },
+        { key: "routeros:putio:last-fetched", value: data.lastUpdated }
+      ]
+
+      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
     } catch (error) {
       console.error("Failed to write RouterOS analytics:", error)
       // Continue with response even if analytics fails
     }
 
-    // Return based on format using shared formatter
-    return handleResponseFormat(event, data, {
-      json: () =>
-        createApiResponse(
-          {
-            ipv4Count: data.ipv4Ranges.length,
-            ipv6Count: data.ipv6Ranges.length,
-            ipv4Ranges: data.ipv4Ranges,
-            ipv6Ranges: data.ipv6Ranges,
-            lastUpdated: data.lastUpdated,
-            cacheHit: data.cacheHit
-          },
-          "put.io IP ranges retrieved successfully"
-        ),
-      text: () => {
-        setHeader(event, "Content-Disposition", 'attachment; filename="putio-routeros.rsc"')
-        return data.script
-      }
+    // Check if JSON format is explicitly requested
+    const format = getQuery(event).format as string
+
+    // Log successful request
+    logRequest(event, "routeros/putio", "GET", 200, {
+      format: format || "script",
+      ipv4Count: data.ipv4Ranges.length,
+      ipv6Count: data.ipv6Ranges.length,
+      cacheHit: data.cacheHit,
+      lastUpdated: data.lastUpdated
     })
+
+    if (format === "json") {
+      return createApiResponse(
+        {
+          ipv4Count: data.ipv4Ranges.length,
+          ipv6Count: data.ipv6Ranges.length,
+          ipv4Ranges: data.ipv4Ranges,
+          ipv6Ranges: data.ipv6Ranges,
+          lastUpdated: data.lastUpdated,
+          cacheHit: data.cacheHit
+        },
+        "put.io IP ranges retrieved successfully"
+      )
+    }
+
+    // Default: Return RouterOS script
+    setHeader(event, "Content-Type", "text/plain")
+    setHeader(event, "Content-Disposition", 'attachment; filename="putio-routeros.rsc"')
+    return data.script
   } catch (error: unknown) {
-    console.error("RouterOS put.io error:", error)
+    const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
+
+    // Log failed request
+    logRequest(event, "routeros/putio", "GET", statusCode, {
+      error: isApiError(error) ? (error as any).statusMessage || "Unknown error" : "Internal error"
+    })
 
     if (isApiError(error)) {
       throw error

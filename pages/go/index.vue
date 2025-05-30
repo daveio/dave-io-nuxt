@@ -19,4 +19,16 @@ useHead({
   title: "Access Denied - Dave.io",
   meta: [{ name: "description", content: "You didn't say the magic word!" }]
 })
+
+// Page logging
+const { logPageVisit } = usePageLogging()
+
+onMounted(() => {
+  // Log page visit to access denied page
+  logPageVisit('/go', {
+    title: 'Access Denied',
+    theme: 'jurassic-park',
+    reason: 'no-magic-word'
+  })
+})
 </script>

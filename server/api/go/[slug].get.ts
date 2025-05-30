@@ -1,6 +1,7 @@
 import { getHeader, sendRedirect } from "h3"
-import { getAnalyticsBinding, getCloudflareEnv, getKVNamespace } from "~/server/utils/cloudflare"
-import { createApiError, isApiError } from "~/server/utils/response"
+import { writeAnalytics } from "~/server/utils/analytics"
+import { getCloudflareEnv, getCloudflareRequestInfo, getKVNamespace } from "~/server/utils/cloudflare"
+import { createApiError, isApiError, logRequest } from "~/server/utils/response"
 import { UrlRedirectSchema } from "~/server/utils/schemas"
 
 interface RedirectData {
@@ -17,7 +18,6 @@ export default defineEventHandler(async (event) => {
   try {
     const env = getCloudflareEnv(event)
     const kv = getKVNamespace(env)
-    const analytics = getAnalyticsBinding(env)
 
     const slug = getRouterParam(event, "slug")
 
@@ -86,37 +86,58 @@ export default defineEventHandler(async (event) => {
       // Continue with redirect even if click tracking fails
     }
 
-    // Write analytics data to Analytics Engine
-    const userAgent = getHeader(event, "user-agent") || "unknown"
-    const ip = getHeader(event, "cf-connecting-ip") || getHeader(event, "x-forwarded-for") || "unknown"
-    const cfCountry = getHeader(event, "cf-ipcountry") || "unknown"
-    const cfRay = getHeader(event, "cf-ray") || "unknown"
-
+    // Write analytics using standardized system
     try {
-      analytics.writeDataPoint({
-        blobs: ["redirect", slug, redirect.url, userAgent, ip, cfCountry, cfRay],
-        doubles: [1], // Click count
-        indexes: ["redirect", slug] // For querying redirects and by slug
-      })
+      const cfInfo = getCloudflareRequestInfo(event)
+
+      const analyticsEvent = {
+        type: "redirect" as const,
+        timestamp: new Date().toISOString(),
+        cloudflare: cfInfo,
+        data: {
+          slug: slug,
+          targetUrl: redirect.url,
+          clickCount: clickCount,
+          title: redirect.title
+        }
+      }
+
+      const kvCounters = [
+        { key: "redirect:total:clicks" },
+        { key: `redirect:${slug}:clicks`, value: clickCount },
+        { key: `redirect:targets:${redirect.url.replace(/[^a-z0-9]/g, "-")}` },
+        { key: `redirect:countries:${cfInfo.country.toLowerCase()}` },
+        { key: `redirect:daily:${new Date().toISOString().split("T")[0]}` }
+      ]
+
+      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
     } catch (error) {
       console.error("Failed to write analytics:", error)
       // Continue with redirect even if analytics fails
     }
 
-    console.log(
-      `[REDIRECT] ${slug} -> ${redirect.url} | IP: ${ip} | Country: ${cfCountry} | Ray: ${cfRay} | UA: ${userAgent}`
-    )
+    // Log redirect request
+    logRequest(event, `go/${slug}`, "GET", 302, {
+      target: redirect.url,
+      clicks: clickCount,
+      cached: "hit"
+    })
 
     // Perform redirect (302 Found)
     return sendRedirect(event, redirect.url, 302)
   } catch (error: unknown) {
-    console.error("Redirect error:", error)
+    const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
+
+    // Log failed redirect request
+    logRequest(event, `go/${slug || "unknown"}`, "GET", statusCode, {
+      error: isApiError(error) ? (error as any).statusMessage || "Unknown error" : "Internal error"
+    })
 
     // Re-throw API errors
     if (isApiError(error)) {
       throw error
     }
 
-    createApiError(500, "Redirect failed")
+    throw createApiError(500, "Redirect failed")
   }
 })

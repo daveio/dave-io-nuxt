@@ -37,6 +37,7 @@
               size="xl"
               block
               class="justify-center group-hover:scale-105 transition-transform duration-200 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500"
+              @click="handleServiceClick('redirector')"
             >
               <template #leading>
                 <UIcon name="i-heroicons-link" class="group-hover:rotate-12 transition-transform duration-200" />
@@ -115,12 +116,32 @@
 <script setup>
 // Set page title and meta
 useHead({
-  title: 'next.dave.io - API Platform & URL Redirector',
+  title: "next.dave.io - API Platform & URL Redirector",
   meta: [
-    { name: 'description', content: 'Enterprise-grade REST API platform with authentication, URL redirection, and AI services.' }
+    {
+      name: "description",
+      content: "Enterprise-grade REST API platform with authentication, URL redirection, and AI services."
+    }
   ]
 })
 
 // Force dark color mode for this page
-useColorMode().preference = 'dark'
+useColorMode().preference = "dark"
+
+// Page logging
+const { logPageVisit, logInteraction } = usePageLogging()
+
+onMounted(() => {
+  // Log page visit
+  logPageVisit('/', {
+    title: 'Homepage',
+    colorMode: 'dark',
+    services: ['redirector', 'api']
+  })
+})
+
+// Log button interactions
+const handleServiceClick = (service) => {
+  logInteraction('click', 'service-button', { service })
+}
 </script>

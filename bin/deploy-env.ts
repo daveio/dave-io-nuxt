@@ -2,11 +2,11 @@
 
 /**
  * Deploy Environment Variables to Production
- * 
+ *
  * This script reads environment variables from .env and deploys them to Cloudflare Workers
  * using wrangler secret put. It validates configuration and filters out development-only
  * variables.
- * 
+ *
  * Safety features:
  * - Only deploys production-safe variables
  * - Validates required configuration
@@ -14,9 +14,9 @@
  * - Ensures secure API token usage over legacy API key
  */
 
-import { spawn } from "bun"
-import { readFileSync, existsSync } from "fs"
+import { existsSync, readFileSync } from "fs"
 import { join } from "path"
+import { spawn } from "bun"
 
 interface EnvVars {
   [key: string]: string
@@ -35,7 +35,7 @@ function parseEnvFile(filePath: string): EnvVars {
 
   for (const line of envContent.split("\n")) {
     const trimmedLine = line.trim()
-    
+
     // Skip empty lines and comments
     if (!trimmedLine || trimmedLine.startsWith("#")) {
       continue
@@ -50,8 +50,7 @@ function parseEnvFile(filePath: string): EnvVars {
     let value = trimmedLine.slice(equalIndex + 1).trim()
 
     // Remove quotes from value if present
-    if ((value.startsWith('"') && value.endsWith('"')) || 
-        (value.startsWith("'") && value.endsWith("'"))) {
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
       value = value.slice(1, -1)
     }
 
@@ -66,18 +65,20 @@ function parseEnvFile(filePath: string): EnvVars {
  */
 function validateEnvironment(envVars: EnvVars): void {
   const requiredVars = ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "API_JWT_SECRET"]
-  const missingVars = requiredVars.filter(varName => !envVars[varName])
+  const missingVars = requiredVars.filter((varName) => !envVars[varName])
 
   if (missingVars.length > 0) {
     throw new Error(`Missing required environment variables: ${missingVars.join(", ")}`)
   }
 
   // Check for dangerous API key configuration
-  if ((envVars.CLOUDFLARE_API_KEY || envVars.CLOUDFLARE_EMAIL) && 
-      (!envVars.CLOUDFLARE_API_TOKEN || !envVars.CLOUDFLARE_ACCOUNT_ID)) {
+  if (
+    (envVars.CLOUDFLARE_API_KEY || envVars.CLOUDFLARE_EMAIL) &&
+    (!envVars.CLOUDFLARE_API_TOKEN || !envVars.CLOUDFLARE_ACCOUNT_ID)
+  ) {
     throw new Error(
       "API key and email are configured but missing CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID. " +
-      "Production deployment requires secure API token authentication."
+        "Production deployment requires secure API token authentication."
     )
   }
 
@@ -94,7 +95,7 @@ function filterProductionVars(envVars: EnvVars): EnvVars {
 
   for (const [key, value] of Object.entries(envVars)) {
     // Skip development variables
-    if (excludedPrefixes.some(prefix => key.startsWith(prefix))) {
+    if (excludedPrefixes.some((prefix) => key.startsWith(prefix))) {
       console.log(`🔇 Skipping development variable: ${key}`)
       continue
     }
@@ -124,7 +125,7 @@ function filterProductionVars(envVars: EnvVars): EnvVars {
 async function deploySecret(key: string, value: string): Promise<boolean> {
   try {
     console.log(`🚀 Deploying secret: ${key}`)
-    
+
     const process = spawn(["bun", "run", "wrangler", "secret", "put", key], {
       stdin: "pipe",
       stdout: "pipe",
@@ -136,7 +137,7 @@ async function deploySecret(key: string, value: string): Promise<boolean> {
     process.stdin?.end()
 
     const result = await process.exited
-    
+
     if (result === 0) {
       console.log(`✅ Successfully deployed: ${key}`)
       return true
@@ -156,32 +157,30 @@ async function deploySecret(key: string, value: string): Promise<boolean> {
 async function main(): Promise<void> {
   try {
     console.log("🔧 Starting environment deployment...")
-    
+
     const envFilePath = join(process.cwd(), ".env")
     console.log(`📂 Reading environment from: ${envFilePath}`)
-    
+
     // Parse and validate environment
     const envVars = parseEnvFile(envFilePath)
     validateEnvironment(envVars)
-    
+
     // Filter for production variables
     const productionVars = filterProductionVars(envVars)
-    
+
     if (Object.keys(productionVars).length === 0) {
       console.log("⚠️  No production variables to deploy")
       return
     }
 
     console.log(`📦 Deploying ${Object.keys(productionVars).length} variables...`)
-    
+
     // Deploy each variable
-    const results = await Promise.all(
-      Object.entries(productionVars).map(([key, value]) => deploySecret(key, value))
-    )
-    
+    const results = await Promise.all(Object.entries(productionVars).map(([key, value]) => deploySecret(key, value)))
+
     const successCount = results.filter(Boolean).length
     const totalCount = results.length
-    
+
     if (successCount === totalCount) {
       console.log(`🎉 Successfully deployed all ${totalCount} variables!`)
       process.exit(0)
@@ -189,7 +188,6 @@ async function main(): Promise<void> {
       console.error(`❌ Deployed ${successCount}/${totalCount} variables. Some deployments failed.`)
       process.exit(1)
     }
-
   } catch (error) {
     console.error("💥 Deployment failed:", error instanceof Error ? error.message : error)
     process.exit(1)

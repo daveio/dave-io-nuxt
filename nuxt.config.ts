@@ -73,7 +73,5 @@ export default defineNuxtConfig({
     "@pinia/nuxt",
     "nitro-cloudflare-dev"
   ],
-  css: [
-    '~/assets/css/main.css'
-  ]
+  css: ["~/assets/css/main.css"]
 })

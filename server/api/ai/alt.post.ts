@@ -1,10 +1,11 @@
+import { createAIKVCounters, writeAnalytics } from "~/server/utils/analytics"
 import {
   checkAIRateLimit as checkAIRateLimitAuth,
   requireAIAuth,
   setRateLimitHeaders
 } from "~/server/utils/auth-helpers"
 import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
-import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
+import { createApiError, createApiResponse, isApiError, logRequest } from "~/server/utils/response"
 import { AiAltTextRequestSchema } from "~/server/utils/schemas"
 
 export default defineEventHandler(async (event) => {
@@ -107,32 +108,56 @@ export default defineEventHandler(async (event) => {
 
     const processingTime = Date.now() - startTime
 
-    // Write analytics data to Analytics Engine
+    // Write analytics using standardized system
     try {
       const cfInfo = getCloudflareRequestInfo(event)
-      if (env?.ANALYTICS) {
-        env.ANALYTICS.writeDataPoint({
-          blobs: [
-            "ai",
-            "alt-text",
-            "post",
-            request.url || "uploaded-file",
-            aiSuccess ? altText.substring(0, 100) : "",
-            auth.payload?.sub || "anonymous",
-            cfInfo.userAgent,
-            cfInfo.ip,
-            cfInfo.country,
-            cfInfo.ray,
-            aiSuccess ? "success" : aiErrorType || "error"
-          ],
-          doubles: [processingTime, imageData.length], // Processing time and image size
-          indexes: ["ai", "alt-text", auth.payload?.sub || "anonymous"] // For querying AI operations
-        })
+
+      const analyticsEvent = {
+        type: "ai" as const,
+        timestamp: new Date().toISOString(),
+        cloudflare: cfInfo,
+        data: {
+          operation: "alt-text" as const,
+          method: "POST" as "GET" | "POST",
+          imageSource: request.url || "uploaded-file",
+          processingTimeMs: processingTime,
+          imageSizeBytes: imageData.length,
+          generatedText: aiSuccess ? altText.substring(0, 100) : undefined,
+          userId: auth.payload?.sub || undefined,
+          success: aiSuccess,
+          errorType: aiSuccess ? undefined : aiErrorType || "unknown"
+        }
       }
+
+      const kvCounters = createAIKVCounters(
+        "alt-text",
+        aiSuccess,
+        processingTime,
+        imageData.length,
+        auth.payload?.sub,
+        cfInfo,
+        [
+          { key: "ai:alt-text:requests:total" },
+          { key: `ai:alt-text:models:${aiModel.replace(/[^a-z0-9]/g, "-")}` },
+          { key: "ai:alt-text:methods:post" },
+          { key: "ai:alt-text:rate-limit:used", increment: 1 },
+          { key: "ai:alt-text:rate-limit:remaining", value: rateLimit.remaining }
+        ]
+      )
+
+      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
     } catch (error) {
       console.error("Failed to write AI analytics:", error)
       // Continue with response even if analytics fails
     }
+
+    // Log successful request
+    logRequest(event, "ai/alt", "POST", 200, {
+      user: auth.payload?.sub || "anonymous",
+      imageSize: imageData.length,
+      processingTime,
+      success: true
+    })
 
     return createApiResponse(
       {
@@ -152,31 +177,49 @@ export default defineEventHandler(async (event) => {
   } catch (error: unknown) {
     console.error("AI alt-text error:", error)
 
-    // Write failure analytics if we have enough context
+    // Log error request
+    // biome-ignore lint/suspicious/noExplicitAny: Type assertion needed for error handling
+    const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
+    logRequest(event, "ai/alt", "POST", statusCode, {
+      user: "unknown",
+      imageSize: 0,
+      processingTime: 0,
+      success: false
+    })
+
+    // Write failure analytics using standardized system
     try {
       const env = getCloudflareEnv(event)
       const cfInfo = getCloudflareRequestInfo(event)
       const body = await readBody(event).catch(() => ({}))
+      const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
 
       if (env?.ANALYTICS) {
-        const errorType = isApiError(error) ? `${error.statusCode}` : "500"
-        env.ANALYTICS.writeDataPoint({
-          blobs: [
-            "ai",
-            "alt-text",
-            "post",
-            body.url || "uploaded-file",
-            "",
-            "anonymous",
-            cfInfo.userAgent,
-            cfInfo.ip,
-            cfInfo.country,
-            cfInfo.ray,
-            errorType
-          ],
-          doubles: [0, 0], // No processing time or image size for early failures
-          indexes: ["ai", "alt-text", "anonymous"]
-        })
+        const analyticsEvent = {
+          type: "ai" as const,
+          timestamp: new Date().toISOString(),
+          cloudflare: cfInfo,
+          data: {
+            operation: "alt-text" as const,
+            method: "POST" as "GET" | "POST",
+            imageSource: body.url || "uploaded-file",
+            processingTimeMs: 0,
+            imageSizeBytes: 0,
+            generatedText: undefined,
+            userId: undefined,
+            success: false,
+            errorType: statusCode.toString()
+          }
+        }
+
+        const kvCounters = createAIKVCounters("alt-text", false, 0, 0, undefined, cfInfo, [
+          { key: "ai:alt-text:requests:total" },
+          { key: "ai:alt-text:methods:post" },
+          { key: "ai:alt-text:errors:total" },
+          { key: `ai:alt-text:errors:${statusCode}` }
+        ])
+
+        await writeAnalytics(true, env.ANALYTICS, env.DATA, analyticsEvent, kvCounters)
       }
     } catch (analyticsError) {
       console.error("Failed to write failure analytics:", analyticsError)

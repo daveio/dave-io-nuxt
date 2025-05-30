@@ -1,6 +1,7 @@
-import { getCloudflareEnv, getKVNamespace } from "~/server/utils/cloudflare"
+import { createAPIRequestKVCounters, writeAnalytics } from "~/server/utils/analytics"
+import { getCloudflareEnv, getCloudflareRequestInfo, getKVNamespace } from "~/server/utils/cloudflare"
 import { parseRSSFeed } from "~/server/utils/formatters"
-import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
+import { createApiError, createApiResponse, isApiError, logRequest } from "~/server/utils/response"
 
 interface DashboardItem {
   title: string
@@ -100,6 +101,8 @@ async function fetchHackerNews(kv: KVNamespace): Promise<{ items: DashboardItem[
 }
 
 export default defineEventHandler(async (event) => {
+  const startTime = Date.now()
+
   try {
     const name = getRouterParam(event, "name")
 
@@ -169,9 +172,90 @@ export default defineEventHandler(async (event) => {
       setHeader(event, "X-Warning", "This endpoint is serving mock data for demonstration purposes")
     }
 
+    // Write successful analytics using standardized system
+    try {
+      const cfInfo = getCloudflareRequestInfo(event)
+      const responseTime = Date.now() - startTime
+
+      const analyticsEvent = {
+        type: "api_request" as const,
+        timestamp: new Date().toISOString(),
+        cloudflare: cfInfo,
+        data: {
+          endpoint: `/api/dashboard/${name}`,
+          method: "GET",
+          statusCode: 200,
+          responseTimeMs: responseTime,
+          tokenSubject: undefined
+        }
+      }
+
+      const kvCounters = createAPIRequestKVCounters(`/api/dashboard/${name}`, "GET", 200, cfInfo, [
+        { key: "dashboard:requests:total" },
+        { key: `dashboard:${name}:requests` },
+        { key: `dashboard:sources:${source}` },
+        { key: "dashboard:items:count", value: items.length },
+        { key: `dashboard:${name}:items`, value: items.length }
+      ])
+
+      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
+    } catch (analyticsError) {
+      console.error("Failed to write dashboard success analytics:", analyticsError)
+    }
+
+    // Log successful request
+    logRequest(event, `dashboard/{name}`, "GET", 200, {
+      dashboardName: name,
+      source,
+      itemCount: items.length
+    })
+
     return createApiResponse(response, `Dashboard '${name}' retrieved successfully`)
   } catch (error: unknown) {
     console.error("Dashboard error:", error)
+
+    // Log error request
+    // biome-ignore lint/suspicious/noExplicitAny: Type assertion needed for error handling
+    const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
+    const name = getRouterParam(event, "name") || "unknown"
+    logRequest(event, `dashboard/{name}`, "GET", statusCode, {
+      dashboardName: name,
+      source: "error",
+      itemCount: 0
+    })
+
+    // Write analytics for failed requests
+    try {
+      const env = getCloudflareEnv(event)
+      const cfInfo = getCloudflareRequestInfo(event)
+      const responseTime = Date.now() - startTime
+      const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
+      const name = getRouterParam(event, "name") || "unknown"
+
+      const analyticsEvent = {
+        type: "api_request" as const,
+        timestamp: new Date().toISOString(),
+        cloudflare: cfInfo,
+        data: {
+          endpoint: `/api/dashboard/${name}`,
+          method: "GET",
+          statusCode: statusCode,
+          responseTimeMs: responseTime,
+          tokenSubject: undefined
+        }
+      }
+
+      const kvCounters = createAPIRequestKVCounters(`/api/dashboard/${name}`, "GET", statusCode, cfInfo, [
+        { key: "dashboard:requests:total" },
+        { key: `dashboard:${name}:requests` },
+        { key: "dashboard:errors:total" },
+        { key: `dashboard:errors:${statusCode}` }
+      ])
+
+      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
+    } catch (analyticsError) {
+      console.error("Failed to write dashboard error analytics:", analyticsError)
+    }
 
     // Re-throw API errors
     if (isApiError(error)) {
