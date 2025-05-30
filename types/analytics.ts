@@ -166,31 +166,6 @@ export interface RateLimitEvent extends AnalyticsEvent {
   }
 }
 
-/**
- * Time series data point for charts
- */
-export interface TimeSeriesDataPoint {
-  timestamp: string
-  value: number
-  label?: string
-  successfulRequests?: number
-  failedRequests?: number
-  uniqueVisitors?: number
-}
-
-/**
- * Time series data for different metrics
- */
-export interface TimeSeriesData {
-  requests: TimeSeriesDataPoint[]
-  redirects: TimeSeriesDataPoint[]
-  auth: TimeSeriesDataPoint[]
-  ai: TimeSeriesDataPoint[]
-  responseTime: TimeSeriesDataPoint[]
-  errors: TimeSeriesDataPoint[]
-  rateLimits: TimeSeriesDataPoint[]
-  uniqueVisitors: TimeSeriesDataPoint[]
-}
 
 /**
  * Aggregated analytics metrics
@@ -201,7 +176,6 @@ export interface AnalyticsMetrics {
     end: string
     range: AnalyticsTimeRange
   }
-  timeSeries: TimeSeriesData
   overview: {
     totalRequests: number
     successfulRequests: number
@@ -298,34 +272,6 @@ export interface AnalyticsQueryParams {
   offset?: number
 }
 
-/**
- * Analytics dashboard widget configuration
- */
-export interface AnalyticsDashboardWidget {
-  id: string
-  title: string
-  type: "chart" | "metric" | "table" | "map"
-  chartType?: "line" | "bar" | "pie" | "area" | "gauge"
-  size: "small" | "medium" | "large"
-  refreshInterval?: number
-  query: AnalyticsQueryParams
-  displayOptions?: {
-    showLegend?: boolean
-    showTooltip?: boolean
-    xAxisLabel?: string
-    yAxisLabel?: string
-    colors?: string[]
-  }
-}
-
-/**
- * Real-time analytics update
- */
-export interface AnalyticsRealtimeUpdate {
-  timestamp: string
-  event: AnalyticsEvent | null
-  metrics?: Partial<AnalyticsMetrics>
-}
 
 /**
  * Analytics API response structure

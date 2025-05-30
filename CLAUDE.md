@@ -126,6 +126,9 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 **Env**: `API_JWT_SECRET`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
 **Bindings**: KV (DATA), D1 (DB), AI, Analytics Engine (ANALYTICS)
 **Optional**: `NUXT_PUBLIC_API_BASE_URL=/api`
+**Dev Options**: 
+- `API_DEV_DISABLE_RATE_LIMITS=1` - Disable rate limiting
+- `API_DEV_USE_DANGEROUS_GLOBAL_KEY=1` - Use legacy API key authentication (requires `CLOUDFLARE_API_KEY` + `CLOUDFLARE_EMAIL`)
 
 ## Testing
 
@@ -138,6 +141,7 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 **JWT** (`bin/jwt.ts`): `init|create|verify|list|show|search|revoke` - D1 + KV integration
 **API Test** (`bin/api-test.ts`): Comprehensive endpoint testing
 **KV** (`bin/kv.ts`): `backup|restore|list|wipe` - Pattern-based with safeguards
+**Deploy Env** (`bin/deploy-env.ts`): Secure production environment deployment - validates configuration, filters dev variables, deploys via wrangler
 
 ## Security
 
@@ -148,6 +152,7 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 ## Development
 
 **Commands**: `bun check` (comprehensive), `bun run typecheck|lint|format|test|test:api|build`
+**Deployment**: `bun run deploy:env` (environment variables), `bun run deploy` (full deployment)
 **Style**: Biome linting/formatting, TypeScript strict, minimal comments, consistent error patterns
 
 ## Linting & Type Guidelines
@@ -168,8 +173,15 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 ## Deployment
 
 **Setup**: Create KV/D1/Analytics resources, configure `wrangler.jsonc`, set secrets
-**Process**: `bun check` → `bun run deploy` → monitor
+**Environment**: `bun run deploy:env` - validates config, excludes API_DEV_* vars, requires CLOUDFLARE_API_TOKEN
+**Process**: `bun check` → `bun run deploy:env` → `bun run deploy` → monitor
 **Verification**: Test `/api/health` and run `bun run test:api --url production-url`
+
+**Environment Deployment Safety**:
+- Only deploys production-safe variables from `.env`
+- Validates required: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `API_JWT_SECRET`
+- Excludes all `API_DEV_*` variables and legacy `CLOUDFLARE_API_KEY`/`CLOUDFLARE_EMAIL`
+- Uses secure wrangler secret deployment via STDIN
 
 ## Key Files
 

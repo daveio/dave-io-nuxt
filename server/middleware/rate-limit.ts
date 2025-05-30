@@ -187,6 +187,11 @@ export function getRateLimitConfigs(): Map<string, RateLimitConfig> {
  * This function can be called at the beginning of any API endpoint
  */
 export async function applyRateLimit(event: H3Event, config?: RateLimitConfig): Promise<void> {
+  // Check if rate limiting is disabled via environment variable
+  if (isRateLimitingDisabled()) {
+    return
+  }
+
   const url = getRequestURL(event)
   const pathname = url.pathname
 
@@ -449,9 +454,22 @@ function getRateLimitConfig(pathname: string): RateLimitConfig {
 }
 
 /**
+ * Check if rate limiting should be disabled based on environment variable
+ */
+function isRateLimitingDisabled(): boolean {
+  const disableVar = process.env.API_DEV_DISABLE_RATE_LIMITS
+  return disableVar === "1" || disableVar === "true"
+}
+
+/**
  * Rate limiting middleware
  */
 export async function rateLimitMiddleware(event: H3Event): Promise<void> {
+  // Check if rate limiting is disabled via environment variable
+  if (isRateLimitingDisabled()) {
+    return
+  }
+
   const url = getRequestURL(event)
   const pathname = url.pathname
 

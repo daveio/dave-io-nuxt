@@ -21,6 +21,46 @@ import { getCloudflareEnv } from "./cloudflare"
 import { getEnvironmentVariable } from "./environment"
 
 /**
+ * Check if dangerous global API key usage is enabled
+ */
+function isDangerousGlobalKeyEnabled(): boolean {
+  const useGlobalKey = process.env.API_DEV_USE_DANGEROUS_GLOBAL_KEY
+  return useGlobalKey === "1" || useGlobalKey === "true"
+}
+
+/**
+ * Create Cloudflare client with appropriate authentication method
+ * Supports both API Token (preferred) and API Key (legacy/dangerous) authentication
+ */
+function createCloudflareClient(): Cloudflare {
+  if (isDangerousGlobalKeyEnabled()) {
+    // Use legacy API Key authentication (requires email + API key)
+    const apiKey = getEnvironmentVariable("CLOUDFLARE_API_KEY", true)
+    const email = getEnvironmentVariable("CLOUDFLARE_EMAIL", true)
+    
+    if (!apiKey || !email) {
+      throw new Error("CLOUDFLARE_API_KEY and CLOUDFLARE_EMAIL are required when using dangerous global key authentication")
+    }
+
+    return new Cloudflare({
+      apiKey: apiKey,
+      apiEmail: email
+    })
+  } else {
+    // Use preferred API Token authentication
+    const apiToken = getEnvironmentVariable("CLOUDFLARE_API_TOKEN", true)
+    
+    if (!apiToken) {
+      throw new Error("CLOUDFLARE_API_TOKEN is required for Analytics Engine queries")
+    }
+
+    return new Cloudflare({
+      apiToken: apiToken
+    })
+  }
+}
+
+/**
  * Calculate time range boundaries
  */
 export function getTimeRangeBoundaries(
@@ -58,7 +98,9 @@ export function getTimeRangeBoundaries(
 export function buildAnalyticsQuery(params: AnalyticsQueryParams): string {
   const { start, end } = getTimeRangeBoundaries(params.timeRange, params.customStart, params.customEnd)
 
-  let whereClause = `timestamp >= '${start.toISOString()}' AND timestamp <= '${end.toISOString()}'`
+  const startDateTime = start.toISOString().replace('T', ' ').substring(0, 19)
+  const endDateTime = end.toISOString().replace('T', ' ').substring(0, 19)
+  let whereClause = `"timestamp" >= toDateTime('${startDateTime}') AND "timestamp" <= toDateTime('${endDateTime}')`
 
   if (params.eventTypes && params.eventTypes.length > 0) {
     const types = params.eventTypes.map((t) => `'${t}'`).join(", ")
@@ -456,18 +498,10 @@ export async function getKVMetrics(kv: KVNamespace): Promise<KVMetrics> {
  * Analytics Engine SQL API response structure
  */
 interface AnalyticsEngineSQLResponse {
-  success: boolean
-  errors: string[]
-  messages: string[]
-  result: {
-    data: Array<Record<string, unknown>>
-    rows: number
-    meta: {
-      duration: number
-      rows_read: number
-      bytes_read: number
-    }
-  }
+  meta: Array<{ name: string; type: string }>
+  data: Array<Record<string, unknown>>
+  rows: number
+  rows_before_limit_at_least: number
 }
 
 /**
@@ -489,33 +523,63 @@ export async function queryAnalyticsEngine(
   const env = getCloudflareEnv(event)
 
   // Check for required environment variables
-  const apiToken = getEnvironmentVariable("CLOUDFLARE_API_TOKEN", true)
   const accountId = getEnvironmentVariable("CLOUDFLARE_ACCOUNT_ID", true)
 
-  if (!apiToken || !accountId) {
-    throw new Error("CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are required for Analytics Engine queries")
+  if (!accountId) {
+    throw new Error("CLOUDFLARE_ACCOUNT_ID is required for Analytics Engine queries")
   }
 
   try {
-    // Create Cloudflare client
-    const client = new Cloudflare({
-      apiToken: apiToken
-    })
+    // Create Cloudflare client with appropriate authentication method
+    const client = createCloudflareClient()
 
     // Build SQL query based on parameters
     const sqlQuery = buildAnalyticsEngineQuery(params)
 
-    // Make request to Analytics Engine SQL API using Cloudflare client
-    const response = (await client.post(`/accounts/${accountId}/analytics_engine/sql`, {
-      body: sqlQuery
-    })) as AnalyticsEngineSQLResponse
+    // Make direct HTTP request to Analytics Engine SQL API
+    // The API expects the query as raw text in the request body
+    const apiUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/analytics_engine/sql`
+    
+    const authHeaders: Record<string, string> = {
+      'Content-Type': 'text/plain'
+    }
 
-    if (!response.success) {
-      throw new Error(`Analytics Engine SQL query failed: ${response.errors.join(", ")}`)
+    if (isDangerousGlobalKeyEnabled()) {
+      const apiKey = getEnvironmentVariable("CLOUDFLARE_API_KEY", true)
+      const email = getEnvironmentVariable("CLOUDFLARE_EMAIL", true)
+      if (!apiKey || !email) {
+        throw new Error("CLOUDFLARE_API_KEY and CLOUDFLARE_EMAIL are required when using dangerous global key authentication")
+      }
+      authHeaders['X-Auth-Email'] = email
+      authHeaders['X-Auth-Key'] = apiKey
+    } else {
+      const apiToken = getEnvironmentVariable("CLOUDFLARE_API_TOKEN", true)
+      if (!apiToken) {
+        throw new Error("CLOUDFLARE_API_TOKEN is required for Analytics Engine queries")
+      }
+      authHeaders['Authorization'] = `Bearer ${apiToken}`
+    }
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: authHeaders,
+      body: sqlQuery
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Analytics Engine HTTP error: ${response.status} - ${errorText}`)
+    }
+
+    const result = await response.json() as AnalyticsEngineSQLResponse
+
+    // Check if the response has the expected structure
+    if (!result.data) {
+      throw new Error(`Invalid Analytics Engine response structure in main query: ${JSON.stringify(result)}`)
     }
 
     // Transform SQL response to AnalyticsEngineResult[]
-    return transformSQLResponseToAnalyticsResults(response.result.data)
+    return transformSQLResponseToAnalyticsResults(result.data)
   } catch (error) {
     console.error("Analytics Engine SQL query failed:", error)
 
@@ -538,8 +602,10 @@ function buildAnalyticsEngineQuery(params: AnalyticsQueryParams): string {
   // Calculate time boundaries
   const { start, end } = getTimeRangeBoundaries(timeRange, customStart, customEnd)
 
-  // Build WHERE conditions
-  const conditions: string[] = [`timestamp >= '${start}'`, `timestamp <= '${end}'`]
+  // Build WHERE conditions - use toDateTime function for proper comparison
+  const startDateTime = start.toISOString().replace('T', ' ').substring(0, 19)
+  const endDateTime = end.toISOString().replace('T', ' ').substring(0, 19)
+  const conditions: string[] = [`"timestamp" >= toDateTime('${startDateTime}')`, `"timestamp" <= toDateTime('${endDateTime}')`]
 
   // Filter by event types if specified
   if (eventTypes && eventTypes.length > 0) {
@@ -555,57 +621,21 @@ function buildAnalyticsEngineQuery(params: AnalyticsQueryParams): string {
   // - index1: event type for fast filtering
   // - index2: specific identifier (slug, tokenSubject, operation, etc.)
 
-  const selectClause = `
-    SELECT
-      timestamp,
-      blob1,
-      blob2,
-      blob3,
-      blob4,
-      blob5,
-      blob6,
-      blob7,
-      blob8,
-      blob9,
-      blob10,
-      double1,
-      double2,
-      double3,
-      double4,
-      double5,
-      double6,
-      double7,
-      double8,
-      double9,
-      double10,
-      double11,
-      double12,
-      double13,
-      double14,
-      double15,
-      double16,
-      double17,
-      double18,
-      double19,
-      double20,
-      index1,
-      index2,
-      index3,
-      index4,
-      index5,
-      _sample_interval
-  `
-
   const query = `
-    ${selectClause}
-    FROM NEXT_DAVE_IO_ANALYTICS
+    SELECT 
+      timestamp,
+      blob1, blob2, blob3, blob4, blob5, blob6, blob7, blob8, blob9, blob10,
+      double1, double2, double3, double4, double5, double6, double7, double8, double9, double10,
+      double11, double12, double13, double14, double15, double16, double17, double18, double19, double20,
+      index1,
+      _sample_interval
+    FROM "NEXT_DAVE_IO_ANALYTICS"
     WHERE ${conditions.join(" AND ")}
-    ORDER BY timestamp DESC
+    ORDER BY "timestamp" DESC
     LIMIT ${limit}
-    OFFSET ${offset}
-  `
+  `.trim()
 
-  return query.trim()
+  return query
 }
 
 /**
@@ -650,12 +680,12 @@ function transformSQLResponseToAnalyticsResults(data: Array<Record<string, unkno
     double19: row.double19 as number | undefined,
     double20: row.double20 as number | undefined,
 
-    // Map index fields (strings)
+    // Map index fields (strings) - only index1 is accessible via SQL
     index1: row.index1 as string | undefined,
-    index2: row.index2 as string | undefined,
-    index3: row.index3 as string | undefined,
-    index4: row.index4 as string | undefined,
-    index5: row.index5 as string | undefined,
+    index2: undefined, // Not accessible via SQL API
+    index3: undefined, // Not accessible via SQL API
+    index4: undefined, // Not accessible via SQL API
+    index5: undefined, // Not accessible via SQL API
 
     // Map sample interval
     _sample_interval: row._sample_interval as number | undefined
@@ -844,26 +874,9 @@ export function getAnalyticsCacheKey(params: AnalyticsQueryParams): string {
 export function buildTimeSeriesQuery(params: AnalyticsQueryParams): string {
   const { start, end } = getTimeRangeBoundaries(params.timeRange, params.customStart, params.customEnd)
 
-  // Determine time bucket size based on range
-  let timeBucket: string
-  switch (params.timeRange) {
-    case "1h":
-      timeBucket = "INTERVAL 5 MINUTE" // 5-minute buckets for 1 hour
-      break
-    case "24h":
-      timeBucket = "INTERVAL 1 HOUR" // 1-hour buckets for 24 hours
-      break
-    case "7d":
-      timeBucket = "INTERVAL 6 HOUR" // 6-hour buckets for 7 days
-      break
-    case "30d":
-      timeBucket = "INTERVAL 1 DAY" // 1-day buckets for 30 days
-      break
-    default:
-      timeBucket = "INTERVAL 1 HOUR"
-  }
-
-  let whereClause = `timestamp >= '${start.toISOString()}' AND timestamp <= '${end.toISOString()}'`
+  const startDateTime = start.toISOString().replace('T', ' ').substring(0, 19)
+  const endDateTime = end.toISOString().replace('T', ' ').substring(0, 19)
+  let whereClause = `"timestamp" >= toDateTime('${startDateTime}') AND "timestamp" <= toDateTime('${endDateTime}')`
 
   if (params.eventTypes && params.eventTypes.length > 0) {
     const types = params.eventTypes.map((t) => `'${t}'`).join(", ")
@@ -878,19 +891,36 @@ export function buildTimeSeriesQuery(params: AnalyticsQueryParams): string {
     whereClause += ` AND blob3 = '${params.tokenSubject}'`
   }
 
+  // Determine time bucket size based on range
+  let timeBucket: string
+  switch (params.timeRange) {
+    case "1h":
+      timeBucket = "5 MINUTE"
+      break
+    case "24h":
+      timeBucket = "1 HOUR"
+      break
+    case "7d":
+      timeBucket = "6 HOUR"
+      break
+    case "30d":
+      timeBucket = "1 DAY"
+      break
+    default:
+      timeBucket = "1 HOUR"
+  }
+
+  // Simple query without aggregate functions that aren't supported
   return `
-    SELECT
-      toStartOfInterval(timestamp, ${timeBucket}) as time_bucket,
+    SELECT 
+      "timestamp",
       index1 as event_type,
-      COUNT(*) as event_count,
-      AVG(double1) as avg_processing_time,
-      SUM(CASE WHEN blob2 = 'success' OR double2 < 400 THEN 1 ELSE 0 END) as success_count,
-      SUM(CASE WHEN blob2 != 'success' AND double2 >= 400 THEN 1 ELSE 0 END) as error_count,
-      COUNT(DISTINCT blob5) as unique_visitors
-    FROM NEXT_DAVE_IO_ANALYTICS
+      blob1, blob2, blob3, blob4, blob5,
+      double1, double2
+    FROM "NEXT_DAVE_IO_ANALYTICS"
     WHERE ${whereClause}
-    GROUP BY time_bucket, event_type
-    ORDER BY time_bucket DESC, event_type
+    ORDER BY "timestamp" ASC
+    LIMIT 100
   `.trim()
 }
 
@@ -901,37 +931,60 @@ export async function queryTimeSeriesData(
   _event: H3Event,
   params: AnalyticsQueryParams
 ): Promise<import("~/types/analytics").TimeSeriesData> {
-  const apiToken = getEnvironmentVariable("CLOUDFLARE_API_TOKEN", true)
   const accountId = getEnvironmentVariable("CLOUDFLARE_ACCOUNT_ID", true)
 
-  if (!apiToken || !accountId) {
-    throw new Error("CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are required for time-series queries")
+  if (!accountId) {
+    throw new Error("CLOUDFLARE_ACCOUNT_ID is required for time-series queries")
   }
 
   try {
-    const client = new Cloudflare({
-      apiToken: apiToken
-    })
-
     const sqlQuery = buildTimeSeriesQuery(params)
 
-    // Execute time-series query
-    const response = (await client.post(`/accounts/${accountId}/analytics_engine/sql`, {
-      body: sqlQuery
-    })) as AnalyticsEngineSQLResponse
+    // Make direct HTTP request to Analytics Engine SQL API
+    const apiUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/analytics_engine/sql`
+    
+    const authHeaders: Record<string, string> = {
+      'Content-Type': 'text/plain'
+    }
 
-    if (!response.success) {
-      throw new Error(`Time-series query failed: ${response.errors.join(", ")}`)
+    if (isDangerousGlobalKeyEnabled()) {
+      const apiKey = getEnvironmentVariable("CLOUDFLARE_API_KEY", true)
+      const email = getEnvironmentVariable("CLOUDFLARE_EMAIL", true)
+      if (!apiKey || !email) {
+        throw new Error("CLOUDFLARE_API_KEY and CLOUDFLARE_EMAIL are required when using dangerous global key authentication")
+      }
+      authHeaders['X-Auth-Email'] = email
+      authHeaders['X-Auth-Key'] = apiKey
+    } else {
+      const apiToken = getEnvironmentVariable("CLOUDFLARE_API_TOKEN", true)
+      if (!apiToken) {
+        throw new Error("CLOUDFLARE_API_TOKEN is required for Analytics Engine queries")
+      }
+      authHeaders['Authorization'] = `Bearer ${apiToken}`
+    }
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: authHeaders,
+      body: sqlQuery
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Analytics Engine HTTP error: ${response.status} - ${errorText}`)
+    }
+
+    const result = await response.json() as AnalyticsEngineSQLResponse
+
+    // Check if the response has the expected structure
+    if (!result.data) {
+      throw new Error(`Invalid Analytics Engine response structure in time-series query: ${JSON.stringify(result)}`)
     }
 
     // Transform response to TimeSeriesData structure
-    return transformTimeSeriesResponse(response.result.data, params)
+    return transformTimeSeriesResponse(result.data, params)
   } catch (error) {
     console.error("Time-series query failed:", error)
-
-    if (error instanceof Cloudflare.APIError) {
-      throw new Error(`Analytics Engine API error: ${error.status} - ${error.message}`)
-    }
 
     const errorMessage = error instanceof Error ? error.message : String(error)
     throw new Error(`Time-series query failed: ${errorMessage}`)
@@ -957,8 +1010,8 @@ function transformTimeSeriesResponse(
     uniqueVisitors: []
   }
 
-  // Group by time bucket
-  const groupedData = groupBy(data, "time_bucket")
+  // Group by timestamp since we're not using time buckets yet
+  const groupedData = groupBy(data, "timestamp")
 
   // Generate complete time series with zero values for missing data points
   const { start, end } = getTimeRangeBoundaries(params.timeRange, params.customStart, params.customEnd)

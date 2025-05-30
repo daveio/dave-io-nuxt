@@ -415,6 +415,30 @@ bun run kv wipe                      # Nuclear option (requires CONFIRM_WIPE=yes
 - `auth:*` - Authentication data
 - `routeros:*` - RouterOS cache
 
+### `bin/deploy-env.ts` - Secure Environment Deployment (The Security-Conscious Wizard)
+
+```bash
+# Deploy production environment variables from .env
+bun run deploy:env
+```
+
+**What It Does (With Military Precision):**
+
+- **Validates Configuration**: Ensures `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and `API_JWT_SECRET` are set
+- **Security First**: Refuses to deploy if dangerous API key/email combo is configured without proper tokens
+- **Smart Filtering**: Excludes all `API_DEV_*` variables and legacy `CLOUDFLARE_API_KEY`/`CLOUDFLARE_EMAIL`
+- **Production Safe**: Only deploys variables intended for production use
+- **Secure Deployment**: Uses `wrangler secret put` with STDIN for maximum security (no secrets in command history)
+- **Comprehensive Logging**: Shows what's being deployed, what's being skipped, and why
+
+**Safety Features (Because Your Data Matters):**
+
+- Won't deploy development variables (`API_DEV_*` prefix)
+- Won't deploy insecure legacy authentication (`CLOUDFLARE_API_KEY`, `CLOUDFLARE_EMAIL`)
+- Validates environment before attempting deployment
+- Provides clear error messages when configuration is invalid
+- Exits with proper status codes for CI/CD integration
+
 ## Testing (Because I Believe in Quality)
 
 ```bash
@@ -469,10 +493,8 @@ wrangler analytics put NEXT_DAVE_IO_ANALYTICS
 # Initialize the D1 database schema (because empty databases are useless)
 bun jwt init
 
-# Set production secrets
-wrangler secret put API_JWT_SECRET
-wrangler secret put CLOUDFLARE_API_TOKEN    # For CLI tools and KV management
-wrangler secret put CLOUDFLARE_ACCOUNT_ID   # For CLI tools and KV management
+# Deploy environment variables securely (reads from .env)
+bun run deploy:env
 
 # Deploy to the cloud
 bun run deploy

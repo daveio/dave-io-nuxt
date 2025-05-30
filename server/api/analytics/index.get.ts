@@ -44,19 +44,9 @@ export default defineEventHandler(async (event) => {
       const parsedCache = JSON.parse(cached)
       if (Date.now() - parsedCache.timestamp < 5 * 60 * 1000) {
         // 5 minutes
-        return createApiResponse<AnalyticsResponse<AnalyticsMetrics>>(
-          {
-            success: true,
-            data: parsedCache.data,
-            meta: {
-              requestId: crypto.randomUUID(),
-              timestamp: new Date().toISOString(),
-              cached: true,
-              cacheExpiry: new Date(parsedCache.timestamp + 5 * 60 * 1000).toISOString()
-            }
-          },
-          "Analytics data retrieved from cache"
-        )
+        return createApiResponse(parsedCache.data, "Analytics data retrieved from cache", {
+          request_id: crypto.randomUUID()
+        })
       }
     }
 
@@ -66,7 +56,7 @@ export default defineEventHandler(async (event) => {
     // Calculate time boundaries for the request
     const { start: _start, end: _end } = getTimeRangeBoundaries(params.timeRange, params.customStart, params.customEnd)
 
-    // Query real Analytics Engine data for detailed insights and time-series
+    // Query Analytics Engine for real data
     const [engineResults, timeSeriesData] = await Promise.all([
       queryAnalyticsEngine(event, params),
       queryTimeSeriesData(event, params)
@@ -79,7 +69,7 @@ export default defineEventHandler(async (event) => {
     // Merge KV metrics (fast queries) with Analytics Engine data (detailed analysis)
     const metrics: AnalyticsMetrics = {
       timeframe: aggregatedMetrics.timeframe,
-      timeSeries: timeSeriesData,
+      timeSeries: timeSeriesData, // Use real time-series data
       overview: {
         // Use KV for accurate request counts, Analytics Engine for calculated metrics
         totalRequests: kvMetrics.totalRequests || aggregatedMetrics.overview.totalRequests,
@@ -130,18 +120,9 @@ export default defineEventHandler(async (event) => {
       { expirationTtl: 300 }
     ) // 5 minutes
 
-    const response: AnalyticsResponse<AnalyticsMetrics> = {
-      success: true,
-      data: metrics,
-      meta: {
-        requestId: crypto.randomUUID(),
-        timestamp: new Date().toISOString(),
-        cached: false,
-        queryTime: Date.now() - startTime
-      }
-    }
-
-    return createApiResponse(response, "Analytics data retrieved successfully")
+    return createApiResponse(metrics, "Analytics data retrieved successfully", {
+      request_id: crypto.randomUUID()
+    })
   } catch (error: unknown) {
     console.error("Analytics error:", error)
 
