@@ -719,6 +719,16 @@ The latest addition of comprehensive JWT token management with D1 database stora
 
 Remember: with great power comes great responsibility. Use these APIs wisely, back up your data religiously, initialize your databases properly, and may your tokens never expire unexpectedly (unless you want them to).
 
+## Build Warnings (That Are Not Worth Your Sanity)
+
+During the build process, you'll see some warnings about `this` keyword in the Cloudflare library that look scary but are completely harmless:
+
+```
+node_modules/cloudflare/core.mjs (1:30): The 'this' keyword is equivalent to 'undefined' at the top level of an ES module, and has been rewritten
+```
+
+These warnings come from the official Cloudflare SDK and are more trouble to fix than they're worth. The library works perfectly fine despite the warnings, and attempting to suppress them would require more effort than the heat death of the universe. Just ignore them like that weird noise your car makes that doesn't affect driving.
+
 ---
 
 *Built with ❤️ (and perhaps too much caffeine) by [Dave Williams](https://dave.io)*
