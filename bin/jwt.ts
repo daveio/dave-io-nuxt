@@ -1,8 +1,11 @@
 #!/usr/bin/env bun
+import type Cloudflare from "cloudflare"
 import { Command } from "commander"
 import { SignJWT, jwtVerify } from "jose"
 import readlineSync from "readline-sync"
 import { v4 as uuidv4 } from "uuid"
+import { getJWTSecret, parseCompoundDuration, parseExpiration } from "./shared/cli-utils"
+import { createCloudflareClient, executeD1Query } from "./shared/cloudflare"
 
 interface JWTRequest {
   sub: string
@@ -25,9 +28,82 @@ const program = new Command()
 
 program.name("jwt").description("JWT Token Management for dave-io-nuxt").version("3.0.0")
 
-// Environment variable helpers
-function getJWTSecret(): string | null {
-  return process.env.API_JWT_SECRET || null
+// D1 schema initialization
+
+async function initializeD1Schema(client: Cloudflare, accountId: string, databaseId: string): Promise<void> {
+  const createTableSQL = `
+    CREATE TABLE IF NOT EXISTS jwt_tokens (
+      uuid TEXT PRIMARY KEY,
+      sub TEXT NOT NULL,
+      description TEXT,
+      max_requests INTEGER,
+      created_at TEXT NOT NULL,
+      expires_at TEXT
+    )
+  `
+
+  const createIndexSQL = `
+    CREATE INDEX IF NOT EXISTS idx_jwt_tokens_sub ON jwt_tokens(sub)
+  `
+
+  await executeD1Query(client, accountId, databaseId, createTableSQL)
+  await executeD1Query(client, accountId, databaseId, createIndexSQL)
+}
+
+// Map D1 result from snake_case to camelCase
+function mapD1Token(dbToken: unknown): TokenMetadata {
+  const token = dbToken as Record<string, unknown>
+  return {
+    uuid: token.uuid as string,
+    sub: token.sub as string,
+    description: token.description as string | undefined,
+    maxRequests: token.max_requests as number | undefined,
+    createdAt: token.created_at as string,
+    expiresAt: token.expires_at as string | undefined
+  }
+}
+
+// Execute D1 SQL command wrapper
+async function executeD1Command(sql: string, params: unknown[] = []): Promise<unknown> {
+  try {
+    const { client, config } = createCloudflareClient(true)
+    if (!config.databaseId) {
+      throw new Error("Database ID not configured")
+    }
+    const response = await executeD1Query(client, config.accountId, config.databaseId, sql, params)
+    return (response as { result: unknown }).result
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorStatus = (error as { status?: number }).status
+
+    if (errorMessage?.includes("next-api-auth-metadata") || errorStatus === 404) {
+      console.error("❌ D1 database 'next-api-auth-metadata' not found or not accessible")
+      console.error("   Please ensure:")
+      console.error("   1. You have a valid CLOUDFLARE_API_TOKEN with D1 permissions")
+      console.error("   2. CLOUDFLARE_ACCOUNT_ID is correct")
+      console.error("   3. The D1 database exists and is properly configured")
+      throw new Error("D1 database not accessible")
+    }
+    console.error(`D1 command failed: ${errorMessage}`)
+    throw error
+  }
+}
+
+// Store token metadata in D1
+async function storeTokenMetadata(metadata: TokenMetadata): Promise<void> {
+  const sql =
+    "INSERT INTO jwt_tokens (uuid, sub, description, max_requests, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)"
+
+  const params = [
+    metadata.uuid,
+    metadata.sub,
+    metadata.description || null,
+    metadata.maxRequests || null,
+    metadata.createdAt,
+    metadata.expiresAt || null
+  ]
+
+  await executeD1Command(sql, params)
 }
 
 // Token creation with JOSE library (compatible with our auth system)
@@ -82,55 +158,26 @@ async function createToken(options: JWTRequest, secret: string): Promise<{ token
   return { token, metadata }
 }
 
-// Parse expiration duration
-function parseExpiration(expiresIn: string): number {
-  let milliseconds: number | undefined
-  try {
-    // Use our custom parsing function
-    milliseconds = parseCompoundDuration(expiresIn)
-  } catch {
-    milliseconds = undefined
-  }
-
-  if (typeof milliseconds !== "number" || milliseconds <= 0) {
-    milliseconds = parseCompoundDuration(expiresIn)
-  }
-
-  if (typeof milliseconds !== "number" || milliseconds <= 0) {
-    console.error(`❌ Invalid expiration format: ${expiresIn}`)
-    process.exit(1)
-  }
-  return Math.floor(milliseconds / 1000)
-}
-
-function parseCompoundDuration(duration: string): number | undefined {
-  const units: Record<string, number> = {
-    w: 604800000, // week
-    d: 86400000, // day
-    h: 3600000, // hour
-    m: 60000, // minute
-    s: 1000 // second
-  }
-
-  let total = 0
-  const remaining = duration.toLowerCase()
-  const regex = /(\d+)([wdhms])/g
-  let match: RegExpExecArray | null
-  let hasMatches = false
-
-  match = regex.exec(remaining)
-  while (match !== null) {
-    hasMatches = true
-    const value = Number.parseInt(match[1] || "0")
-    const unit = match[2] || ""
-    if (unit && units[unit as keyof typeof units]) {
-      total += value * (units[unit as keyof typeof units] || 0)
+// Init command
+program
+  .command("init")
+  .description("Initialize D1 database schema for JWT tokens")
+  .action(async () => {
+    try {
+      console.log("🔧 Initializing D1 database schema...")
+      const { client, config } = createCloudflareClient(true)
+      if (!config.databaseId) {
+        throw new Error("Database ID not configured")
+      }
+      await initializeD1Schema(client, config.accountId, config.databaseId)
+      console.log("✅ D1 database schema initialized successfully")
+      console.log("   Tables created: jwt_tokens")
+      console.log("   Indexes created: idx_jwt_tokens_sub")
+    } catch (error) {
+      console.error("❌ Failed to initialize D1 database schema:", error)
+      process.exit(1)
     }
-    match = regex.exec(remaining)
-  }
-
-  return hasMatches ? total : undefined
-}
+  })
 
 // Verify token command
 program
@@ -255,6 +302,16 @@ program
     try {
       const { token, metadata } = await createToken(tokenRequest, secret)
 
+      // Store in D1 production database if possible
+      try {
+        await storeTokenMetadata(metadata)
+        console.log("✅ Token metadata stored in D1 production database")
+      } catch (error) {
+        console.warn("⚠️  Could not store in D1 database:", error)
+        console.log("   Token was still created successfully and can be used")
+        console.log("   Tip: Run 'bun jwt init' to initialize the database schema if needed")
+      }
+
       console.log("\n✅ JWT Token Created Successfully\n")
       console.log("Token:")
       console.log(token)
@@ -273,29 +330,253 @@ program
     }
   })
 
+// List command
+program
+  .command("list")
+  .description("List all stored tokens")
+  .option("--limit <number>", "Limit number of results", (value) => Number.parseInt(value), 50)
+  .action(async (options) => {
+    try {
+      const result = await executeD1Command("SELECT * FROM jwt_tokens ORDER BY created_at DESC LIMIT ?", [
+        options.limit
+      ])
+      const rawTokens = Array.isArray(result) ? result : []
+
+      if (rawTokens.length === 0) {
+        console.log("📭 No tokens found")
+        return
+      }
+
+      const tokens = rawTokens.map(mapD1Token)
+      console.log(`\n📋 Found ${tokens.length} tokens:\n`)
+
+      for (const token of tokens) {
+        const expiryStatus = token.expiresAt
+          ? new Date(token.expiresAt) > new Date()
+            ? "✅ Valid"
+            : "❌ Expired"
+          : "♾️  No expiry"
+
+        console.log(`🔑 ${token.uuid}`)
+        console.log(`   Subject: ${token.sub}`)
+        console.log(`   Description: ${token.description || "No description"}`)
+        console.log(`   Max Requests: ${token.maxRequests || "Unlimited"}`)
+        console.log(`   Created: ${token.createdAt}`)
+        console.log(`   Expires: ${token.expiresAt || "Never"} ${expiryStatus}`)
+        console.log()
+      }
+    } catch (error) {
+      console.error("❌ Error listing tokens:", error)
+      process.exit(1)
+    }
+  })
+
+// Show command
+program
+  .command("show <uuid>")
+  .description("Show detailed information about a specific token")
+  .action(async (uuid) => {
+    try {
+      const result = await executeD1Command("SELECT * FROM jwt_tokens WHERE uuid = ?", [uuid])
+      const rawTokens = Array.isArray(result) ? result : []
+      const rawToken = rawTokens.length > 0 ? rawTokens[0] : null
+
+      if (!rawToken) {
+        console.error(`❌ Token with UUID ${uuid} not found`)
+        process.exit(1)
+      }
+
+      const token = mapD1Token(rawToken)
+      console.log("\n🔍 Token Details:\n")
+      console.log(`UUID: ${token.uuid}`)
+      console.log(`Subject: ${token.sub}`)
+      console.log(`Description: ${token.description || "No description"}`)
+      console.log(`Max Requests: ${token.maxRequests || "Unlimited"}`)
+      console.log(`Created: ${token.createdAt}`)
+      console.log(`Expires: ${token.expiresAt || "Never"}`)
+
+      if (token.expiresAt) {
+        const isExpired = new Date(token.expiresAt) <= new Date()
+        console.log(`Status: ${isExpired ? "❌ Expired" : "✅ Valid"}`)
+      } else {
+        console.log("Status: ♾️  No expiry")
+      }
+    } catch (error) {
+      console.error("❌ Error showing token:", error)
+      process.exit(1)
+    }
+  })
+
+// Revoke command
+program
+  .command("revoke <uuid>")
+  .description("Revoke a token by UUID")
+  .option("--confirm", "Skip confirmation prompt")
+  .action(async (uuid, options) => {
+    try {
+      // First check if the token exists in D1
+      try {
+        const result = await executeD1Command("SELECT * FROM jwt_tokens WHERE uuid = ?", [uuid])
+        const rawTokens = Array.isArray(result) ? result : []
+        const rawToken = rawTokens.length > 0 ? rawTokens[0] : null
+
+        if (rawToken) {
+          const token = mapD1Token(rawToken)
+          console.log("\n🔍 Token to revoke:")
+          console.log(`   UUID: ${token.uuid}`)
+          console.log(`   Subject: ${token.sub}`)
+          console.log(`   Description: ${token.description || "No description"}`)
+        } else {
+          console.log(`\n⚠️  Token with UUID ${uuid} not found in D1 database`)
+          console.log("   Proceeding with KV revocation anyway (token may still exist)")
+        }
+      } catch (error) {
+        console.log(`\n⚠️  Could not check D1 database: ${error}`)
+        console.log("   Proceeding with KV revocation anyway")
+      }
+
+      if (!options.confirm) {
+        console.log("\n⚠️  WARNING: This will immediately revoke the token.")
+        console.log("   The token will no longer be accepted by the API.")
+        console.log("   This action cannot be undone.")
+
+        const confirmed = readlineSync.keyInYN("\nAre you sure you want to revoke this token?")
+        if (!confirmed) {
+          console.log("❌ Token revocation cancelled")
+          process.exit(1)
+        }
+      }
+
+      console.log(`\n🚫 Revoking token ${uuid}...`)
+
+      // Set revocation flag in KV
+      const { client, config } = createCloudflareClient(false, true)
+      if (!config.kvNamespaceId) {
+        throw new Error("KV namespace ID not configured")
+      }
+      const kvNamespaceId = config.kvNamespaceId
+
+      await client.kv.namespaces.values.update(kvNamespaceId, `auth:revocation:${uuid}`, {
+        account_id: config.accountId,
+        value: "true",
+        metadata: {}
+      })
+
+      console.log("✅ Token revoked successfully")
+      console.log("   The token is now immediately invalid and cannot be used")
+    } catch (error) {
+      console.error("❌ Failed to revoke token:", error)
+      process.exit(1)
+    }
+  })
+
+// Search command
+program
+  .command("search")
+  .description("Search tokens by various criteria")
+  .option("--uuid <uuid>", "Search by UUID")
+  .option("--sub <subject>", "Search by subject")
+  .option("--description <text>", "Search by description")
+  .action(async (options) => {
+    if (!options.uuid && !options.sub && !options.description) {
+      console.error("❌ At least one search criteria is required")
+      process.exit(1)
+    }
+
+    try {
+      let sql: string
+      let params: unknown[]
+
+      if (options.uuid) {
+        sql = "SELECT * FROM jwt_tokens WHERE uuid = ?"
+        params = [options.uuid]
+      } else if (options.sub) {
+        sql = "SELECT * FROM jwt_tokens WHERE sub LIKE ?"
+        params = [`%${options.sub}%`]
+      } else if (options.description) {
+        sql = "SELECT * FROM jwt_tokens WHERE description LIKE ?"
+        params = [`%${options.description}%`]
+      } else {
+        throw new Error("No search criteria provided")
+      }
+
+      const result = await executeD1Command(sql, params)
+      const rawTokens = Array.isArray(result) ? result : []
+
+      if (rawTokens.length === 0) {
+        console.log("📭 No matching tokens found")
+        return
+      }
+
+      const tokens = rawTokens.map(mapD1Token)
+      console.log(`\n🔍 Found ${tokens.length} matching tokens:\n`)
+
+      for (const token of tokens) {
+        const expiryStatus = token.expiresAt
+          ? new Date(token.expiresAt) > new Date()
+            ? "✅ Valid"
+            : "❌ Expired"
+          : "♾️  No expiry"
+
+        console.log(`🔑 ${token.uuid}`)
+        console.log(`   Subject: ${token.sub}`)
+        console.log(`   Description: ${token.description || "No description"}`)
+        console.log(`   Status: ${expiryStatus}`)
+        console.log()
+      }
+    } catch (error) {
+      console.error("❌ Error searching tokens:", error)
+      process.exit(1)
+    }
+  })
+
 // Add help text to the main program
 program.addHelpText(
   "after",
   `
 Commands:
+  init                Initialize D1 database schema for JWT tokens
   create              Create a new JWT token
   verify <token>      Verify and inspect a JWT token
+  list                List all stored tokens
+  show <uuid>         Show details of a specific token
+  search              Search tokens by criteria
+  revoke <uuid>       Revoke a token by UUID
 
 Environment Variables:
   API_JWT_SECRET                  JWT secret key
+  CLOUDFLARE_API_TOKEN           Cloudflare API token with D1/KV permissions
+  CLOUDFLARE_ACCOUNT_ID          Your Cloudflare account ID
+  CLOUDFLARE_D1_DATABASE_ID      D1 database ID (defaults to wrangler.jsonc binding)
+  CLOUDFLARE_KV_NAMESPACE_ID     KV namespace ID (defaults to wrangler.jsonc binding)
+
+Database:
+  Uses production Cloudflare D1 database and KV storage via Cloudflare SDK
+
+Setup Requirements:
+  1. Create a Cloudflare API token with D1 and KV read/write permissions
+  2. Set the required environment variables
+  3. Run 'bun jwt init' to initialize the database schema
 
 Examples:
+  bun jwt init                                                       # Initialize D1 schema
   bun jwt create --sub "api:metrics" --description "Metrics access"  # 30d default expiry
   bun jwt create --sub "ai:alt" --max-requests 1000 --expiry "7d"
-  bun jwt create --sub "admin" --no-expiry --seriously-no-expiry  # No expiry (dangerous)
+  bun jwt create --sub "admin" --no-expiry --seriously-no-expiry     # No expiry (dangerous)
   bun jwt create --sub "api" --description "API access" --expiry "1y"
   bun jwt verify "eyJhbGciOiJIUzI1NiJ9..."
+  bun jwt list
+  bun jwt show <uuid>
+  bun jwt search --sub "ai"
+  bun jwt search --description "Dave"
+  bun jwt revoke <uuid>
 
 Security Notes:
   - Tokens default to 30-day expiration for security
   - Use --no-expiry only for special cases (requires confirmation)
   - Use --seriously-no-expiry to skip confirmation (use with extreme caution)
   - This version is compatible with our Nuxt API authentication system
+  - Token metadata is stored in D1, revocation is handled via KV storage
 `
 )
 
@@ -308,4 +589,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   main()
 }
 
-export { createToken, parseExpiration }
+export { createToken }

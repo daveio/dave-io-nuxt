@@ -19,7 +19,9 @@ Originally, Dave's site was a simple Cloudflare Worker. But why keep things simp
 - Token introspection and validation endpoints
 - Rate limiting per token (because Dave doesn't trust anyone, including himself)
 - Token revocation support (for when life gets complicated)
-- CLI-based token management that would make enterprise admins weep with joy
+- CLI-based token management with D1 database storage that would make enterprise admins weep with joy
+- JSONC configuration parsing because Dave believes in good developer experience
+- Graceful fallback when Cloudflare credentials are missing (because sometimes you just want to work offline)
 
 ### 🤖 AI Integration
 
@@ -274,23 +276,50 @@ Revoke a token (relationship status: it's complicated).
 
 ## Scripts & Utilities (Dave's Toolbox)
 
-Dave has lovingly crafted some handy scripts in the `bin/` directory:
+Dave has lovingly crafted some handy scripts in the `bin/` directory, now with shared modules to eliminate code duplication (because even Dave believes in DRY principles):
 
-### `bin/jwt.ts` - JWT Token Management CLI
+### `bin/jwt.ts` - JWT Token Management CLI (Now With Database Powers!)
 
 ```bash
+# Initialize D1 database schema (one-time setup, like assembling IKEA furniture)
+bun jwt init
+
 # Create a new token (with great power...)
-bun run jwt create --sub "api:metrics" --description "Metrics access" --expiry "30d"
+bun jwt create --sub "api:metrics" --description "Metrics access" --expiry "30d"
 
 # Create an admin token (comes great responsibility)
-bun run jwt create --sub "admin" --description "God mode" --no-expiry --seriously-no-expiry
+bun jwt create --sub "admin" --description "God mode" --no-expiry --seriously-no-expiry
 
 # Verify a token (trust, but verify)
-bun run jwt verify "eyJhbGciOiJIUzI1NiJ9..."
+bun jwt verify "eyJhbGciOiJIUzI1NiJ9..."
+
+# List all your beautiful tokens (like a digital collection)
+bun jwt list
+
+# Show detailed info about a specific token (for the detail-oriented)
+bun jwt show <uuid>
+
+# Search for tokens (because sometimes you forget what you created)
+bun jwt search --sub "api"                    # Find by subject
+bun jwt search --description "test"           # Find by description
+bun jwt search --uuid "123e4567-e89b"         # Find by UUID
+
+# Revoke a token (relationship status: it's complicated)
+bun jwt revoke <uuid>
+bun jwt revoke <uuid> --confirm               # Skip the dramatic confirmation
 
 # Interactive mode (for the GUI enthusiasts)
-bun run jwt create --interactive
+bun jwt create --interactive
 ```
+
+**New Features That Will Make Your Life Better:**
+
+- **Automatic Configuration**: Reads D1 and KV IDs from `wrangler.jsonc` (because hardcoded IDs are so 2023)
+- **Environment Override**: Environment variables still win over config files (hierarchy matters)
+- **Graceful Degradation**: Works without Cloudflare credentials for basic operations (perfect for offline work)
+- **D1 Storage**: Token metadata lives in your production database (persistent and searchable)
+- **KV Revocation**: Immediate token blacklisting via KV storage (no waiting around)
+- **Smart Error Handling**: Helpful error messages that actually help (revolutionary concept)
 
 ### `bin/api-test.ts` - HTTP API Testing Suite
 
@@ -385,18 +414,24 @@ wrangler d1 create NEXT_API_AUTH_METADATA
 wrangler analytics put NEXT_DAVE_IO_ANALYTICS
 
 # Update wrangler.jsonc with the resource IDs
-# (Copy the IDs from the output above)
+# (Copy the IDs from the output above - the JWT tool will read them automatically)
+
+# Initialize the D1 database schema (because empty databases are useless)
+bun jwt init
 
 # Set production secrets
 wrangler secret put API_JWT_SECRET
-wrangler secret put CLOUDFLARE_API_TOKEN    # For KV management
-wrangler secret put CLOUDFLARE_ACCOUNT_ID   # For KV management
+wrangler secret put CLOUDFLARE_API_TOKEN    # For CLI tools and KV management
+wrangler secret put CLOUDFLARE_ACCOUNT_ID   # For CLI tools and KV management
 
 # Deploy to the cloud
 bun run deploy
 
 # Test your production deployment
 bun run test:api --url https://your-worker.your-subdomain.workers.dev
+
+# Create your first production token (you'll need this)
+bun jwt create --sub "admin" --description "Production admin access" --expiry "90d"
 ```
 
 #### Ongoing Deployment (The Daily Grind)
@@ -451,7 +486,10 @@ curl https://your-production-url.com/api/health
 ├── bin/                     # CLI scripts (Dave's toolbox)
 │   ├── jwt.ts              # JWT token management
 │   ├── api-test.ts         # HTTP API testing
-│   └── kv.ts               # KV storage management
+│   ├── kv.ts               # KV storage management
+│   └── shared/             # Shared CLI utilities (DRY principles in action)
+│       ├── cloudflare.ts   # Cloudflare client management
+│       └── cli-utils.ts    # Common utilities and helpers
 ├── types/                   # TypeScript definitions
 ├── app.vue                  # Minimal frontend (placeholder for now)
 └── public/                  # Static assets
@@ -493,7 +531,8 @@ MIT License - Because sharing is caring, and Dave believes in open source (and g
 - **Real AI Integration**: Replace simulated responses with actual Cloudflare AI
 - **Enhanced Monitoring**: Add comprehensive logging and alerting
 - **Custom Domain**: Set up production domain routing
-- **D1 Integration**: Implement database features for persistent storage
+- **✅ D1 Integration**: ~~Implement database features for persistent storage~~ **DONE!** Now with full JWT token management
+- **JWT Management Dashboard**: Build a web UI for token management (because CLI tools are great, but pretty interfaces are better)
 
 ### Security Enhancements
 
@@ -511,11 +550,13 @@ MIT License - Because sharing is caring, and Dave believes in open source (and g
 
 ## Final Thoughts
 
-This project started as a simple personal website and evolved into a full-fledged API platform. Why? Because Dave doesn't do things halfway. If you're looking for a simple static site generator, this probably isn't for you. If you want to see how to build a production-ready API with authentication, validation, testing, deployment automation, backup systems, and enough features to power a small startup, welcome to the rabbit hole.
+This project started as a simple personal website and evolved into a full-fledged API platform with database integration, CLI management tools, and enough enterprise features to make Fortune 500 companies jealous. Why? Because Dave doesn't do things halfway. If you're looking for a simple static site generator, this probably isn't for you. If you want to see how to build a production-ready API with authentication, validation, testing, deployment automation, backup systems, database integration, and enough features to power a small startup, welcome to the rabbit hole.
 
-The codebase demonstrates modern TypeScript patterns, proper error handling, comprehensive testing, real-world deployment scenarios, and enterprise-grade features that would make your DevOps team weep with joy. It's simultaneously a personal website, a learning resource, and a testament to what happens when a developer has too much free time and strong opinions about code quality.
+The codebase demonstrates modern TypeScript patterns, proper error handling, comprehensive testing, real-world deployment scenarios, database integration, CLI tool development, and enterprise-grade features that would make your DevOps team weep with joy. It's simultaneously a personal website, a learning resource, and a testament to what happens when a developer has too much free time and strong opinions about code quality.
 
-Remember: with great power comes great responsibility. Use these APIs wisely, back up your data religiously, and may your tokens never expire unexpectedly.
+The latest addition of comprehensive JWT token management with D1 database storage proves that sometimes over-engineering is exactly the right amount of engineering. You can now manage tokens like a proper enterprise application, complete with search, revocation, and metadata storage that would make GitHub's token management system take notes.
+
+Remember: with great power comes great responsibility. Use these APIs wisely, back up your data religiously, initialize your databases properly, and may your tokens never expire unexpectedly (unless you want them to).
 
 ---
 

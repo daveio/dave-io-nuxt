@@ -4,37 +4,37 @@
   "compatibility_date": "2025-05-29",
   "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
   "observability": {
-    "enabled": true,
+    "enabled": true
   },
   "placement": {
-    "mode": "smart",
+    "mode": "smart"
   },
   "ai": {
-    "binding": "AI",
+    "binding": "AI"
   },
   "analytics_engine_datasets": [
     {
       "binding": "ANALYTICS",
-      "dataset": "NEXT_DAVE_IO_ANALYTICS",
-    },
+      "dataset": "NEXT_DAVE_IO_ANALYTICS"
+    }
   ],
   "kv_namespaces": [
     {
       "binding": "DATA",
-      "id": "184eca13ac05485d96de48c436a6f5e6",
-    },
+      "id": "184eca13ac05485d96de48c436a6f5e6"
+    }
   ],
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "next-api-auth-metadata",
-      "database_id": "106894e2-1f5c-4979-a777-0b45febbb993",
-    },
+      "database_id": "106894e2-1f5c-4979-a777-0b45febbb993"
+    }
   ],
   "routes": [
     {
       "pattern": "next.dave.io",
-      "custom_domain": true,
-    },
-  ],
+      "custom_domain": true
+    }
+  ]
 }

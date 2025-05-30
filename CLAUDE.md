@@ -57,7 +57,10 @@ This is a Nuxt 3 application serving as Dave Williams' personal website with a c
 ├── bin/                     # CLI utilities and scripts
 │   ├── jwt.ts               # JWT token management CLI
 │   ├── api-test.ts          # HTTP API testing suite
-│   └── kv.ts                # KV storage backup/restore/management CLI
+│   ├── kv.ts                # KV storage backup/restore/management CLI
+│   └── shared/              # Shared CLI utilities
+│       ├── cloudflare.ts    # Cloudflare client and configuration management
+│       └── cli-utils.ts     # Common CLI utilities and helpers
 ├── types/                   # TypeScript type definitions
 │   └── api.ts               # API types re-exported from schemas
 └── public/                  # Static assets
@@ -95,10 +98,12 @@ interface JWTTokenPayload {
 
 ### Token Management Workflow
 
+- **Database Initialization**: `bin/jwt.ts init` command to set up D1 schema
 - **Generation**: `bin/jwt.ts create` command with various options
 - **Verification**: `bin/jwt.ts verify <token>` command
+- **Management**: `bin/jwt.ts list|show|search` commands for token administration
 - **Introspection**: `GET /api/auth` endpoint
-- **Revocation**: KV storage blacklist (simulated in development)
+- **Revocation**: `bin/jwt.ts revoke <uuid>` command using KV storage blacklist
 
 ## API Endpoint Reference
 
@@ -327,19 +332,38 @@ NUXT_PUBLIC_API_BASE_URL=/api  # Public API base URL
 
 ### JWT Token Management (`bin/jwt.ts`)
 
-Comprehensive JWT token management with interactive and batch modes.
+Comprehensive JWT token management with interactive and batch modes, D1 database integration, and KV-based revocation.
 
 ```bash
+# Initialize D1 database schema (required for production)
+bun jwt init
+
 # Create tokens with various options
-bun run bin/jwt.ts create --sub "api:metrics" --description "Metrics access" --expiry "30d"
-bun run bin/jwt.ts create --sub "admin" --description "Full access" --no-expiry --seriously-no-expiry
+bun jwt create --sub "api:metrics" --description "Metrics access" --expiry "30d"
+bun jwt create --sub "admin" --description "Full access" --no-expiry --seriously-no-expiry
 
 # Token verification
-bun run bin/jwt.ts verify "eyJhbGciOiJIUzI1NiJ9..."
+bun jwt verify "eyJhbGciOiJIUzI1NiJ9..."
+
+# Token management and administration
+bun jwt list                           # List all stored tokens
+bun jwt show <uuid>                    # Show detailed token information
+bun jwt search --sub "api"             # Search tokens by subject
+bun jwt search --description "test"    # Search tokens by description
+bun jwt revoke <uuid>                  # Revoke a token permanently
 
 # Interactive token creation
-bun run bin/jwt.ts create --interactive
+bun jwt create --interactive
 ```
+
+**Key Features:**
+
+- **JSONC Configuration**: Automatically reads D1 and KV IDs from `wrangler.jsonc`
+- **Environment Override**: Environment variables take precedence over config file values
+- **Graceful Fallback**: Works without Cloudflare credentials for basic operations
+- **D1 Integration**: Stores token metadata in production D1 database
+- **KV Revocation**: Uses KV storage for immediate token blacklisting
+- **Production Ready**: Comprehensive error handling and validation
 
 ### API Testing Suite (`bin/api-test.ts`)
 
@@ -551,6 +575,16 @@ This project maintains complete API compatibility with the original Cloudflare W
 
 The architecture demonstrates modern serverless patterns suitable for production deployment while maintaining the simplicity and performance characteristics of the original Worker implementation.
 
+## Documentation Guidelines
+
+When updating project documentation:
+
+1. **README Updates**: Write in a friendly, slightly sardonic, and humorous tone that reflects Dave's personality
+2. **Technical Accuracy**: Ensure all examples and commands are current and tested
+3. **Comprehensive Coverage**: Document new features thoroughly with examples
+4. **Consistent Style**: Maintain the established voice and formatting patterns
+5. **Post-Work Updates**: After completing any significant work, update both CLAUDE.md and README.md
+
 ## AI Agent Development Guidelines
 
 When working with this codebase, follow these principles:
@@ -594,15 +628,27 @@ When working with this codebase, follow these principles:
 
 This codebase serves as a reference implementation for production-ready serverless APIs with modern TypeScript, comprehensive testing, and enterprise-grade security features. The architecture balances developer experience with performance and maintainability requirements.
 
+### CLI Tools Development
+
+1. **Configuration Management**: Use JSONC parsing for reading `wrangler.jsonc` configuration files
+2. **Environment Override**: Always allow environment variables to override configuration file values
+3. **Graceful Degradation**: CLI tools should work in offline/development mode when possible
+4. **Error Handling**: Provide clear error messages and fallback behaviors
+5. **Production Integration**: Support both development and production Cloudflare environments
+6. **Shared Modules**: Use `bin/shared/` modules to avoid code duplication:
+   - `cloudflare.ts`: Cloudflare client management, configuration parsing, D1 query utilities
+   - `cli-utils.ts`: Common utilities like timestamp generation, JSON parsing, duration parsing
+
 ## Next Steps
 
 ### Immediate Improvements
 
 1. **Frontend Development**: The current `app.vue` is minimal - consider building actual website content or dashboard UI
-2. **D1 Database Integration**: Currently configured but unused - implement for persistent token storage and advanced analytics
+2. **D1 Database Integration**: ✅ **COMPLETED** - Full D1 integration for JWT token storage with CLI management
 3. **Real AI Integration**: Replace simulated AI responses with actual Cloudflare AI Workers for alt-text generation
 4. **Enhanced Monitoring**: Add structured logging and alerting integration beyond basic Analytics Engine
 5. **Custom Domain Setup**: Configure production domain routing in wrangler.jsonc routes section
+6. **JWT Management Dashboard**: Build web UI for token management to complement CLI tools
 
 ### Security Enhancements
 

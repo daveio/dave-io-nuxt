@@ -15,8 +15,10 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { resolve } from "node:path"
-import Cloudflare from "cloudflare"
+import type Cloudflare from "cloudflare"
 import { Command } from "commander"
+import { getTimestamp, keyMatchesPatterns, tryParseJson } from "./shared/cli-utils"
+import { createOptionalCloudflareClient, getWranglerConfig, validateCloudflareConfig } from "./shared/cloudflare"
 
 const BACKUP_DIR = "_backup"
 
@@ -29,23 +31,10 @@ const BACKUP_KEY_PATTERNS = [
   /^routeros:.*$/ // All RouterOS cache keys
 ]
 
-// Cloudflare configuration
-const KV_NAMESPACE_ID = "184eca13ac05485d96de48c436a6f5e6" // DATA namespace from wrangler.jsonc
-
-// Initialize Cloudflare client
-function createCloudflareClient(): Cloudflare | null {
-  const apiToken = process.env.CLOUDFLARE_API_TOKEN
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
-
-  if (!apiToken || !accountId) {
-    console.warn("⚠️  Missing CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID environment variables")
-    console.warn("   Using simulated data for development")
-    return null
-  }
-
-  return new Cloudflare({
-    apiToken
-  })
+// Get KV namespace ID from wrangler.jsonc or fallback
+function getKVNamespaceId(): string {
+  const wranglerConfig = getWranglerConfig()
+  return process.env.CLOUDFLARE_KV_NAMESPACE_ID || wranglerConfig.kvNamespaceId || "184eca13ac05485d96de48c436a6f5e6"
 }
 
 // KV Admin Tool - requires Cloudflare credentials
@@ -62,27 +51,10 @@ function ensureBackupDirExists() {
   }
 }
 
-// Get current timestamp in format YYYY-MM-DD-HHmmss
-function getTimestamp() {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, "0")
-  const day = String(now.getDate()).padStart(2, "0")
-  const hours = String(now.getHours()).padStart(2, "0")
-  const minutes = String(now.getMinutes()).padStart(2, "0")
-  const seconds = String(now.getSeconds()).padStart(2, "0")
-
-  return `${year}-${month}-${day}-${hours}${minutes}${seconds}`
-}
-
-// Check if a key matches any of the configured patterns
-function keyMatchesPatterns(key: string, patterns: RegExp[]): boolean {
-  return patterns.some((pattern) => pattern.test(key))
-}
-
 // Fetch all keys from Cloudflare KV namespace
 async function fetchAllKeys(cloudflare: Cloudflare, accountId: string): Promise<string[]> {
-  const response = await cloudflare.kv.namespaces.keys.list(KV_NAMESPACE_ID, { account_id: accountId })
+  const kvNamespaceId = getKVNamespaceId()
+  const response = await cloudflare.kv.namespaces.keys.list(kvNamespaceId, { account_id: accountId })
   return response.result?.map((key: { name: string }) => key.name) || []
 }
 
@@ -93,11 +65,12 @@ async function fetchKeyValues(
   keys: string[]
 ): Promise<Record<string, unknown>> {
   const kvData: Record<string, unknown> = {}
+  const kvNamespaceId = getKVNamespaceId()
 
   for (const key of keys) {
     try {
       console.log("📥 Fetching value for key:", key)
-      const valueResponse = await cloudflare.kv.namespaces.values.get(KV_NAMESPACE_ID, key, { account_id: accountId })
+      const valueResponse = await cloudflare.kv.namespaces.values.get(kvNamespaceId, key, { account_id: accountId })
 
       if (valueResponse) {
         const valueStr = await valueResponse.text()
@@ -111,20 +84,6 @@ async function fetchKeyValues(
   return kvData
 }
 
-// Validate Cloudflare configuration and return client details
-function validateCloudflareConfig(): { cloudflare: Cloudflare; accountId: string } {
-  const cloudflare = createCloudflareClient()
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
-
-  if (!cloudflare || !accountId) {
-    console.error("❌ Cloudflare credentials not configured")
-    console.error("   Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID environment variables")
-    process.exit(1)
-  }
-
-  return { cloudflare, accountId }
-}
-
 // Filter keys based on backup patterns
 function filterKeys(allKeys: string[], backupAll: boolean): string[] {
   return backupAll ? allKeys : allKeys.filter((key: string) => keyMatchesPatterns(key, BACKUP_KEY_PATTERNS))
@@ -134,41 +93,19 @@ function filterKeys(allKeys: string[], backupAll: boolean): string[] {
 async function getAllKVData(backupAll = false) {
   console.log(`📊 Fetching ${backupAll ? "all" : "selected"} keys from KV namespace...`)
 
-  const { cloudflare, accountId } = validateCloudflareConfig()
+  const { client: cloudflare, config } = validateCloudflareConfig(false, true)
 
   try {
-    const allKeys = await fetchAllKeys(cloudflare, accountId)
+    const allKeys = await fetchAllKeys(cloudflare, config.accountId)
     const keys = filterKeys(allKeys, backupAll)
 
     console.log(`🔍 Found ${keys.length} keys ${backupAll ? "" : `matching patterns (out of ${allKeys.length} total)`}`)
 
-    return await fetchKeyValues(cloudflare, accountId, keys)
+    return await fetchKeyValues(cloudflare, config.accountId, keys)
   } catch (error) {
     console.error("❌ Failed to fetch keys from Cloudflare KV:", error)
     throw error
   }
-}
-
-// Helper function to try parsing JSON
-function tryParseJson(value: string): unknown {
-  const jsonPatterns = [
-    /^\{.*\}$/, // Object: {...}
-    /^\[.*\]$/, // Array: [...]
-    /^-?\d+(\.\d+)?$/, // Number: 123 or 123.45
-    /^(true|false)$/, // Boolean: true or false
-    /^null$/ // null
-  ]
-
-  const looksLikeJson = jsonPatterns.some((pattern) => pattern.test(value))
-
-  if (looksLikeJson) {
-    try {
-      return JSON.parse(value)
-    } catch {
-      return value
-    }
-  }
-  return value
 }
 
 // Backup KV data to file
@@ -209,14 +146,8 @@ async function restoreKV(filename: string) {
 
     console.log(`📊 Found ${Object.keys(kvData).length} keys to restore`)
 
-    const cloudflare = createCloudflareClient()
-    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
-
-    if (!cloudflare || !accountId) {
-      console.error("❌ Cloudflare credentials not configured")
-      console.error("   Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID environment variables")
-      process.exit(1)
-    }
+    const { client: cloudflare, config } = validateCloudflareConfig(false, true)
+    const kvNamespaceId = getKVNamespaceId()
 
     // Use Cloudflare SDK to restore data
     console.log("\n🔄 Restoring to Cloudflare KV...")
@@ -226,8 +157,8 @@ async function restoreKV(filename: string) {
     for (const [key, value] of Object.entries(kvData)) {
       try {
         const valueStr = typeof value === "string" ? value : JSON.stringify(value)
-        await cloudflare.kv.namespaces.values.update(KV_NAMESPACE_ID, key, {
-          account_id: accountId,
+        await cloudflare.kv.namespaces.values.update(kvNamespaceId, key, {
+          account_id: config.accountId,
           value: valueStr,
           metadata: "{}"
         })
@@ -251,18 +182,12 @@ async function restoreKV(filename: string) {
 // Wipe all KV data
 async function wipeKV() {
   try {
-    const cloudflare = createCloudflareClient()
-    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
-
-    if (!cloudflare || !accountId) {
-      console.error("❌ Cloudflare credentials not configured")
-      console.error("   Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID environment variables")
-      process.exit(1)
-    }
+    const { client: cloudflare, config } = validateCloudflareConfig(false, true)
+    const kvNamespaceId = getKVNamespaceId()
 
     // Real KV wipe using Cloudflare SDK
     console.log("📊 Fetching all keys from Cloudflare KV...")
-    const response = await cloudflare.kv.namespaces.keys.list(KV_NAMESPACE_ID, { account_id: accountId })
+    const response = await cloudflare.kv.namespaces.keys.list(kvNamespaceId, { account_id: config.accountId })
     const keys = response.result?.map((key: { name: string }) => key.name) || []
 
     console.log(`🔍 Found ${keys.length} keys to delete`)
@@ -291,7 +216,7 @@ async function wipeKV() {
 
     for (const key of keys) {
       try {
-        await cloudflare.kv.namespaces.values.delete(KV_NAMESPACE_ID, key, { account_id: accountId })
+        await cloudflare.kv.namespaces.values.delete(kvNamespaceId, key, { account_id: config.accountId })
         console.log("  ✓ Deleted:", key)
         successCount++
       } catch (error) {
@@ -342,17 +267,11 @@ program
     try {
       console.log("📊 Listing KV keys...")
 
-      const cloudflare = createCloudflareClient()
-      const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
-
-      if (!cloudflare || !accountId) {
-        console.error("❌ Cloudflare credentials not configured")
-        console.error("   Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID environment variables")
-        process.exit(1)
-      }
+      const { client: cloudflare, config } = validateCloudflareConfig(false, true)
+      const kvNamespaceId = getKVNamespaceId()
 
       // Use Cloudflare SDK to list keys
-      const response = await cloudflare.kv.namespaces.keys.list(KV_NAMESPACE_ID, { account_id: accountId })
+      const response = await cloudflare.kv.namespaces.keys.list(kvNamespaceId, { account_id: config.accountId })
       const keys = response.result?.map((key: { name: string }) => key.name) || []
 
       let filteredKeys = keys
@@ -375,8 +294,8 @@ program
 
       for (const key of filteredKeys) {
         try {
-          const valueResponse = await cloudflare.kv.namespaces.values.get(KV_NAMESPACE_ID, key, {
-            account_id: accountId
+          const valueResponse = await cloudflare.kv.namespaces.values.get(kvNamespaceId, key, {
+            account_id: config.accountId
           })
           const value = valueResponse ? await valueResponse.text() : ""
           const preview = value.substring(0, 50) + (value.length > 50 ? "..." : "")

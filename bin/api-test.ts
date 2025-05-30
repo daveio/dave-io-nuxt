@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
 import { createToken } from "./jwt"
+import { getJWTSecret } from "./shared/cli-utils"
 
 const program = new Command()
 
@@ -29,7 +30,7 @@ class APITester {
 
   constructor(baseUrl = "http://localhost:3000", secret?: string) {
     this.baseUrl = baseUrl.replace(/\/$/, "") // Remove trailing slash
-    this.secret = secret || process.env.API_JWT_SECRET || "dev-secret-change-in-production"
+    this.secret = secret || getJWTSecret() || "dev-secret-change-in-production"
   }
 
   // Generate JWT tokens for testing
