@@ -36,9 +36,5 @@
       "pattern": "next.dave.io",
       "custom_domain": true
     }
-  ],
-  "assets": {
-    "directory": ".output/public",
-    "binding": "ASSETS"
-  }
+  ]
 }
