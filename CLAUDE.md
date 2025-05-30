@@ -62,11 +62,33 @@ This is a Nuxt 3 application serving as Dave Williams' personal website with a c
 │       ├── cloudflare.ts    # Cloudflare client and configuration management
 │       └── cli-utils.ts     # Common CLI utilities and helpers
 ├── types/                   # TypeScript type definitions
-│   └── api.ts               # API types re-exported from schemas
+│   ├── api.ts               # API types re-exported from schemas
+│   └── analytics.ts         # Analytics-specific TypeScript types
+├── pages/                   # Nuxt 3 pages
+│   └── analytics.vue        # Comprehensive analytics dashboard
+├── components/analytics/    # Analytics dashboard components
+│   ├── AnalyticsOverview.vue       # Overview metrics cards
+│   ├── AnalyticsRequestsChart.vue  # Time-series charts with Chart.js
+│   ├── AnalyticsRedirectChart.vue  # Top redirects visualization
+│   ├── AnalyticsAIMetrics.vue      # AI operations metrics
+│   ├── AnalyticsAuthMetrics.vue    # Authentication statistics
+│   ├── AnalyticsRouterOSMetrics.vue # RouterOS cache performance
+│   ├── AnalyticsGeographicChart.vue # Geographic distribution pie chart
+│   ├── AnalyticsUserAgentsTable.vue # User agent analysis table
+│   └── AnalyticsRealtimeUpdates.vue # Real-time activity feed
+├── composables/             # Vue composables
+│   └── useAnalytics.ts      # Analytics data fetching and state management
 └── public/                  # Static assets
 ```
 
 ## Authentication & Authorization System
+
+### Dual Authentication Methods
+
+The system supports two authentication methods for maximum flexibility:
+
+- **Bearer Token Headers**: `Authorization: Bearer <jwt>` - Standard HTTP authentication for API clients
+- **URL Parameters**: `?token=<jwt>` - Browser-friendly authentication for EventSource and direct access
 
 ### JWT Token Structure
 
@@ -93,8 +115,89 @@ interface JWTTokenPayload {
 - `ai`: AI services (alt-text generation)
 - `routeros`: RouterOS/MikroTik integration
 - `dashboard`: Dashboard data feeds
+- `analytics`: Analytics dashboard and data access
 - `admin`: Full system access
 - `*`: Wildcard (full access)
+
+### Complete Endpoint Authentication Reference
+
+#### 🔓 Public Endpoints (No Authentication Required)
+
+**Core System**:
+- `GET /api/health` - Health check and system status
+- `GET /api/ping` - Simple ping with analytics logging
+- `GET /api/_worker-info` - Worker runtime information and capabilities
+- `GET /api/stats` - Basic API statistics (lightweight version of metrics)
+
+**URL Redirection Service**:
+- `GET /api/go/{slug}` - URL shortening and redirect service
+- `GET /go/{slug}` - Alternative route pattern
+  - Supported slugs: `gh` (GitHub), `tw` (Twitter/X), `li` (LinkedIn)
+
+#### 🔒 Protected Endpoints (JWT Authentication Required)
+
+**Authentication & Introspection**:
+- `GET /api/auth` - Token validation and introspection
+  - **Required Scope**: Any valid JWT token
+  - **Purpose**: Validates credentials and returns token details
+
+**API Metrics & Management**:
+- `GET /api/metrics` - Comprehensive API metrics
+  - **Required Scopes**: `api:metrics`, `api`, `admin`, or `*`
+  - **Query Parameters**: `format` (json|yaml|prometheus)
+
+**AI Services**:
+- `GET /api/ai/alt` - Generate alt-text via URL parameter
+  - **Required Scopes**: `ai:alt`, `ai`, `admin`, or `*`
+  - **Query Parameters**: `url` (image URL to process)
+- `POST /api/ai/alt` - Generate alt-text via body or file upload
+  - **Required Scopes**: `ai:alt`, `ai`, `admin`, or `*`
+  - **Body**: `{ url: string }` or multipart file upload
+
+**Token Management**:
+- `GET /api/tokens/{uuid}/usage` - Token usage statistics and metrics
+  - **Required Scopes**: `api:tokens`, `api`, `admin`, or `*`
+- `GET /api/tokens/{uuid}/{...path}` - Dynamic token operations
+  - **Required Scopes**: `api:tokens`, `api`, `admin`, or `*`
+- `POST /api/tokens/{uuid}/revoke` - Revoke a token permanently
+  - **Required Scopes**: `api:tokens`, `api`, `admin`, or `*`
+
+**RouterOS Administrative Operations**:
+- `POST /api/routeros/reset` - Reset RouterOS cache
+  - **Required Scopes**: `routeros:admin`, `routeros`, `admin`, or `*`
+
+**Analytics Dashboard**:
+- `GET /api/analytics` - Comprehensive analytics data with caching
+  - **Required Scopes**: `api:analytics`, `api`, `admin`, or `*`
+  - **Query Parameters**: `timeRange`, `customStart`, `customEnd`, etc.
+- `GET /api/analytics/realtime` - Server-sent events stream for real-time analytics
+  - **Required Scopes**: `api:analytics`, `api`, `admin`, or `*`
+  - **Note**: Uses URL token parameter due to EventSource limitations
+- `POST /api/analytics/query` - Execute custom analytics queries with advanced filtering
+  - **Required Scopes**: `api:analytics`, `api`, `admin`, or `*`
+
+#### 🌐 Website Endpoints (Frontend Routes)
+
+**Public Pages**:
+- `/` - Main landing page (currently NuxtWelcome)
+
+**JWT-Protected Pages**:
+- `/analytics` - Analytics authentication form
+  - **Public Access**: Yes (login page)
+  - **Purpose**: JWT input and validation
+  - **Redirects to**: `/analytics/{jwt}` on successful authentication
+- `/analytics/{jwt}` - Analytics dashboard
+  - **JWT Required**: Yes (embedded in URL)
+  - **Client-side validation**: Validates JWT before loading dashboard
+  - **Server-side calls**: All API requests use the JWT for authentication
+  - **Required Scopes**: `api:analytics`, `api`, `admin`, or `*`
+
+### Authentication Statistics
+- **Total API Endpoints**: 22
+- **Public Endpoints**: 8 (36%)
+- **Protected Endpoints**: 14 (64%)
+- **Website Routes**: 2 (analytics login and dashboard)
+- **Authentication Methods**: 2 (Bearer tokens + URL parameters)
 
 ### Token Management Workflow
 
@@ -104,6 +207,48 @@ interface JWTTokenPayload {
 - **Management**: `bin/jwt.ts list|show|search` commands for token administration
 - **Introspection**: `GET /api/auth` endpoint
 - **Revocation**: `bin/jwt.ts revoke <uuid>` command using KV storage blacklist
+
+### Security Features
+
+#### Rate Limiting
+- **AI Endpoints**: Additional rate limiting beyond standard auth
+- **Token-based**: Per-token request limits with KV storage tracking
+- **Graceful Degradation**: Fails open with logging when KV unavailable
+
+#### Token Security
+- **JWT Verification**: JOSE library with proper validation
+- **Token Revocation**: KV-based blacklist for immediate invalidation
+- **Request Tracking**: Optional per-token request counting
+- **Expiration**: Configurable token lifetimes
+
+#### Security Headers
+- **CORS**: Configured for API routes with appropriate origins
+- **CSP**: Strict Content Security Policy
+- **Cache Control**: Disabled for API routes to prevent credential leakage
+
+### Authentication Testing
+
+```bash
+# Test with Bearer token
+curl -H "Authorization: Bearer eyJhbGci..." https://next.dave.io/api/analytics
+
+# Test with URL parameter
+curl "https://next.dave.io/api/analytics?token=eyJhbGci..."
+
+# Test token validation
+curl -H "Authorization: Bearer eyJhbGci..." https://next.dave.io/api/auth
+
+# Run the full API test suite
+bun run test:api --token "your-jwt-token"
+```
+
+### Best Practices
+1. **Use Bearer tokens** for API clients and server-to-server communication
+2. **Use URL parameters** only when necessary (browsers, EventSource)
+3. **Generate specific scopes** rather than broad permissions when possible
+4. **Set appropriate expiration times** (minutes for admin, days for analytics)
+5. **Monitor token usage** via the `/api/tokens/{uuid}/usage` endpoint
+6. **Revoke tokens** immediately when compromised
 
 ## API Endpoint Reference
 
@@ -228,6 +373,235 @@ interface JWTTokenPayload {
 - **Purpose**: Revoke a token by UUID (permanent action)
 - **Authentication**: Required (`api:tokens`, `api`, or `admin`)
 - **Response**: Revocation confirmation and updated status
+
+### Analytics Dashboard Endpoints
+
+#### `GET /api/analytics`
+
+- **Purpose**: Comprehensive analytics data snapshot with caching
+- **Authentication**: Required (`api:analytics`, `api`, or `admin`)
+- **Query Parameters**:
+  - `timeRange`: `1h`, `24h`, `7d`, `30d`, `custom` (default: `24h`)
+  - `customStart`: ISO timestamp for custom range start
+  - `customEnd`: ISO timestamp for custom range end
+  - `eventTypes`: Comma-separated list of event types to filter
+  - `country`: Filter by country code
+  - `tokenSubject`: Filter by token subject
+  - `limit`: Maximum number of results (default: 1000)
+- **Response**: Structured analytics metrics with overview, redirects, AI operations, authentication stats, RouterOS metrics, geographic distribution, user agents, and rate limiting data
+
+#### `GET /api/analytics/realtime`
+
+- **Purpose**: Server-sent events stream for real-time analytics updates
+- **Authentication**: Required (`api:analytics`, `api`, or `admin`)
+- **Response**: SSE stream with periodic updates every 5 seconds containing current metrics and recent events
+
+#### `POST /api/analytics/query`
+
+- **Purpose**: Execute custom analytics queries with advanced filtering
+- **Authentication**: Required (`api:analytics`, `api`, or `admin`)
+- **Body**: AnalyticsQueryParams object with comprehensive filtering and aggregation options
+- **Response**: Custom query results, either aggregated metrics or raw events based on request parameters
+
+## Analytics Dashboard
+
+### Overview
+
+The analytics dashboard provides comprehensive real-time and historical insights into the next.dave.io API and website traffic. Built with Vue 3, @nuxt/ui, and Chart.js, it offers an intuitive interface for monitoring system performance, user behavior, and security metrics.
+
+**Dashboard URL**: `/analytics`
+
+### Key Features
+
+#### Real-time Monitoring
+- **Live Updates**: Toggle real-time data streaming via Server-Sent Events
+- **Activity Feed**: Live stream of events (redirects, API calls, auth attempts)
+- **Performance Metrics**: Real-time response times and success rates
+- **Status Indicators**: System health and connectivity status
+
+#### Time-based Analysis
+- **Flexible Time Ranges**: 1 hour, 24 hours, 7 days, 30 days, or custom ranges
+- **Interactive Charts**: Time-series visualizations with Chart.js
+- **Trend Analysis**: Historical data patterns and performance trends
+- **Peak Detection**: Automatic identification of traffic peaks
+
+#### Comprehensive Metrics
+
+**System Overview**:
+- Total requests and success rates
+- Average response times with performance indicators
+- Unique visitor counts and traffic patterns
+- Failed request analysis
+
+**Redirect Analytics**:
+- Top performing redirect slugs (`/go/*`)
+- Click-through rates and destinations
+- Geographic distribution of clicks
+- Trending redirects over time
+
+**AI Operations**:
+- Alt-text generation statistics
+- Processing times and performance metrics
+- Image size analysis
+- Success rates and error tracking
+
+**Authentication Security**:
+- Token usage patterns by subject
+- Success/failure rates
+- Failed authentication attempts
+- Top token subjects and usage
+
+**RouterOS Integration**:
+- Cache hit/miss ratios
+- Put.io script generation frequency
+- Performance metrics and uptime
+- Cache efficiency indicators
+
+**Geographic Insights**:
+- Request distribution by country
+- Interactive geographic charts
+- Regional performance variations
+- International traffic patterns
+
+**User Agent Analysis**:
+- Bot vs. human traffic identification
+- Browser and tool breakdowns
+- Mobile vs. desktop usage
+- API client identification
+
+#### Interactive Features
+
+**Filtering and Search**:
+- Filter by event types, countries, token subjects
+- Search specific time periods
+- Custom query builder for advanced analysis
+- Export capabilities for data
+
+**Responsive Design**:
+- Mobile-optimized interface
+- Dark mode support with @nuxtjs/color-mode
+- Accessible design with proper ARIA labels
+- Touch-friendly interactions
+
+### Technical Implementation
+
+#### Frontend Architecture
+- **Framework**: Vue 3 with Composition API
+- **UI Library**: @nuxt/ui v3 with Tailwind CSS v4
+- **Charts**: Chart.js with vue-chartjs integration
+- **State Management**: Pinia for complex state
+- **Data Tables**: @tanstack/vue-table for advanced tables
+- **Date Handling**: date-fns for time manipulations
+- **Real-time**: EventSource API for Server-Sent Events
+
+#### Data Processing
+- **Aggregation**: lodash-es for data transformations
+- **Caching**: KV storage for 5-minute response caching
+- **Pagination**: Efficient data loading with offset/limit
+- **Filtering**: Client and server-side filtering capabilities
+
+#### Performance Optimizations
+- **Lazy Loading**: Components loaded on demand
+- **Virtualization**: Large datasets handled efficiently
+- **Caching Strategy**: Multi-level caching (API + browser)
+- **Bundle Optimization**: Code splitting and tree shaking
+
+### Data Sources Integration
+
+#### Analytics Engine
+The dashboard leverages Cloudflare Analytics Engine for detailed event tracking:
+
+**Event Types Tracked**:
+- `ping`: Health check events
+- `redirect`: URL redirection analytics
+- `auth`: Authentication events (success/failure)
+- `ai`: AI operation metrics (alt-text generation)
+- `routeros`: RouterOS integration events
+- `api_request`: General API usage patterns
+
+**Data Structure**:
+```typescript
+interface AnalyticsEvent {
+  blobs: string[]    // String data (up to 10 fields)
+  doubles: number[]  // Numeric data (up to 20 fields)
+  indexes: string[]  // Query optimization (up to 5 fields)
+}
+```
+
+#### KV Storage Metrics
+Fast-access metrics stored in KV for immediate dashboard loading:
+
+**Hierarchical Key Patterns**:
+- `metrics:requests:*` - Request counters
+- `metrics:redirect:*:clicks` - Redirect analytics
+- `metrics:24h:*` - 24-hour rolling metrics
+- `metrics:routeros:*` - RouterOS performance data
+
+### Security and Access Control
+
+#### Authentication Requirements
+- **Required Permission**: `api:analytics`, `api`, or `admin`
+- **Token Validation**: JWT-based authentication
+- **Rate Limiting**: API endpoint protection
+- **Audit Logging**: Access logging for security monitoring
+
+#### Data Privacy
+- **IP Anonymization**: Client IPs are not stored long-term
+- **GDPR Compliance**: User data handling follows privacy guidelines
+- **Secure Transmission**: HTTPS-only data transmission
+- **Access Controls**: Role-based data access restrictions
+
+### Usage Examples
+
+#### Token Creation for Analytics Access
+```bash
+# Create analytics-specific token
+bun jwt create --sub "api:analytics" --description "Analytics dashboard access" --expiry "30d"
+
+# Create admin token for full access
+bun jwt create --sub "admin" --description "Full analytics admin access" --expiry "7d"
+```
+
+#### API Usage Examples
+```bash
+# Get last 24 hours of analytics data
+curl -H "Authorization: Bearer TOKEN" "https://next.dave.io/api/analytics?timeRange=24h"
+
+# Get custom time range data
+curl -H "Authorization: Bearer TOKEN" "https://next.dave.io/api/analytics?timeRange=custom&customStart=2025-05-01T00:00:00Z&customEnd=2025-05-30T23:59:59Z"
+
+# Stream real-time updates
+curl -H "Authorization: Bearer TOKEN" "https://next.dave.io/api/analytics/realtime"
+
+# Execute custom query
+curl -X POST -H "Authorization: Bearer TOKEN" -H "Content-Type: application/json" \
+  -d '{"timeRange":"7d","eventTypes":["redirect","auth"],"aggregated":true}' \
+  "https://next.dave.io/api/analytics/query"
+```
+
+### Development and Customization
+
+#### Component Structure
+Each analytics component follows a consistent pattern:
+- **Props Interface**: Strongly typed with TypeScript
+- **Composable Integration**: Uses `useAnalytics()` for data
+- **Responsive Design**: Mobile-first approach
+- **Error Handling**: Graceful degradation on failures
+- **Loading States**: Skeleton screens and progress indicators
+
+#### Adding New Metrics
+1. **Define Types**: Add to `types/analytics.ts`
+2. **Update API**: Modify analytics utility functions
+3. **Create Components**: Build visualization components
+4. **Add to Dashboard**: Include in main analytics page
+5. **Test Integration**: Verify data flow and performance
+
+#### Extending Functionality
+- **Custom Widgets**: Create new dashboard widgets
+- **Export Features**: Add CSV/PDF export capabilities
+- **Alert System**: Implement threshold-based alerts
+- **Advanced Filtering**: Build complex query interfaces
+- **Multi-tenant Support**: Extend for multiple accounts
 
 ## Response Format Standards
 

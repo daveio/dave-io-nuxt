@@ -15,13 +15,48 @@ Originally, Dave's site was a simple Cloudflare Worker. But why keep things simp
 
 ### 🔐 Enterprise-Grade Authentication
 
-- JWT tokens with hierarchical permissions (`api:metrics`, `ai:alt`, etc.)
-- Token introspection and validation endpoints
-- Rate limiting per token (because Dave doesn't trust anyone, including himself)
-- Token revocation support (for when life gets complicated)
-- CLI-based token management with D1 database storage that would make enterprise admins weep with joy
-- JSONC configuration parsing because Dave believes in good developer experience
-- Graceful fallback when Cloudflare credentials are missing (because sometimes you just want to work offline)
+JWT-based fortress protecting Dave's digital empire with dual authentication methods:
+
+- **Bearer Token Headers**: `Authorization: Bearer <jwt>` - For sophisticated API consumers
+- **URL Parameters**: `?token=<jwt>` - For browsers and commitment-phobic clients
+- **Hierarchical permissions** (`api:metrics`, `ai:alt`, etc.) with "Russian nesting dolls" approach
+- **Token introspection** and validation endpoints
+- **Rate limiting per token** (because Dave doesn't trust anyone, including himself)
+- **Token revocation** support with KV-based blacklist for immediate invalidation
+- **CLI-based token management** with D1 database storage that would make enterprise admins weep with joy
+
+#### 🔓 Public Endpoints (No JWT Required)
+- `/api/health`, `/api/ping`, `/api/_worker-info`, `/api/stats` - Core system endpoints
+- `/api/go/{slug}` and `/go/{slug}` - URL redirection service (gh, tw, li)
+
+#### 🔒 Protected Endpoints (JWT Required)
+- **`/api/auth`** - Token validation (any valid JWT)
+- **`/api/metrics`** - API metrics (`api:metrics`, `api`, `admin`, or `*`)
+- **`/api/ai/alt`** (GET/POST) - Alt-text generation (`ai:alt`, `ai`, `admin`, or `*`)
+- **`/api/tokens/{uuid}/*`** - Token management (`api:tokens`, `api`, `admin`, or `*`)
+- **`/api/routeros/reset`** - RouterOS admin (`routeros:admin`, `routeros`, `admin`, or `*`)
+- **`/api/analytics/*`** - Analytics dashboard (`api:analytics`, `api`, `admin`, or `*`)
+
+#### 🌐 Website Authentication
+- **`/analytics`** - Public login page with JWT validation
+- **`/analytics/{jwt}`** - Protected dashboard with embedded JWT authentication
+
+#### 🔧 Token Generation
+```bash
+# Analytics dashboard access
+bun jwt create --sub "api:analytics" --description "Dashboard access" --expiry "30d"
+
+# AI service access  
+bun jwt create --sub "ai:alt" --description "Alt-text generation" --expiry "7d"
+
+# Full API access
+bun jwt create --sub "api" --description "Full API access" --expiry "1d"
+
+# Interactive mode
+bun jwt create --interactive
+```
+
+**Permission Hierarchy**: `api:metrics` → `api` → `admin` → `*` (each level inherits access to lower levels)
 
 ### 🤖 AI Integration (Now With Real AI Magic!)
 
