@@ -142,7 +142,9 @@ export function parseAnalyticsResults(results: AnalyticsEngineResult[]): Analyti
             processingTimeMs: result.double1 || 0,
             imageSizeBytes: result.double2 || undefined,
             generatedText: result.blob8 || undefined,
-            userId: result.blob9 || undefined
+            userId: result.blob9 || undefined,
+            success: result.blob10 === "success",
+            errorType: result.blob10 === "success" ? undefined : result.blob10
           }
         } as AIEvent
 
@@ -278,6 +280,9 @@ export function aggregateAnalyticsMetrics(
   // AI metrics
   const aiEvents = (eventsByType.ai as AIEvent[]) || []
   const totalOperations = aiEvents.length
+  const successfulAiOperations = aiEvents.filter((e) => e.data.success).length
+  const failedAiOperations = totalOperations - successfulAiOperations
+  const aiSuccessRate = totalOperations > 0 ? (successfulAiOperations / totalOperations) * 100 : 0
   const averageProcessingTime = aiEvents.length > 0 ? mean(aiEvents.map((e) => e.data.processingTimeMs)) : 0
   const imagesWithSize = aiEvents.filter((e) => e.data.imageSizeBytes)
   const totalImagesSized = imagesWithSize.length
@@ -346,7 +351,8 @@ export function aggregateAnalyticsMetrics(
       ai: [],
       responseTime: [],
       errors: [],
-      rateLimits: []
+      rateLimits: [],
+      uniqueVisitors: []
     },
     overview: {
       totalRequests,
@@ -361,6 +367,9 @@ export function aggregateAnalyticsMetrics(
     },
     ai: {
       totalOperations,
+      successfulOperations: successfulAiOperations,
+      failedOperations: failedAiOperations,
+      successRate: aiSuccessRate,
       averageProcessingTime,
       totalImagesSized,
       averageImageSize
@@ -875,9 +884,10 @@ export function buildTimeSeriesQuery(params: AnalyticsQueryParams): string {
       index1 as event_type,
       COUNT(*) as event_count,
       AVG(double1) as avg_processing_time,
-      SUM(CASE WHEN blob2 = 'success' THEN 1 ELSE 0 END) as success_count,
-      SUM(CASE WHEN blob2 != 'success' THEN 1 ELSE 0 END) as error_count
-    FROM analytics_dataset
+      SUM(CASE WHEN blob2 = 'success' OR double2 < 400 THEN 1 ELSE 0 END) as success_count,
+      SUM(CASE WHEN blob2 != 'success' AND double2 >= 400 THEN 1 ELSE 0 END) as error_count,
+      COUNT(DISTINCT blob5) as unique_visitors
+    FROM NEXT_DAVE_IO_ANALYTICS
     WHERE ${whereClause}
     GROUP BY time_bucket, event_type
     ORDER BY time_bucket DESC, event_type
@@ -943,7 +953,8 @@ function transformTimeSeriesResponse(
     ai: [],
     responseTime: [],
     errors: [],
-    rateLimits: []
+    rateLimits: [],
+    uniqueVisitors: []
   }
 
   // Group by time bucket
@@ -959,6 +970,8 @@ function transformTimeSeriesResponse(
 
     // Aggregate data for this time bucket
     let totalRequests = 0
+    let successfulRequests = 0
+    let failedRequests = 0
     let redirects = 0
     let auth = 0
     let ai = 0
@@ -966,14 +979,20 @@ function transformTimeSeriesResponse(
     let rateLimits = 0
     let totalResponseTime = 0
     let responseTimeCount = 0
+    let uniqueVisitorsCount = 0
 
     for (const row of bucketData) {
       const eventType = row.event_type
       const count = Number(row.event_count) || 0
       const avgTime = Number(row.avg_processing_time) || 0
+      const successCount = Number(row.success_count) || 0
       const errorCount = Number(row.error_count) || 0
+      const uniqueVisitors = Number(row.unique_visitors) || 0
 
       totalRequests += count
+      successfulRequests += successCount
+      failedRequests += errorCount
+      uniqueVisitorsCount = Math.max(uniqueVisitorsCount, uniqueVisitors)
 
       switch (eventType) {
         case "redirect":
@@ -1000,13 +1019,19 @@ function transformTimeSeriesResponse(
     // Calculate average response time for this bucket
     const avgResponseTime = responseTimeCount > 0 ? totalResponseTime / responseTimeCount : 0
 
-    result.requests.push({ timestamp, value: totalRequests })
+    result.requests.push({
+      timestamp,
+      value: totalRequests,
+      successfulRequests,
+      failedRequests
+    })
     result.redirects.push({ timestamp, value: redirects })
     result.auth.push({ timestamp, value: auth })
     result.ai.push({ timestamp, value: ai })
     result.responseTime.push({ timestamp, value: avgResponseTime })
     result.errors.push({ timestamp, value: errors })
     result.rateLimits.push({ timestamp, value: rateLimits })
+    result.uniqueVisitors.push({ timestamp, value: uniqueVisitorsCount })
   }
 
   return result

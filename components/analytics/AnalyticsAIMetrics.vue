@@ -12,6 +12,27 @@
     <div class="space-y-6">
       <!-- Main Metrics -->
       <div class="grid grid-cols-2 gap-4">
+        <div class="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+          <p class="text-2xl font-bold text-green-600 dark:text-green-400">
+            {{ formatNumber(metrics.ai.successfulOperations) }}
+          </p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            Successful Operations
+          </p>
+        </div>
+
+        <div class="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+          <p class="text-2xl font-bold text-red-600 dark:text-red-400">
+            {{ formatNumber(metrics.ai.failedOperations) }}
+          </p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            Failed Operations
+          </p>
+        </div>
+      </div>
+
+      <!-- Secondary Metrics -->
+      <div class="grid grid-cols-2 gap-4">
         <div class="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
           <p class="text-2xl font-bold text-purple-600 dark:text-purple-400">
             {{ formatNumber(metrics.ai.totalOperations) }}
@@ -68,6 +89,15 @@
             {{ successRate }}%
           </span>
         </div>
+
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-gray-600 dark:text-gray-400">
+            Failed Operations
+          </span>
+          <span class="font-medium text-red-600 dark:text-red-400">
+            {{ formatNumber(metrics.ai.failedOperations) }}
+          </span>
+        </div>
       </div>
 
       <!-- Performance Indicator -->
@@ -121,20 +151,16 @@ const processingSpeedLabel = computed(() => {
 
 // biome-ignore lint/correctness/noUnusedVariables: Used in template for success rate display
 const successRate = computed(() => {
-  // Calculate real success rate from AI operations data
   const totalOps = props.metrics.ai.totalOperations
   if (totalOps === 0) {
     return "0.0"
   }
-  // If we don't have failure data, we should either:
-  // 1. Add failure tracking to the Analytics Engine events
-  // 2. Return an error indicating missing data
-  // For now, throw an error to indicate missing real data
-  throw new Error("AI success rate calculation requires failure/success tracking in Analytics Engine")
+  return props.metrics.ai.successRate.toFixed(1)
 })
 
 const performanceScore = computed(() => {
   const time = props.metrics.ai.averageProcessingTime
+  const successRate = props.metrics.ai.successRate
   let score = 100
 
   // Deduct points for slow processing
@@ -142,6 +168,12 @@ const performanceScore = computed(() => {
   if (time > 1000) score -= 20
   if (time > 1500) score -= 30
   if (time > 2000) score -= 40
+
+  // Deduct points for low success rate
+  if (successRate < 95) score -= 10
+  if (successRate < 90) score -= 20
+  if (successRate < 80) score -= 30
+  if (successRate < 70) score -= 40
 
   return Math.max(0, Math.min(100, score))
 })

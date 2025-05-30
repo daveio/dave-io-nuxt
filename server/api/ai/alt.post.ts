@@ -78,6 +78,9 @@ export default defineEventHandler(async (event) => {
       throw createApiError(503, "AI service not available")
     }
 
+    let aiSuccess = false
+    let aiErrorType: string | undefined
+
     try {
       const result = (await env.AI.run(aiModel as "@cf/llava-hf/llava-1.5-7b-hf", {
         image: Array.from(new Uint8Array(imageData)),
@@ -94,9 +97,11 @@ export default defineEventHandler(async (event) => {
         altText = `${altText.substring(0, 297)}...`
       }
 
-      // AI processing successful
+      aiSuccess = true
     } catch (error) {
       console.error("AI processing failed:", error)
+      aiSuccess = false
+      aiErrorType = error instanceof Error ? error.name : "UnknownError"
       throw createApiError(500, "Failed to process image with AI")
     }
 
@@ -112,12 +117,13 @@ export default defineEventHandler(async (event) => {
             "alt-text",
             "post",
             request.url || "uploaded-file",
-            altText.substring(0, 100),
+            aiSuccess ? altText.substring(0, 100) : "",
             auth.payload?.sub || "anonymous",
             cfInfo.userAgent,
             cfInfo.ip,
             cfInfo.country,
-            cfInfo.ray
+            cfInfo.ray,
+            aiSuccess ? "success" : aiErrorType || "error"
           ],
           doubles: [processingTime, imageData.length], // Processing time and image size
           indexes: ["ai", "alt-text", auth.payload?.sub || "anonymous"] // For querying AI operations
@@ -146,11 +152,41 @@ export default defineEventHandler(async (event) => {
   } catch (error: unknown) {
     console.error("AI alt-text error:", error)
 
+    // Write failure analytics if we have enough context
+    try {
+      const env = getCloudflareEnv(event)
+      const cfInfo = getCloudflareRequestInfo(event)
+      const body = await readBody(event).catch(() => ({}))
+
+      if (env?.ANALYTICS) {
+        const errorType = isApiError(error) ? `${error.statusCode}` : "500"
+        env.ANALYTICS.writeDataPoint({
+          blobs: [
+            "ai",
+            "alt-text",
+            "post",
+            body.url || "uploaded-file",
+            "",
+            "anonymous",
+            cfInfo.userAgent,
+            cfInfo.ip,
+            cfInfo.country,
+            cfInfo.ray,
+            errorType
+          ],
+          doubles: [0, 0], // No processing time or image size for early failures
+          indexes: ["ai", "alt-text", "anonymous"]
+        })
+      }
+    } catch (analyticsError) {
+      console.error("Failed to write failure analytics:", analyticsError)
+    }
+
     // Re-throw API errors
     if (isApiError(error)) {
       throw error
     }
 
-    createApiError(500, "Failed to generate alt text")
+    throw createApiError(500, "Failed to generate alt text")
   }
 })

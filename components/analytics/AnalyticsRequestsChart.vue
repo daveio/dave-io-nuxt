@@ -67,15 +67,22 @@ const metricOptions = [
 // Real time series data from Analytics Engine
 
 const chartData = computed(() => {
-  const field = selectedMetric.value === "response_time" ? "responseTime" : "requests"
-
   if (!props.metrics.timeSeries) {
     throw new Error("Time series data not available")
   }
 
-  const timeSeriesData = props.metrics.timeSeries[field]
+  let timeSeriesData: import("~/types/analytics").TimeSeriesDataPoint[]
+
+  if (selectedMetric.value === "response_time") {
+    timeSeriesData = props.metrics.timeSeries.responseTime
+  } else if (selectedMetric.value === "unique_visitors") {
+    timeSeriesData = props.metrics.timeSeries.uniqueVisitors
+  } else {
+    timeSeriesData = props.metrics.timeSeries.requests
+  }
+
   if (!timeSeriesData) {
-    throw new Error(`Time series data not available for field: ${field}`)
+    throw new Error(`Time series data not available for field: ${selectedMetric.value}`)
   }
 
   return timeSeriesData.map((point) => {
@@ -86,9 +93,10 @@ const chartData = computed(() => {
       timestamp: point.timestamp,
       label: formattedLabel,
       total: point.value,
-      successful: selectedMetric.value === "requests" ? Math.round(point.value * 0.85) : point.value,
-      failed: selectedMetric.value === "requests" ? Math.round(point.value * 0.15) : 0,
-      responseTime: selectedMetric.value === "response_time" ? point.value : props.metrics.overview.averageResponseTime
+      successful: point.successfulRequests || point.value,
+      failed: point.failedRequests || 0,
+      responseTime: selectedMetric.value === "response_time" ? point.value : props.metrics.overview.averageResponseTime,
+      uniqueVisitors: point.uniqueVisitors || 0
     }
   })
 })
@@ -154,11 +162,11 @@ function updateChart() {
       }
     ]
   } else {
-    // Unique visitors (estimated)
+    // Unique visitors from real Analytics Engine data
     datasets = [
       {
         label: "Unique Visitors",
-        data: data.map((d) => Math.floor(d.total * 0.7)),
+        data: data.map((d) => d.uniqueVisitors),
         backgroundColor: "rgba(147, 51, 234, 0.1)",
         borderColor: "rgb(147, 51, 234)",
         borderWidth: 2,

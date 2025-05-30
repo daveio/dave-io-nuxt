@@ -107,6 +107,8 @@ export interface AIEvent extends AnalyticsEvent {
     imageSizeBytes?: number
     generatedText?: string
     userId?: string
+    success: boolean
+    errorType?: string
   }
 }
 
@@ -171,6 +173,9 @@ export interface TimeSeriesDataPoint {
   timestamp: string
   value: number
   label?: string
+  successfulRequests?: number
+  failedRequests?: number
+  uniqueVisitors?: number
 }
 
 /**
@@ -184,6 +189,7 @@ export interface TimeSeriesData {
   responseTime: TimeSeriesDataPoint[]
   errors: TimeSeriesDataPoint[]
   rateLimits: TimeSeriesDataPoint[]
+  uniqueVisitors: TimeSeriesDataPoint[]
 }
 
 /**
@@ -213,6 +219,9 @@ export interface AnalyticsMetrics {
   }
   ai: {
     totalOperations: number
+    successfulOperations: number
+    failedOperations: number
+    successRate: number
     averageProcessingTime: number
     totalImagesSized: number
     averageImageSize: number

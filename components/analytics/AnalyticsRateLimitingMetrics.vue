@@ -113,12 +113,8 @@
       <!-- Rate Limiting Chart -->
       <div v-if="showChart">
         <h4 class="text-md font-semibold mb-3">Rate Limiting Over Time</h4>
-        <div class="h-64 bg-gray-50 dark:bg-gray-800 rounded-lg flex items-center justify-center">
-          <div class="text-center">
-            <UIcon name="i-heroicons-chart-bar" class="h-8 w-8 text-gray-400 mx-auto mb-2" />
-            <p class="text-sm text-gray-500">Rate limiting timeline chart</p>
-            <p class="text-xs text-gray-400 mt-1">Coming soon with Analytics Engine integration</p>
-          </div>
+        <div class="h-64">
+          <canvas ref="chartCanvas" />
         </div>
       </div>
     </div>
@@ -126,7 +122,10 @@
 </template>
 
 <script setup lang="ts">
+import { Chart, registerables } from "chart.js"
 import type { AnalyticsMetrics } from "~/types/analytics"
+
+Chart.register(...registerables)
 
 interface Props {
   metrics: AnalyticsMetrics | null
@@ -138,6 +137,10 @@ const props = withDefaults(defineProps<Props>(), {
   showChart: true,
   realtimeUpdates: false
 })
+
+// Chart state
+const chartCanvas = ref<HTMLCanvasElement>()
+const chart = ref<Chart>()
 
 // Real-time state
 // biome-ignore lint/suspicious/noExplicitAny: Real-time events from SSE have dynamic structure that varies by event type
@@ -171,7 +174,96 @@ const rateLimitingData = computed(() => {
   return baseData
 })
 
-// Removed averageRateLimit - no mock data allowed
+// Chart functions
+function initChart() {
+  if (!chartCanvas.value) return
+
+  const ctx = chartCanvas.value.getContext("2d")
+  if (!ctx) return
+
+  chart.value = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: [],
+      datasets: []
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: "top"
+        }
+      },
+      scales: {
+        x: {
+          display: true,
+          title: {
+            display: true,
+            text: "Time"
+          }
+        },
+        y: {
+          display: true,
+          title: {
+            display: true,
+            text: "Rate Limit Events"
+          },
+          beginAtZero: true
+        }
+      }
+    }
+  })
+
+  updateChart()
+}
+
+function updateChart() {
+  if (!chart.value || !props.metrics?.timeSeries) return
+
+  const rateLimitData = props.metrics.timeSeries.rateLimits
+  if (!rateLimitData) return
+
+  const labels = rateLimitData.map((point) => {
+    const date = new Date(point.timestamp)
+    return formatTimeLabel(date, props.metrics?.timeframe.range || "24h")
+  })
+
+  const data = rateLimitData.map((point) => point.value)
+
+  chart.value.data = {
+    labels,
+    datasets: [
+      {
+        label: "Rate Limit Events",
+        data,
+        backgroundColor: "rgba(239, 68, 68, 0.1)",
+        borderColor: "rgb(239, 68, 68)",
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4
+      }
+    ]
+  }
+
+  chart.value.update("none")
+}
+
+function formatTimeLabel(date: Date, range: string): string {
+  switch (range) {
+    case "1h":
+      return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+    case "24h":
+      return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+    case "7d":
+      return date.toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit" })
+    case "30d":
+      return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    default:
+      return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+  }
+}
 
 // Helper functions
 // biome-ignore lint/correctness/noUnusedVariables: Used in template for number formatting
@@ -301,15 +393,31 @@ watch(
   { immediate: true }
 )
 
+// Watch for metrics changes to update chart
+watch(
+  () => props.metrics?.timeSeries,
+  () => {
+    updateChart()
+  },
+  { deep: true }
+)
+
 // Lifecycle hooks
 onMounted(() => {
   if (props.realtimeUpdates) {
     startRealtimeUpdates()
   }
+
+  nextTick(() => {
+    initChart()
+  })
 })
 
 onBeforeUnmount(() => {
   stopRealtimeUpdates()
+  if (chart.value) {
+    chart.value.destroy()
+  }
 })
 </script>
 
