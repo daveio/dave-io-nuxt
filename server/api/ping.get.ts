@@ -1,22 +1,21 @@
-import { getHeader } from "h3"
+import { getCloudflareRequestInfo } from "~/server/utils/cloudflare"
 import { createApiResponse } from "~/server/utils/response"
 
 export default defineEventHandler(async (event) => {
-  // Simple ping endpoint for monitoring and health checks
+  // Simple ping endpoint for monitoring and health checks using shared helper
+  const cfInfo = getCloudflareRequestInfo(event)
+
   const pongData = {
     pong: true,
     timestamp: new Date().toISOString(),
-    cf_ray: getHeader(event, "cf-ray") || "unknown",
-    cf_datacenter: getHeader(event, "cf-ray")?.substring(0, 3) || "unknown",
-    cf_country: getHeader(event, "cf-ipcountry") || "unknown",
-    user_agent: getHeader(event, "user-agent") || "unknown"
+    cf_ray: cfInfo.ray,
+    cf_datacenter: cfInfo.datacenter,
+    cf_country: cfInfo.country,
+    user_agent: cfInfo.userAgent
   }
 
-  // Log ping for analytics
-  const ip = getHeader(event, "cf-connecting-ip") || getHeader(event, "x-forwarded-for") || "unknown"
-  console.log(
-    `[PING] IP: ${ip} | Country: ${pongData.cf_country} | Ray: ${pongData.cf_ray} | UA: ${pongData.user_agent}`
-  )
+  // Log ping for analytics using structured logging
+  console.log(`[PING] IP: ${cfInfo.ip} | Country: ${cfInfo.country} | Ray: ${cfInfo.ray} | UA: ${cfInfo.userAgent}`)
 
   return createApiResponse(pongData, "pong")
 })

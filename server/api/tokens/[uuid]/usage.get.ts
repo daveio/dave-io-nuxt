@@ -1,5 +1,7 @@
-import { authorizeEndpoint } from "~/server/utils/auth"
+import { requireAPIAuth } from "~/server/utils/auth-helpers"
+import { getCloudflareEnv } from "~/server/utils/cloudflare"
 import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
+import { getValidatedUUID } from "~/server/utils/validation"
 
 interface TokenUsage {
   uuid: string
@@ -58,29 +60,15 @@ async function getTokenUsageFromKV(uuid: string, kv?: KVNamespace): Promise<Toke
 
 export default defineEventHandler(async (event) => {
   try {
-    // Check authorization for token management
-    const authFunc = await authorizeEndpoint("api", "tokens")
-    const auth = await authFunc(event)
-    if (!auth.success) {
-      throw createApiError(401, auth.error || "Unauthorized")
-    }
+    // Check authorization for token management using helper
+    await requireAPIAuth(event, "tokens")
 
-    const uuid = getRouterParam(event, "uuid")
+    // Validate UUID parameter using helper
+    const uuid = getValidatedUUID(event)
 
-    if (!uuid) {
-      throw createApiError(400, "Token UUID is required")
-    }
-
-    // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-    if (!uuidRegex.test(uuid)) {
-      throw createApiError(400, "Invalid UUID format")
-    }
-
-    // Get environment bindings
-    const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
-
-    if (!env?.DATA) {
+    // Get environment bindings using helper
+    const env = getCloudflareEnv(event)
+    if (!env.DATA) {
       throw createApiError(503, "Token service not available")
     }
 

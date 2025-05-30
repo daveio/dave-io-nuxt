@@ -1,110 +1,18 @@
-import { authorizeEndpoint } from "~/server/utils/auth"
+import {
+  checkAIRateLimit as checkAIRateLimitAuth,
+  requireAIAuth,
+  setRateLimitHeaders
+} from "~/server/utils/auth-helpers"
+import { getCloudflareEnv } from "~/server/utils/cloudflare"
 import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
+import { validateImageURL } from "~/server/utils/validation"
 
-async function checkAIRateLimit(
-  userId: string,
-  kv?: KVNamespace
-): Promise<{ allowed: boolean; remaining: number; resetTime: Date }> {
-  const now = Date.now()
-  const hourMs = 60 * 60 * 1000
-  const maxRequests = 100 // 100 requests per hour
-  const windowStart = Math.floor(now / hourMs) * hourMs
-  const windowEnd = windowStart + hourMs
-
-  const key = `ai:alt:${userId}:${windowStart}`
-
-  try {
-    if (kv) {
-      const countStr = await kv.get(key)
-      const currentCount = countStr ? Number.parseInt(countStr, 10) : 0
-
-      if (currentCount >= maxRequests) {
-        return {
-          allowed: false,
-          remaining: 0,
-          resetTime: new Date(windowEnd)
-        }
-      }
-
-      const newCount = currentCount + 1
-      await kv.put(key, newCount.toString(), {
-        expirationTtl: Math.ceil(hourMs / 1000) + 60 // Add 1 minute buffer
-      })
-
-      return {
-        allowed: true,
-        remaining: maxRequests - newCount,
-        resetTime: new Date(windowEnd)
-      }
-    }
-    // Fallback to basic rate limiting without persistence
-    console.warn("KV not available for AI rate limiting")
-    return {
-      allowed: true,
-      remaining: maxRequests - 1,
-      resetTime: new Date(windowEnd)
-    }
-  } catch (error) {
-    console.error("AI rate limiting error:", error)
-    return {
-      allowed: true,
-      remaining: maxRequests - 1,
-      resetTime: new Date(windowEnd)
-    }
-  }
-}
-
-async function validateAndFetchImage(imageUrl: string): Promise<ArrayBuffer> {
-  try {
-    // Validate URL format
-    new URL(imageUrl)
-  } catch {
-    throw createApiError(400, "Invalid URL format")
-  }
-
-  // Fetch the image
-  const response = await fetch(imageUrl, {
-    headers: {
-      "User-Agent": "dave.io/1.0 (AI Alt Text Bot)"
-    }
-  })
-
-  if (!response.ok) {
-    throw createApiError(400, `Failed to fetch image: ${response.status} ${response.statusText}`)
-  }
-
-  // Check content type
-  const contentType = response.headers.get("content-type") || ""
-  const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/bmp", "image/svg+xml"]
-
-  if (!validTypes.some((type) => contentType.includes(type))) {
-    throw createApiError(400, `Unsupported image type: ${contentType}`)
-  }
-
-  // Check file size (4MB limit)
-  const contentLength = response.headers.get("content-length")
-  if (contentLength && Number.parseInt(contentLength) > 4 * 1024 * 1024) {
-    throw createApiError(400, "Image too large (max 4MB)")
-  }
-
-  const imageBuffer = await response.arrayBuffer()
-
-  // Double-check size after download
-  if (imageBuffer.byteLength > 4 * 1024 * 1024) {
-    throw createApiError(400, "Image too large (max 4MB)")
-  }
-
-  return imageBuffer
-}
+// Local function removed - using shared helper from auth-helpers
 
 export default defineEventHandler(async (event) => {
   try {
-    // Check authorization for AI alt text generation
-    const authFunc = await authorizeEndpoint("ai", "alt")
-    const auth = await authFunc(event)
-    if (!auth.success) {
-      throw createApiError(401, auth.error || "Unauthorized")
-    }
+    // Check authorization for AI alt text generation using helper
+    const auth = await requireAIAuth(event, "alt")
 
     const query = getQuery(event)
     const imageUrl = query.image as string
@@ -113,28 +21,24 @@ export default defineEventHandler(async (event) => {
       throw createApiError(400, "Image URL is required (image parameter)")
     }
 
-    // Get environment bindings
-    const env = event.context.cloudflare?.env as { DATA?: KVNamespace; AI?: Ai }
+    // Get environment bindings using helper
+    const env = getCloudflareEnv(event)
 
-    // Check rate limiting
+    // Check rate limiting using shared helper
     const userId = auth.payload?.jti || auth.payload?.sub || "anonymous"
-    const rateLimit = await checkAIRateLimit(userId, env?.DATA)
+    const rateLimit = await checkAIRateLimitAuth(userId, env.DATA)
 
     if (!rateLimit.allowed) {
-      setHeader(event, "X-RateLimit-Limit", "100")
-      setHeader(event, "X-RateLimit-Remaining", "0")
-      setHeader(event, "X-RateLimit-Reset", rateLimit.resetTime.toISOString())
+      setRateLimitHeaders(event, 100, 0, rateLimit.resetTime)
       throw createApiError(429, "Rate limit exceeded. Maximum 100 requests per hour.")
     }
 
-    // Set rate limit headers
-    setHeader(event, "X-RateLimit-Limit", "100")
-    setHeader(event, "X-RateLimit-Remaining", rateLimit.remaining.toString())
-    setHeader(event, "X-RateLimit-Reset", rateLimit.resetTime.toISOString())
+    // Set rate limit headers using helper
+    setRateLimitHeaders(event, 100, rateLimit.remaining, rateLimit.resetTime)
 
-    // Validate and fetch image
+    // Validate and fetch image using shared validation helper
     const processingStart = Date.now()
-    const imageBuffer = await validateAndFetchImage(imageUrl)
+    const imageBuffer = await validateImageURL(imageUrl)
 
     // Use Cloudflare AI for image analysis
     let altText: string

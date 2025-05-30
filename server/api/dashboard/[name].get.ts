@@ -1,4 +1,5 @@
 import { getCloudflareEnv, getKVNamespace, shouldAllowMockData } from "~/server/utils/environment"
+import { parseRSSFeed } from "~/server/utils/formatters"
 import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 
 interface DashboardItem {
@@ -87,25 +88,13 @@ async function fetchHackerNews(kv: KVNamespace): Promise<{ items: DashboardItem[
 
     const rssText = await response.text()
 
-    // Simple RSS parsing (in production you'd use a proper XML parser)
-    const items: DashboardItem[] = []
-    const itemRegex = /<item>[\s\S]*?<\/item>/g
-    const matches = rssText.match(itemRegex) || []
-
-    for (const match of matches.slice(0, 10)) {
-      // Top 10 items
-      const titleMatch = match.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)
-      const linkMatch = match.match(/<link>(.*?)<\/link>/)
-      const _commentsMatch = match.match(/<comments>(.*?)<\/comments>/)
-
-      if (titleMatch && linkMatch && titleMatch[1] && linkMatch[1]) {
-        items.push({
-          title: titleMatch[1],
-          subtitle: "Hacker News",
-          linkURL: linkMatch[1]
-        })
-      }
-    }
+    // Parse RSS using fast-xml-parser instead of regex
+    const rssItems = parseRSSFeed(rssText)
+    const items: DashboardItem[] = rssItems.slice(0, 10).map((item) => ({
+      title: item.title,
+      subtitle: "Hacker News",
+      linkURL: item.link
+    }))
 
     // Cache the results
     if (items.length > 0) {

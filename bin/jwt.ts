@@ -460,7 +460,7 @@ program
         account_id: config.accountId,
         value: "true",
         metadata: {}
-      })
+      } as any)
 
       console.log("✅ Token revoked successfully")
       console.log("   The token is now immediately invalid and cannot be used")

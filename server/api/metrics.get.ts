@@ -1,4 +1,6 @@
-import { authorizeEndpoint } from "~/server/utils/auth"
+import { requireAPIAuth } from "~/server/utils/auth-helpers"
+import { batchKVGet, getCloudflareEnv } from "~/server/utils/cloudflare"
+import { formatMetricsAsPrometheus, formatMetricsAsYAML, handleResponseFormat } from "~/server/utils/formatters"
 import { createApiError, isApiError } from "~/server/utils/response"
 import { TokenMetricsSchema } from "~/server/utils/schemas"
 
@@ -31,19 +33,22 @@ async function getMetricsFromAnalytics(
     const now = new Date()
     const _yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 
-    // Get total API requests from KV counters
-    const [totalRequests, successfulRequests, failedRequests, rateLimitedRequests] = await Promise.all([
-      kv.get("metrics:requests:total").then((v) => Number.parseInt(v || "0")),
-      kv.get("metrics:requests:successful").then((v) => Number.parseInt(v || "0")),
-      kv.get("metrics:requests:failed").then((v) => Number.parseInt(v || "0")),
-      kv.get("metrics:requests:rate_limited").then((v) => Number.parseInt(v || "0"))
-    ])
+    // Get total API requests from KV counters using batch helper
+    const [totalRequests = 0, successfulRequests = 0, failedRequests = 0, rateLimitedRequests = 0] = await batchKVGet(
+      kv,
+      [
+        "metrics:requests:total",
+        "metrics:requests:successful",
+        "metrics:requests:failed",
+        "metrics:requests:rate_limited"
+      ]
+    )
 
-    // Get 24h metrics from KV (these should be updated by Analytics Engine processing)
-    const [last24hTotal, last24hSuccessful, last24hFailed] = await Promise.all([
-      kv.get("metrics:24h:total").then((v) => Number.parseInt(v || "0")),
-      kv.get("metrics:24h:successful").then((v) => Number.parseInt(v || "0")),
-      kv.get("metrics:24h:failed").then((v) => Number.parseInt(v || "0"))
+    // Get 24h metrics from KV using batch helper
+    const [last24hTotal = 0, last24hSuccessful = 0, last24hFailed = 0] = await batchKVGet(kv, [
+      "metrics:24h:total",
+      "metrics:24h:successful",
+      "metrics:24h:failed"
     ])
 
     const metricsData = {
@@ -79,23 +84,14 @@ async function getMetricsFromAnalytics(
 
 export default defineEventHandler(async (event) => {
   try {
-    // Check authorization for metrics endpoint
-    const authFunc = await authorizeEndpoint("api", "metrics")
-    const auth = await authFunc(event)
-    if (!auth.success) {
-      createApiError(401, auth.error || "Unauthorized")
-    }
+    // Check authorization for metrics endpoint using helper
+    await requireAPIAuth(event, "metrics")
 
-    // Get environment bindings
-    const env = event.context.cloudflare?.env as { DATA?: KVNamespace; ANALYTICS?: AnalyticsEngineDataset }
-
-    if (!env?.DATA || !env?.ANALYTICS) {
+    // Get environment bindings using helper
+    const env = getCloudflareEnv(event)
+    if (!env.DATA || !env.ANALYTICS) {
       throw createApiError(503, "Analytics services not available")
     }
-
-    // Get query parameters for format
-    const query = getQuery(event)
-    const format = (query.format as string) || "json"
 
     // Get metrics data from Analytics Engine/KV
     const metricsData = await getMetricsFromAnalytics(env.ANALYTICS, env.DATA)
@@ -107,61 +103,12 @@ export default defineEventHandler(async (event) => {
       timestamp: new Date().toISOString()
     })
 
-    // Handle different output formats
-    switch (format.toLowerCase()) {
-      case "json":
-        setHeader(event, "content-type", "application/json")
-        return metrics
-
-      case "yaml": {
-        setHeader(event, "content-type", "application/x-yaml")
-        // Simple YAML conversion - in production use a proper YAML library
-        const yamlOutput = `
-success: true
-data:
-  total_requests: ${metrics.data.total_requests}
-  successful_requests: ${metrics.data.successful_requests}
-  failed_requests: ${metrics.data.failed_requests}
-  rate_limited_requests: ${metrics.data.rate_limited_requests}
-  last_24h:
-    total: ${metrics.data.last_24h.total}
-    successful: ${metrics.data.last_24h.successful}
-    failed: ${metrics.data.last_24h.failed}
-timestamp: ${metrics.timestamp}
-`.trim()
-        return yamlOutput
-      }
-
-      case "prometheus": {
-        setHeader(event, "content-type", "text/plain")
-        // Prometheus format
-        const prometheusOutput = `
-# HELP api_requests_total Total number of API requests
-# TYPE api_requests_total counter
-api_requests_total ${metrics.data.total_requests}
-
-# HELP api_requests_successful_total Total number of successful API requests
-# TYPE api_requests_successful_total counter
-api_requests_successful_total ${metrics.data.successful_requests}
-
-# HELP api_requests_failed_total Total number of failed API requests
-# TYPE api_requests_failed_total counter
-api_requests_failed_total ${metrics.data.failed_requests}
-
-# HELP api_requests_rate_limited_total Total number of rate limited API requests
-# TYPE api_requests_rate_limited_total counter
-api_requests_rate_limited_total ${metrics.data.rate_limited_requests}
-
-# HELP api_requests_24h_total Total number of API requests in last 24 hours
-# TYPE api_requests_24h_total gauge
-api_requests_24h_total ${metrics.data.last_24h.total}
-`.trim()
-        return prometheusOutput
-      }
-
-      default:
-        createApiError(400, `Unsupported format: ${format}. Supported formats: json, yaml, prometheus`)
-    }
+    // Handle different output formats using centralized formatter
+    return handleResponseFormat(event, metrics, {
+      json: () => metrics,
+      yaml: () => formatMetricsAsYAML(metrics),
+      prometheus: () => formatMetricsAsPrometheus(metrics)
+    })
   } catch (error: unknown) {
     console.error("Metrics error:", error)
 
