@@ -30,6 +30,9 @@ const SLIDING_WINDOW_BUCKETS = 12 // 12 buckets for 5-second intervals in 1-minu
 const BUCKET_SIZE_MS = 5000 // 5 seconds per bucket
 const WINDOW_SIZE_MS = 60000 // 1 minute total window
 
+// Lazy initialization flag
+let cacheInitialized = false
+
 /**
  * Clean up expired cache entries periodically
  */
@@ -80,6 +83,16 @@ export function initializeRateLimitCache() {
 }
 
 /**
+ * Lazy initialization of cache cleanup - safe for Cloudflare Workers
+ */
+function ensureCacheInitialized() {
+  if (!cacheInitialized) {
+    initializeRateLimitCache()
+    cacheInitialized = true
+  }
+}
+
+/**
  * Get rate limit status with local caching
  */
 export async function getCachedRateLimit(
@@ -93,6 +106,7 @@ export async function getCachedRateLimit(
   resetTime: number
   fromCache: boolean
 }> {
+  ensureCacheInitialized()
   const now = Date.now()
   const cacheKey = `${key}:${maxRequests}:${windowMs}`
 
@@ -189,6 +203,7 @@ export async function getSlidingWindowRateLimit(
   resetTime: number
   requestsInWindow: number
 }> {
+  ensureCacheInitialized()
   const now = Date.now()
   const cacheKey = `sliding:${key}:${maxRequests}`
 
@@ -328,5 +343,5 @@ export function clearRateLimitCache() {
   }
 }
 
-// Initialize cache cleanup on module load
-initializeRateLimitCache()
+// NOTE: Cache cleanup initialization moved to lazy loading to avoid global scope issues in Cloudflare Workers
+// initializeRateLimitCache() is now called on first use within request handlers

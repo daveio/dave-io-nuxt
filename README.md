@@ -27,7 +27,7 @@ JWT-based fortress protecting my digital empire with dual authentication methods
 - **URL Parameters**: `?token=<jwt>` - For browsers and commitment-phobic clients
 - **Hierarchical permissions** (`api:metrics`, `ai:alt`, etc.) with "Russian nesting dolls" approach
 - **Token introspection** and validation endpoints
-- **Rate limiting per token** (because I don't trust anyone, including himself)
+- **Rate limiting per token** (because I don't trust anyone, including myself)
 - **Token revocation** support with KV-based blacklist for immediate invalidation
 - **CLI-based token management** with D1 database storage that would make enterprise admins weep with joy
 
@@ -118,7 +118,7 @@ bun jwt create --interactive
 
 - CORS headers that actually make sense
 - Rate limiting (in-memory for dev, KV storage for production)
-- Input sanitization and validation with Zod
+- Input sanitisation and validation with Zod
 - Security headers that would make OWASP shed a single tear of joy
 - Shell script responses for curl/wget requests
 
@@ -549,17 +549,17 @@ curl https://your-production-url.com/api/health
 
 - **Nuxt 3**: Because Vue is delightful
 - **TypeScript**: For when JavaScript isn't painful enough
-- **Zod**: Schema validation that actually works
+- **Zod**: Schema validation which actually works
 - **JOSE**: JWT handling done right
-- **Vitest**: Testing that doesn't make you cry
+- **Vitest**: Testing which doesn't make you cry
 - **Cloudflare Workers**: Because serverless is the future
 - **Bun**: The runtime that makes everything faster
-- **Biome**: Linting and formatting that just works
+- **Biome**: Linting and formatting which just works
 - **Commander**: CLI framework for the command-line warriors
 
 ## Contributing (If You Dare)
 
-Found a bug? Want to add a feature? I welcome contributions, but be warned: he has strong opinions about code style and will judge your commit messages.
+Found a bug? Want to add a feature? I welcome contributions, but be warned: I have strong opinions about code style and will judge your commit messages.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -716,7 +716,7 @@ MIT License - Because sharing is caring, and I believe in open source (and good 
 ### Performance Optimizations
 
 - **Response Caching**: Intelligent caching strategies
-- **Bundle Optimization**: Reduce Worker bundle size
+- **Bundle Optimisation**: Reduce Worker bundle size
 - **Compression**: Response compression for large payloads
 - **CDN Integration**: Optimize static asset delivery
 

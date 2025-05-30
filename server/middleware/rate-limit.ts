@@ -1,5 +1,5 @@
 import type { H3Event } from "h3"
-import { createError, getHeader, getQuery, getRequestURL, setHeader } from "h3"
+import { createError, defineEventHandler, getHeader, getQuery, getRequestURL, setHeader } from "h3"
 import { writeAnalyticsEvent } from "~/server/utils/analytics"
 import {
   getAnalyticsBinding,
@@ -61,8 +61,8 @@ export const RATE_LIMIT_PRESETS = {
  */
 export const RATE_LIMIT_EXEMPTIONS = new Set(["/api/health", "/api/ping", "/api/_worker-info"])
 
-// Initialize rate limiting cache on module load
-initializeRateLimitCache()
+// NOTE: Rate limiting cache initialization moved to lazy loading to avoid global scope issues in Cloudflare Workers
+// Cache initialization happens automatically on first use via ensureCacheInitialized()
 
 /**
  * Helper function to create a rate limit configuration

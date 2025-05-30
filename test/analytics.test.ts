@@ -113,6 +113,7 @@ describe("Analytics Utils", () => {
           blob7: "ghi789",
           blob8: "A beautiful sunset",
           blob9: "user123",
+          blob10: "success",
           double1: 1500,
           double2: 2048,
           timestamp: "2024-01-01T12:00:00Z"
@@ -130,7 +131,9 @@ describe("Analytics Utils", () => {
         processingTimeMs: 1500,
         imageSizeBytes: 2048,
         generatedText: "A beautiful sunset",
-        userId: "user123"
+        userId: "user123",
+        success: true,
+        errorType: undefined
       })
     })
 
