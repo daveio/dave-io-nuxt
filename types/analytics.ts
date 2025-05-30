@@ -3,13 +3,7 @@ import type { CloudflareRequestInfo } from "~/server/utils/cloudflare"
 /**
  * Analytics Engine Event Types
  */
-export type AnalyticsEventType = 
-  | "ping"
-  | "redirect" 
-  | "auth"
-  | "ai"
-  | "routeros"
-  | "api_request"
+export type AnalyticsEventType = "ping" | "redirect" | "auth" | "ai" | "routeros" | "api_request"
 
 /**
  * Time range options for analytics queries
@@ -31,7 +25,7 @@ export interface AnalyticsEngineResult {
   blob8?: string
   blob9?: string
   blob10?: string
-  
+
   // Double fields (numeric data)
   double1?: number
   double2?: number
@@ -53,14 +47,14 @@ export interface AnalyticsEngineResult {
   double18?: number
   double19?: number
   double20?: number
-  
+
   // Index fields (optimized for querying)
   index1?: string
   index2?: string
   index3?: string
   index4?: string
   index5?: string
-  
+
   // Timestamp
   timestamp?: string
   _sample_interval?: number
@@ -280,7 +274,7 @@ export interface AnalyticsDashboardWidget {
  */
 export interface AnalyticsRealtimeUpdate {
   timestamp: string
-  event: AnalyticsEvent
+  event: AnalyticsEvent | null
   metrics?: Partial<AnalyticsMetrics>
 }
 

@@ -39,8 +39,8 @@
 </template>
 
 <script setup lang="ts">
-import { Chart, registerables } from 'chart.js'
-import type { AnalyticsMetrics } from '~/types/analytics'
+import { Chart, registerables } from "chart.js"
+import type { AnalyticsMetrics } from "~/types/analytics"
 
 Chart.register(...registerables)
 
@@ -57,21 +57,21 @@ const totalRequests = computed(() => {
   return props.metrics.geographic.reduce((sum, country) => sum + country.requests, 0)
 })
 
-const topCountries = computed(() => {
+const _topCountries = computed(() => {
   return props.metrics.geographic.slice(0, 6) // Show top 6 countries
 })
 
 const chartColors = [
-  '#3B82F6', // Blue
-  '#10B981', // Green
-  '#F59E0B', // Yellow
-  '#EF4444', // Red
-  '#8B5CF6', // Purple
-  '#F97316', // Orange
-  '#06B6D4', // Cyan
-  '#84CC16', // Lime
-  '#EC4899', // Pink
-  '#6B7280'  // Gray
+  "#3B82F6", // Blue
+  "#10B981", // Green
+  "#F59E0B", // Yellow
+  "#EF4444", // Red
+  "#8B5CF6", // Purple
+  "#F97316", // Orange
+  "#06B6D4", // Cyan
+  "#84CC16", // Lime
+  "#EC4899", // Pink
+  "#6B7280" // Gray
 ]
 
 function getCountryColor(index: number): string {
@@ -80,16 +80,16 @@ function getCountryColor(index: number): string {
 
 function getCountryName(code: string): string {
   const countryNames: Record<string, string> = {
-    'US': 'United States',
-    'GB': 'United Kingdom', 
-    'DE': 'Germany',
-    'CA': 'Canada',
-    'FR': 'France',
-    'AU': 'Australia',
-    'JP': 'Japan',
-    'NL': 'Netherlands',
-    'SE': 'Sweden',
-    'other': 'Other'
+    US: "United States",
+    GB: "United Kingdom",
+    DE: "Germany",
+    CA: "Canada",
+    FR: "France",
+    AU: "Australia",
+    JP: "Japan",
+    NL: "Netherlands",
+    SE: "Sweden",
+    other: "Other"
   }
   return countryNames[code] || code
 }
@@ -97,27 +97,29 @@ function getCountryName(code: string): string {
 function initChart() {
   if (!chartCanvas.value) return
 
-  const ctx = chartCanvas.value.getContext('2d')
+  const ctx = chartCanvas.value.getContext("2d")
   if (!ctx) return
 
   const data = props.metrics.geographic.map((country, index) => ({
     label: getCountryName(country.country),
     data: country.requests,
     backgroundColor: getCountryColor(index),
-    borderColor: '#fff',
+    borderColor: "#fff",
     borderWidth: 2
   }))
 
   chart.value = new Chart(ctx, {
-    type: 'doughnut',
+    type: "doughnut",
     data: {
-      labels: data.map(d => d.label),
-      datasets: [{
-        data: data.map(d => d.data),
-        backgroundColor: data.map(d => d.backgroundColor),
-        borderColor: data.map(d => d.borderColor),
-        borderWidth: 2
-      }]
+      labels: data.map((d) => d.label),
+      datasets: [
+        {
+          data: data.map((d) => d.data),
+          backgroundColor: data.map((d) => d.backgroundColor),
+          borderColor: data.map((d) => d.borderColor),
+          borderWidth: 2
+        }
+      ]
     },
     options: {
       responsive: true,
@@ -127,20 +129,20 @@ function initChart() {
           display: false // We'll show legend in footer
         },
         tooltip: {
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          titleColor: '#fff',
-          bodyColor: '#fff',
-          borderColor: 'rgba(255, 255, 255, 0.1)',
+          backgroundColor: "rgba(0, 0, 0, 0.8)",
+          titleColor: "#fff",
+          bodyColor: "#fff",
+          borderColor: "rgba(255, 255, 255, 0.1)",
           borderWidth: 1,
           callbacks: {
-            label: function(context) {
+            label: (context) => {
               const percentage = ((context.parsed / totalRequests.value) * 100).toFixed(1)
               return `${context.label}: ${context.parsed} (${percentage}%)`
             }
           }
         }
       },
-      cutout: '60%',
+      cutout: "60%",
       elements: {
         arc: {
           borderRadius: 4
@@ -160,16 +162,18 @@ function updateChart() {
   }))
 
   chart.value.data = {
-    labels: data.map(d => d.label),
-    datasets: [{
-      data: data.map(d => d.data),
-      backgroundColor: data.map(d => d.backgroundColor),
-      borderColor: '#fff',
-      borderWidth: 2
-    }]
+    labels: data.map((d) => d.label),
+    datasets: [
+      {
+        data: data.map((d) => d.data),
+        backgroundColor: data.map((d) => d.backgroundColor),
+        borderColor: "#fff",
+        borderWidth: 2
+      }
+    ]
   }
 
-  chart.value.update('none')
+  chart.value.update("none")
 }
 
 onMounted(() => {
@@ -184,7 +188,11 @@ onUnmounted(() => {
   }
 })
 
-watch(() => props.metrics.geographic, () => {
-  updateChart()
-}, { deep: true })
+watch(
+  () => props.metrics.geographic,
+  () => {
+    updateChart()
+  },
+  { deep: true }
+)
 </script>

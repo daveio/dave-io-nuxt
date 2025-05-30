@@ -174,44 +174,45 @@
 <script setup lang="ts">
 // Set page metadata
 definePageMeta({
-  title: 'Analytics Authentication',
-  description: 'Authenticate to access the analytics dashboard'
+  title: "Analytics Authentication",
+  description: "Authenticate to access the analytics dashboard"
 })
 
 // SEO
 useSeoMeta({
-  title: 'Analytics Dashboard - Authentication - next.dave.io',
-  description: 'Secure access to comprehensive analytics and insights for next.dave.io API and website traffic'
+  title: "Analytics Dashboard - Authentication - next.dave.io",
+  description: "Secure access to comprehensive analytics and insights for next.dave.io API and website traffic"
 })
 
 const router = useRouter()
 
-const jwtToken = ref('')
-const error = ref('')
+const jwtToken = ref("")
+const error = ref("")
 const isValidating = ref(false)
 
 // Load token from localStorage on mount
 onMounted(() => {
-  const stored = localStorage.getItem('analytics_jwt')
+  const stored = localStorage.getItem("analytics_jwt")
   if (stored) {
     jwtToken.value = stored
   }
 })
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template @submit
 async function handleSubmit() {
   if (!jwtToken.value.trim()) {
-    error.value = 'Please enter a JWT token'
+    error.value = "Please enter a JWT token"
     return
   }
 
   isValidating.value = true
-  error.value = ''
+  error.value = ""
 
   try {
     // Validate token by making a test request to analytics API
-    const response = await $fetch('/api/auth', {
+    const response = await $fetch("/api/auth", {
       headers: {
-        'Authorization': `Bearer ${jwtToken.value.trim()}`
+        Authorization: `Bearer ${jwtToken.value.trim()}`
       }
     })
 
@@ -219,53 +220,52 @@ async function handleSubmit() {
       // Check if token has analytics permission
       const payload = response.data.payload
       const subject = payload.sub
-      
-      const hasPermission = subject === 'api:analytics' || 
-                           subject === 'api' || 
-                           subject === 'admin' || 
-                           subject === '*'
-      
+
+      const hasPermission = subject === "api:analytics" || subject === "api" || subject === "admin" || subject === "*"
+
       if (!hasPermission) {
-        error.value = 'Token does not have analytics permissions. Required: api:analytics, api, or admin'
+        error.value = "Token does not have analytics permissions. Required: api:analytics, api, or admin"
         return
       }
 
       // Store token temporarily (for session only)
-      localStorage.setItem('analytics_jwt', jwtToken.value.trim())
+      localStorage.setItem("analytics_jwt", jwtToken.value.trim())
 
       // Navigate to protected analytics page
       await router.push(`/analytics/${encodeURIComponent(jwtToken.value.trim())}`)
     } else {
-      error.value = response.error || 'Invalid token'
+      error.value = response.error || "Invalid token"
     }
+    // biome-ignore lint/suspicious/noExplicitAny: Error handling requires flexible type
   } catch (err: any) {
     if (err.statusCode === 401) {
-      error.value = 'Invalid or expired token'
+      error.value = "Invalid or expired token"
     } else if (err.statusCode === 403) {
-      error.value = 'Insufficient permissions for analytics access'
+      error.value = "Insufficient permissions for analytics access"
     } else {
-      error.value = 'Failed to validate token. Please check your connection and try again.'
+      error.value = "Failed to validate token. Please check your connection and try again."
     }
-    console.error('Token validation failed:', err)
+    console.error("Token validation failed:", err)
   } finally {
     isValidating.value = false
   }
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template @click
 function clearToken() {
-  jwtToken.value = ''
-  error.value = ''
-  localStorage.removeItem('analytics_jwt')
+  jwtToken.value = ""
+  error.value = ""
+  localStorage.removeItem("analytics_jwt")
 }
 
 // Handle paste events to clean up token
 watch(jwtToken, (newValue) => {
   if (newValue) {
     // Clean up common paste artifacts
-    jwtToken.value = newValue.trim().replace(/[\n\r\t]/g, '')
+    jwtToken.value = newValue.trim().replace(/[\n\r\t]/g, "")
   }
   if (error.value) {
-    error.value = ''
+    error.value = ""
   }
 })
 </script>

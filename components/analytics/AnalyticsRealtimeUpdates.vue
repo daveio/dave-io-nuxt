@@ -99,8 +99,8 @@
 </template>
 
 <script setup lang="ts">
-import { formatDistanceToNow } from 'date-fns'
-import type { AnalyticsRealtimeUpdate, AnalyticsEvent } from '~/types/analytics'
+import { formatDistanceToNow } from "date-fns"
+import type { AnalyticsEvent, AnalyticsRealtimeUpdate } from "~/types/analytics"
 
 interface Props {
   updates: AnalyticsRealtimeUpdate[]
@@ -110,135 +110,167 @@ const props = defineProps<Props>()
 
 const showAll = ref(false)
 const maxVisible = 10
-const lastUpdateTime = ref<string>('')
+const lastUpdateTime = ref<string>("")
 
-const displayedUpdates = computed(() => {
+const _displayedUpdates = computed(() => {
   return showAll.value ? props.updates : props.updates.slice(0, maxVisible)
 })
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function isNew(update: AnalyticsRealtimeUpdate): boolean {
   return update.timestamp !== lastUpdateTime.value
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function getEventIcon(type: string): string {
   const icons = {
-    ping: 'i-lucide-heart',
-    redirect: 'i-lucide-external-link',
-    auth: 'i-lucide-shield-check',
-    ai: 'i-lucide-brain',
-    routeros: 'i-lucide-router',
-    api_request: 'i-lucide-server'
+    ping: "i-lucide-heart",
+    redirect: "i-lucide-external-link",
+    auth: "i-lucide-shield-check",
+    ai: "i-lucide-brain",
+    routeros: "i-lucide-router",
+    api_request: "i-lucide-server"
   }
-  return icons[type] || 'i-lucide-activity'
+  return icons[type] || "i-lucide-activity"
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function getEventIconBg(type: string): string {
   const backgrounds = {
-    ping: 'bg-green-100 dark:bg-green-900/20',
-    redirect: 'bg-blue-100 dark:bg-blue-900/20',
-    auth: 'bg-purple-100 dark:bg-purple-900/20',
-    ai: 'bg-pink-100 dark:bg-pink-900/20',
-    routeros: 'bg-orange-100 dark:bg-orange-900/20',
-    api_request: 'bg-gray-100 dark:bg-gray-900/20'
+    ping: "bg-green-100 dark:bg-green-900/20",
+    redirect: "bg-blue-100 dark:bg-blue-900/20",
+    auth: "bg-purple-100 dark:bg-purple-900/20",
+    ai: "bg-pink-100 dark:bg-pink-900/20",
+    routeros: "bg-orange-100 dark:bg-orange-900/20",
+    api_request: "bg-gray-100 dark:bg-gray-900/20"
   }
-  return backgrounds[type] || 'bg-gray-100 dark:bg-gray-900/20'
+  return backgrounds[type] || "bg-gray-100 dark:bg-gray-900/20"
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function getEventIconColor(type: string): string {
   const colors = {
-    ping: 'text-green-600',
-    redirect: 'text-blue-600',
-    auth: 'text-purple-600',
-    ai: 'text-pink-600',
-    routeros: 'text-orange-600',
-    api_request: 'text-gray-600'
+    ping: "text-green-600",
+    redirect: "text-blue-600",
+    auth: "text-purple-600",
+    ai: "text-pink-600",
+    routeros: "text-orange-600",
+    api_request: "text-gray-600"
   }
-  return colors[type] || 'text-gray-600'
+  return colors[type] || "text-gray-600"
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function getEventTitle(event: AnalyticsEvent): string {
   switch (event.type) {
-    case 'ping':
-      return 'Health Check'
-    case 'redirect':
+    case "ping":
+      return "Health Check"
+    case "redirect":
+      // biome-ignore lint/suspicious/noExplicitAny: Dynamic event data structure
       return `Redirect: /go/${(event.data as any).slug}`
-    case 'auth':
-      return (event.data as any).success ? 'Authentication Success' : 'Authentication Failed'
-    case 'ai':
+    case "auth":
+      // biome-ignore lint/suspicious/noExplicitAny: Dynamic event data structure
+      return (event.data as any).success ? "Authentication Success" : "Authentication Failed"
+    case "ai":
+      // biome-ignore lint/suspicious/noExplicitAny: Dynamic event data structure
       return `AI ${(event.data as any).operation}`
-    case 'routeros':
+    case "routeros":
+      // biome-ignore lint/suspicious/noExplicitAny: Dynamic event data structure
       return `RouterOS ${(event.data as any).operation}`
-    case 'api_request':
+    case "api_request":
+      // biome-ignore lint/suspicious/noExplicitAny: Dynamic event data structure
       return `API: ${(event.data as any).endpoint}`
     default:
-      return 'Unknown Event'
+      return "Unknown Event"
   }
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function getEventDescription(event: AnalyticsEvent): string {
   switch (event.type) {
-    case 'ping':
-      return 'System health check ping received'
-    case 'redirect':
+    case "ping":
+      return "System health check ping received"
+    case "redirect": {
+      // biome-ignore lint/suspicious/noExplicitAny: Dynamic event data structure
       const redirectData = event.data as any
       return `Redirected to ${redirectData.destinationUrl}`
-    case 'auth':
+    }
+    case "auth": {
+      // biome-ignore lint/suspicious/noExplicitAny: Dynamic event data structure
       const authData = event.data as any
-      return authData.success 
+      return authData.success
         ? `Token ${authData.tokenSubject} authenticated successfully`
         : `Authentication failed for ${authData.tokenSubject}`
-    case 'ai':
+    }
+    case "ai": {
+      // biome-ignore lint/suspicious/noExplicitAny: Dynamic event data structure
       const aiData = event.data as any
       return `${aiData.method} request for ${aiData.operation} processed`
-    case 'routeros':
+    }
+    case "routeros": {
+      // biome-ignore lint/suspicious/noExplicitAny: Dynamic event data structure
       const routerosData = event.data as any
       return `RouterOS ${routerosData.operation} operation completed`
-    case 'api_request':
+    }
+    case "api_request": {
+      // biome-ignore lint/suspicious/noExplicitAny: Dynamic event data structure
       const apiData = event.data as any
       return `${apiData.method} request to ${apiData.endpoint}`
+    }
     default:
-      return 'Event details unavailable'
+      return "Event details unavailable"
   }
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
+// biome-ignore lint/suspicious/noExplicitAny: Flexible event data structure
 function getLocationString(cloudflare: any): string {
-  return `${cloudflare.country || 'Unknown'}`
+  return `${cloudflare.country || "Unknown"}`
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function hasMetrics(event: AnalyticsEvent): boolean {
-  return ['ai', 'api_request'].includes(event.type)
+  return ["ai", "api_request"].includes(event.type)
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function getMetricValue(event: AnalyticsEvent): string {
   switch (event.type) {
-    case 'ai':
+    case "ai":
+      // biome-ignore lint/suspicious/noExplicitAny: Dynamic event data structure
       return `${(event.data as any).processingTimeMs || 0}ms`
-    case 'api_request':
+    case "api_request":
+      // biome-ignore lint/suspicious/noExplicitAny: Dynamic event data structure
       return `${(event.data as any).responseTimeMs || 0}ms`
     default:
-      return ''
+      return ""
   }
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function getMetricLabel(type: string): string {
   switch (type) {
-    case 'ai':
-      return 'Processing'
-    case 'api_request':
-      return 'Response'
+    case "ai":
+      return "Processing"
+    case "api_request":
+      return "Response"
     default:
-      return ''
+      return ""
   }
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function formatTime(timestamp: string): string {
   return formatDistanceToNow(new Date(timestamp), { addSuffix: true })
 }
 
 // Update last update time when new updates arrive
-watch(() => props.updates[0], (newUpdate) => {
-  if (newUpdate) {
-    lastUpdateTime.value = newUpdate.timestamp
+watch(
+  () => props.updates[0],
+  (newUpdate) => {
+    if (newUpdate) {
+      lastUpdateTime.value = newUpdate.timestamp
+    }
   }
-})
+)
 </script>

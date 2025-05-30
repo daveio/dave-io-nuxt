@@ -1,28 +1,32 @@
-import { format, subHours, subDays, parseISO } from "date-fns"
-import { groupBy, sortBy, take, sum, mean } from "lodash-es"
-import type { 
-  AnalyticsEngineResult,
-  AnalyticsMetrics,
-  AnalyticsTimeRange,
-  AnalyticsQueryParams,
-  KVMetrics,
-  AnalyticsEvent,
-  RedirectEvent,
-  AuthEvent,
+import { format, parseISO, subDays, subHours } from "date-fns"
+import type { H3Event } from "h3"
+import { groupBy, mean, sortBy, sum, take } from "lodash-es"
+import type {
   AIEvent,
-  RouterOSEvent,
+  APIRequestEvent,
+  AnalyticsEngineResult,
+  AnalyticsEvent,
+  AnalyticsMetrics,
+  AnalyticsQueryParams,
+  AnalyticsTimeRange,
+  AuthEvent,
+  KVMetrics,
   PingEvent,
-  APIRequestEvent
+  RedirectEvent,
+  RouterOSEvent
 } from "~/types/analytics"
 import { getCloudflareEnv } from "./cloudflare"
-import type { H3Event } from "h3"
 
 /**
  * Calculate time range boundaries
  */
-export function getTimeRangeBoundaries(range: AnalyticsTimeRange, customStart?: string, customEnd?: string): { start: Date; end: Date } {
+export function getTimeRangeBoundaries(
+  range: AnalyticsTimeRange,
+  customStart?: string,
+  customEnd?: string
+): { start: Date; end: Date } {
   const now = new Date()
-  
+
   switch (range) {
     case "1h":
       return { start: subHours(now, 1), end: now }
@@ -36,9 +40,9 @@ export function getTimeRangeBoundaries(range: AnalyticsTimeRange, customStart?: 
       if (!customStart || !customEnd) {
         throw new Error("Custom time range requires start and end dates")
       }
-      return { 
-        start: parseISO(customStart), 
-        end: parseISO(customEnd) 
+      return {
+        start: parseISO(customStart),
+        end: parseISO(customEnd)
       }
     default:
       return { start: subHours(now, 24), end: now }
@@ -50,29 +54,28 @@ export function getTimeRangeBoundaries(range: AnalyticsTimeRange, customStart?: 
  */
 export function buildAnalyticsQuery(params: AnalyticsQueryParams): string {
   const { start, end } = getTimeRangeBoundaries(params.timeRange, params.customStart, params.customEnd)
-  
+
   let whereClause = `timestamp >= '${start.toISOString()}' AND timestamp <= '${end.toISOString()}'`
-  
+
   if (params.eventTypes && params.eventTypes.length > 0) {
-    const types = params.eventTypes.map(t => `'${t}'`).join(', ')
+    const types = params.eventTypes.map((t) => `'${t}'`).join(", ")
     whereClause += ` AND index1 IN (${types})`
   }
-  
+
   if (params.country) {
     whereClause += ` AND blob6 = '${params.country}'`
   }
-  
+
   if (params.tokenSubject) {
     whereClause += ` AND blob2 = '${params.tokenSubject}'`
   }
-  
-  const groupByClause = params.groupBy?.length ? 
-    `GROUP BY ${params.groupBy.join(', ')}` : ''
-  
-  const orderClause = 'ORDER BY timestamp DESC'
-  const limitClause = params.limit ? `LIMIT ${params.limit}` : 'LIMIT 1000'
-  const offsetClause = params.offset ? `OFFSET ${params.offset}` : ''
-  
+
+  const groupByClause = params.groupBy?.length ? `GROUP BY ${params.groupBy.join(", ")}` : ""
+
+  const orderClause = "ORDER BY timestamp DESC"
+  const limitClause = params.limit ? `LIMIT ${params.limit}` : "LIMIT 1000"
+  const offsetClause = params.offset ? `OFFSET ${params.offset}` : ""
+
   return `
     SELECT *
     FROM analytics_dataset
@@ -88,19 +91,19 @@ export function buildAnalyticsQuery(params: AnalyticsQueryParams): string {
  * Parse Analytics Engine results into structured events
  */
 export function parseAnalyticsResults(results: AnalyticsEngineResult[]): AnalyticsEvent[] {
-  return results.map(result => {
+  return results.map((result) => {
     const baseEvent = {
       timestamp: result.timestamp || new Date().toISOString(),
       cloudflare: {
         ray: result.blob7 || "unknown",
-        country: result.blob6 || "unknown", 
+        country: result.blob6 || "unknown",
         ip: result.blob5 || "unknown",
         datacenter: result.blob7?.substring(0, 3) || "unknown",
         userAgent: result.blob4 || "unknown",
         requestUrl: "/"
       }
     }
-    
+
     // Parse based on event type (index1)
     switch (result.index1) {
       case "redirect":
@@ -113,7 +116,7 @@ export function parseAnalyticsResults(results: AnalyticsEngineResult[]): Analyti
             clickCount: result.double1 || 1
           }
         } as RedirectEvent
-        
+
       case "auth":
         return {
           ...baseEvent,
@@ -124,7 +127,7 @@ export function parseAnalyticsResults(results: AnalyticsEngineResult[]): Analyti
             endpoint: result.blob4 || undefined
           }
         } as AuthEvent
-        
+
       case "ai":
         return {
           ...baseEvent,
@@ -139,7 +142,7 @@ export function parseAnalyticsResults(results: AnalyticsEngineResult[]): Analyti
             userId: result.blob9 || undefined
           }
         } as AIEvent
-        
+
       case "routeros":
         return {
           ...baseEvent,
@@ -151,7 +154,7 @@ export function parseAnalyticsResults(results: AnalyticsEngineResult[]): Analyti
             ipv6Count: result.double2 || undefined
           }
         } as RouterOSEvent
-        
+
       case "ping":
         return {
           ...baseEvent,
@@ -160,7 +163,7 @@ export function parseAnalyticsResults(results: AnalyticsEngineResult[]): Analyti
             pingCount: result.double1 || 1
           }
         } as PingEvent
-        
+
       default:
         return {
           ...baseEvent,
@@ -181,79 +184,78 @@ export function parseAnalyticsResults(results: AnalyticsEngineResult[]): Analyti
  * Aggregate analytics events into metrics
  */
 export function aggregateAnalyticsMetrics(
-  events: AnalyticsEvent[], 
+  events: AnalyticsEvent[],
   timeRange: AnalyticsTimeRange,
   customStart?: string,
   customEnd?: string
 ): AnalyticsMetrics {
   const { start, end } = getTimeRangeBoundaries(timeRange, customStart, customEnd)
-  
+
   // Group events by type
-  const eventsByType = groupBy(events, 'type')
-  
+  const eventsByType = groupBy(events, "type")
+
   // Calculate overview metrics
   const totalRequests = events.length
-  const successfulRequests = events.filter(e => 
-    e.type === 'api_request' ? (e.data as any).statusCode < 400 : true
+  const successfulRequests = events.filter((e) =>
+    // biome-ignore lint/suspicious/noExplicitAny: Dynamic event data structure
+    e.type === "api_request" ? (e.data as any).statusCode < 400 : true
   ).length
   const failedRequests = totalRequests - successfulRequests
-  
+
   const apiEvents = eventsByType.api_request || []
-  const averageResponseTime = apiEvents.length > 0 ? 
-    mean(apiEvents.map(e => (e.data as any).responseTimeMs || 0)) : 0
-  
-  const uniqueVisitors = new Set(events.map(e => e.cloudflare.ip)).size
-  
+  // biome-ignore lint/suspicious/noExplicitAny: Dynamic event data structure
+  const averageResponseTime = apiEvents.length > 0 ? mean(apiEvents.map((e) => (e.data as any).responseTimeMs || 0)) : 0
+
+  const uniqueVisitors = new Set(events.map((e) => e.cloudflare.ip)).size
+
   // Redirect metrics
-  const redirectEvents = eventsByType.redirect as RedirectEvent[] || []
-  const totalClicks = sum(redirectEvents.map(e => e.data.clickCount))
-  const redirectsBySlug = groupBy(redirectEvents, e => e.data.slug)
+  const redirectEvents = (eventsByType.redirect as RedirectEvent[]) || []
+  const totalClicks = sum(redirectEvents.map((e) => e.data.clickCount))
+  const redirectsBySlug = groupBy(redirectEvents, (e) => e.data.slug)
   const topSlugs = take(
     sortBy(
       Object.entries(redirectsBySlug).map(([slug, events]) => ({
         slug,
-        clicks: sum(events.map(e => e.data.clickCount)),
-        destinations: [...new Set(events.map(e => e.data.destinationUrl))]
+        clicks: sum(events.map((e) => e.data.clickCount)),
+        destinations: [...new Set(events.map((e) => e.data.destinationUrl))]
       })),
-      e => -e.clicks
+      (e) => -e.clicks
     ),
     10
   )
-  
+
   // AI metrics
-  const aiEvents = eventsByType.ai as AIEvent[] || []
+  const aiEvents = (eventsByType.ai as AIEvent[]) || []
   const totalOperations = aiEvents.length
-  const averageProcessingTime = aiEvents.length > 0 ?
-    mean(aiEvents.map(e => e.data.processingTimeMs)) : 0
-  const imagesWithSize = aiEvents.filter(e => e.data.imageSizeBytes)
+  const averageProcessingTime = aiEvents.length > 0 ? mean(aiEvents.map((e) => e.data.processingTimeMs)) : 0
+  const imagesWithSize = aiEvents.filter((e) => e.data.imageSizeBytes)
   const totalImagesSized = imagesWithSize.length
-  const averageImageSize = imagesWithSize.length > 0 ?
-    mean(imagesWithSize.map(e => e.data.imageSizeBytes!)) : 0
-  
+  const averageImageSize = imagesWithSize.length > 0 ? mean(imagesWithSize.map((e) => e.data.imageSizeBytes ?? 0)) : 0
+
   // Auth metrics
-  const authEvents = eventsByType.auth as AuthEvent[] || []
+  const authEvents = (eventsByType.auth as AuthEvent[]) || []
   const totalAttempts = authEvents.length
-  const successfulAuth = authEvents.filter(e => e.data.success).length
+  const successfulAuth = authEvents.filter((e) => e.data.success).length
   const successRate = totalAttempts > 0 ? (successfulAuth / totalAttempts) * 100 : 0
   const failedAttempts = totalAttempts - successfulAuth
-  
-  const authBySubject = groupBy(authEvents, e => e.data.tokenSubject)
+
+  const authBySubject = groupBy(authEvents, (e) => e.data.tokenSubject)
   const topTokenSubjects = take(
     sortBy(
       Object.entries(authBySubject).map(([subject, events]) => ({
         subject,
         requests: events.length
       })),
-      e => -e.requests
+      (e) => -e.requests
     ),
     10
   )
-  
+
   // RouterOS metrics (these should come from KV for accuracy)
-  const routerosEvents = eventsByType.routeros as RouterOSEvent[] || []
-  
+  const routerosEvents = (eventsByType.routeros as RouterOSEvent[]) || []
+
   // Geographic distribution
-  const byCountry = groupBy(events, e => e.cloudflare.country)
+  const byCountry = groupBy(events, (e) => e.cloudflare.country)
   const geographic = take(
     sortBy(
       Object.entries(byCountry).map(([country, events]) => ({
@@ -261,25 +263,25 @@ export function aggregateAnalyticsMetrics(
         requests: events.length,
         percentage: (events.length / totalRequests) * 100
       })),
-      e => -e.requests
+      (e) => -e.requests
     ),
     20
   )
-  
+
   // User agent analysis
-  const byUserAgent = groupBy(events, e => e.cloudflare.userAgent)
+  const byUserAgent = groupBy(events, (e) => e.cloudflare.userAgent)
   const userAgents = take(
     sortBy(
       Object.entries(byUserAgent).map(([agent, events]) => ({
-        agent: agent.length > 100 ? agent.substring(0, 100) + "..." : agent,
+        agent: agent.length > 100 ? `${agent.substring(0, 100)}...` : agent,
         requests: events.length,
         isBot: /bot|crawler|spider|scraper/i.test(agent)
       })),
-      e => -e.requests
+      (e) => -e.requests
     ),
     15
   )
-  
+
   return {
     timeframe: {
       start: start.toISOString(),
@@ -312,7 +314,7 @@ export function aggregateAnalyticsMetrics(
     routeros: {
       cacheHits: 0, // Will be populated from KV
       cacheMisses: 0, // Will be populated from KV
-      putioGenerations: routerosEvents.filter(e => e.data.operation === "putio").length
+      putioGenerations: routerosEvents.filter((e) => e.data.operation === "putio").length
     },
     geographic,
     userAgents,
@@ -330,29 +332,29 @@ export async function getKVMetrics(kv: KVNamespace): Promise<KVMetrics> {
   // Get all metric keys in parallel
   const metricKeys = [
     "metrics:requests:total",
-    "metrics:requests:successful", 
+    "metrics:requests:successful",
     "metrics:requests:failed",
     "metrics:requests:rate_limited",
     "metrics:redirect:total:clicks",
     "metrics:24h:total",
     "metrics:24h:successful",
-    "metrics:24h:failed", 
+    "metrics:24h:failed",
     "metrics:24h:redirects",
     "metrics:routeros:cache-hits",
     "metrics:routeros:cache-misses"
   ]
-  
+
   const results = await Promise.all(
     metricKeys.map(async (key) => {
       const value = await kv.get(key)
       return Number.parseInt(value || "0", 10) || 0
     })
   )
-  
+
   // Get redirect metrics by slug
   const redirectKeys = await kv.list({ prefix: "metrics:redirect:" })
   const redirectsBySlug: Record<string, number> = {}
-  
+
   for (const key of redirectKeys.keys) {
     if (key.name !== "metrics:redirect:total:clicks") {
       const slug = key.name.replace("metrics:redirect:", "").replace(":clicks", "")
@@ -360,7 +362,7 @@ export async function getKVMetrics(kv: KVNamespace): Promise<KVMetrics> {
       redirectsBySlug[slug] = Number.parseInt(clicks || "0", 10) || 0
     }
   }
-  
+
   return {
     totalRequests: results[0] ?? 0,
     successfulRequests: results[1] ?? 0,
@@ -389,30 +391,41 @@ export async function queryAnalyticsEngine(
   params: AnalyticsQueryParams
 ): Promise<AnalyticsEngineResult[]> {
   const env = getCloudflareEnv(event)
-  
+
   if (!env.ANALYTICS) {
     throw new Error("Analytics Engine not available")
   }
-  
-  // For now, return empty array since we can't directly query Analytics Engine via REST API
-  // In a real implementation, you'd use the Cloudflare API with GraphQL
-  // This would require the cloudflare package and proper API credentials
-  
-  console.warn("Analytics Engine REST API querying not implemented - using mock data")
-  return []
+
+  // Build Analytics Engine SQL query
+  const sqlQuery = buildAnalyticsQuery(params)
+
+  try {
+    // NOTE: Analytics Engine in Workers runtime does not support direct SQL querying
+    // Analytics Engine only supports writing data points via writeDataPoint()
+    // Real analytics querying requires Cloudflare's GraphQL API with proper credentials
+
+    // For now, we return empty array but log that we're writing events successfully
+    console.log("Analytics Engine is writing events but querying requires GraphQL API")
+    console.log("Generated query would be:", sqlQuery)
+
+    // Real implementation would use Cloudflare's GraphQL API:
+    // https://developers.cloudflare.com/analytics/graphql-api/
+
+    return []
+  } catch (error) {
+    console.error("Analytics Engine query preparation failed:", error)
+    return []
+  }
 }
 
 /**
  * Write analytics event to Analytics Engine
  */
-export function writeAnalyticsEvent(
-  analytics: AnalyticsEngineDataset,
-  event: AnalyticsEvent
-): void {
+export function writeAnalyticsEvent(analytics: AnalyticsEngineDataset, event: AnalyticsEvent): void {
   try {
     switch (event.type) {
-      case "redirect":
-        const redirectData = event.data as RedirectEvent['data']
+      case "redirect": {
+        const redirectData = event.data as RedirectEvent["data"]
         analytics.writeDataPoint({
           blobs: [
             "redirect",
@@ -427,9 +440,10 @@ export function writeAnalyticsEvent(
           indexes: ["redirect", redirectData.slug]
         })
         break
-        
-      case "auth":
-        const authData = event.data as AuthEvent['data']
+      }
+
+      case "auth": {
+        const authData = event.data as AuthEvent["data"]
         analytics.writeDataPoint({
           blobs: [
             "auth",
@@ -445,9 +459,10 @@ export function writeAnalyticsEvent(
           indexes: ["auth", authData.tokenSubject]
         })
         break
-        
-      case "ai":
-        const aiData = event.data as AIEvent['data']
+      }
+
+      case "ai": {
+        const aiData = event.data as AIEvent["data"]
         analytics.writeDataPoint({
           blobs: [
             "ai",
@@ -465,9 +480,10 @@ export function writeAnalyticsEvent(
           indexes: ["ai", aiData.operation, aiData.userId || "anonymous"]
         })
         break
-        
-      case "routeros":
-        const routerosData = event.data as RouterOSEvent['data']
+      }
+
+      case "routeros": {
+        const routerosData = event.data as RouterOSEvent["data"]
         analytics.writeDataPoint({
           blobs: [
             "routeros",
@@ -482,7 +498,8 @@ export function writeAnalyticsEvent(
           indexes: ["routeros", routerosData.operation]
         })
         break
-        
+      }
+
       case "ping":
         analytics.writeDataPoint({
           blobs: [
@@ -496,9 +513,9 @@ export function writeAnalyticsEvent(
           indexes: ["ping"]
         })
         break
-        
-      case "api_request":
-        const apiData = event.data as APIRequestEvent['data']
+
+      case "api_request": {
+        const apiData = event.data as APIRequestEvent["data"]
         analytics.writeDataPoint({
           blobs: [
             "api_request",
@@ -515,6 +532,7 @@ export function writeAnalyticsEvent(
           indexes: ["api_request", apiData.endpoint, apiData.tokenSubject || "anonymous"]
         })
         break
+      }
     }
   } catch (error) {
     console.error("Failed to write analytics event:", error)
@@ -537,8 +555,8 @@ export function isBot(userAgent: string): boolean {
     /playwright/i,
     /selenium/i
   ]
-  
-  return botPatterns.some(pattern => pattern.test(userAgent))
+
+  return botPatterns.some((pattern) => pattern.test(userAgent))
 }
 
 /**
@@ -546,12 +564,7 @@ export function isBot(userAgent: string): boolean {
  */
 export function getAnalyticsCacheKey(params: AnalyticsQueryParams): string {
   const { timeRange, eventTypes, country, tokenSubject } = params
-  const filters = [
-    timeRange,
-    eventTypes?.join(",") || "all",
-    country || "all",
-    tokenSubject || "all"
-  ].join(":")
-  
+  const filters = [timeRange, eventTypes?.join(",") || "all", country || "all", tokenSubject || "all"].join(":")
+
   return `analytics:cache:${filters}`
 }

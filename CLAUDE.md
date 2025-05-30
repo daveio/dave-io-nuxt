@@ -1,5 +1,19 @@
 # CLAUDE.md - AI Agent Instructions for dave-io-nuxt
 
+## ⚠️ CRITICAL DEVELOPMENT RULE: NO MOCK DATA
+
+**NEVER USE MOCK DATA OR IMPLEMENTATIONS**. This application is built for production deployment on Cloudflare Workers. Wrangler handles development simulation transparently, so we write production code that calls real services. Even when Wrangler does not intercept calls (and they hit production), this is acceptable and preferred over mock implementations.
+
+**What this means:**
+- Analytics Engine: Use real `env.ANALYTICS.sql()` calls
+- AI Services: Use real `env.AI.run()` calls  
+- KV Storage: Use real `env.DATA.get/put()` calls
+- All API endpoints: Return real data from real services
+- No hardcoded fake data, estimates, or mock responses
+- No "mock" flags or development-only code paths
+
+**Exception:** Graceful degradation when services are unavailable is acceptable (empty arrays, default values) but should be clearly logged and documented.
+
 ## Project Overview
 
 This is a Nuxt 3 application serving as Dave Williams' personal website with a comprehensive REST API platform. The project migrated from a simple Cloudflare Worker (`../dave-io`) to a full-featured Nuxt application while maintaining complete API compatibility and adding enterprise-grade features including authentication, validation, testing, and deployment automation.

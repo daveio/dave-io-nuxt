@@ -41,8 +41,8 @@
 </template>
 
 <script setup lang="ts">
-import { Chart, registerables } from 'chart.js'
-import type { AnalyticsMetrics } from '~/types/analytics'
+import { Chart, registerables } from "chart.js"
+import type { AnalyticsMetrics } from "~/types/analytics"
 
 Chart.register(...registerables)
 
@@ -54,20 +54,20 @@ const props = defineProps<Props>()
 
 const chartCanvas = ref<HTMLCanvasElement>()
 const chart = ref<Chart>()
-const selectedMetric = ref('requests')
+const selectedMetric = ref("requests")
 const peakRequests = ref(0)
 
-const metricOptions = [
-  { value: 'requests', label: 'Requests' },
-  { value: 'response_time', label: 'Response Time' },
-  { value: 'unique_visitors', label: 'Visitors' }
+const _metricOptions = [
+  { value: "requests", label: "Requests" },
+  { value: "response_time", label: "Response Time" },
+  { value: "unique_visitors", label: "Visitors" }
 ]
 
 // Generate mock time series data based on timeframe
 const chartData = computed(() => {
   const { range } = props.metrics.timeframe
   const now = new Date()
-  let intervals: Date[] = []
+  const intervals: Date[] = []
   let intervalMs: number
 
   switch (range) {
@@ -95,7 +95,7 @@ const chartData = computed(() => {
   const baseRequests = Math.floor(props.metrics.overview.totalRequests / intervals.length)
   const successRatio = props.metrics.overview.successfulRequests / props.metrics.overview.totalRequests
 
-  return intervals.map((time, index) => {
+  return intervals.map((time, _index) => {
     const variance = Math.random() * 0.4 + 0.8 // 80-120% variance
     const totalReqs = Math.floor(baseRequests * variance)
     const successfulReqs = Math.floor(totalReqs * successRatio)
@@ -115,57 +115,58 @@ const chartData = computed(() => {
 function formatTimeLabel(date: Date, range: string): string {
   switch (range) {
     case "1h":
-      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
     case "24h":
-      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
     case "7d":
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit' })
+      return date.toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit" })
     case "30d":
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
     default:
-      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
   }
 }
 
 function updateChart() {
   if (!chart.value || !chartCanvas.value) return
 
-  const ctx = chartCanvas.value.getContext('2d')
+  const ctx = chartCanvas.value.getContext("2d")
   if (!ctx) return
 
   const data = chartData.value
-  peakRequests.value = Math.max(...data.map(d => d.total))
+  peakRequests.value = Math.max(...data.map((d) => d.total))
 
+  // biome-ignore lint/suspicious/noExplicitAny: Chart.js datasets require flexible structure
   let datasets: any[] = []
-  
-  if (selectedMetric.value === 'requests') {
+
+  if (selectedMetric.value === "requests") {
     datasets = [
       {
-        label: 'Successful Requests',
-        data: data.map(d => d.successful),
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        borderColor: 'rgb(59, 130, 246)',
+        label: "Successful Requests",
+        data: data.map((d) => d.successful),
+        backgroundColor: "rgba(59, 130, 246, 0.1)",
+        borderColor: "rgb(59, 130, 246)",
         borderWidth: 2,
         fill: true,
         tension: 0.4
       },
       {
-        label: 'Failed Requests',
-        data: data.map(d => d.failed),
-        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-        borderColor: 'rgb(239, 68, 68)',
+        label: "Failed Requests",
+        data: data.map((d) => d.failed),
+        backgroundColor: "rgba(239, 68, 68, 0.1)",
+        borderColor: "rgb(239, 68, 68)",
         borderWidth: 2,
         fill: true,
         tension: 0.4
       }
     ]
-  } else if (selectedMetric.value === 'response_time') {
+  } else if (selectedMetric.value === "response_time") {
     datasets = [
       {
-        label: 'Response Time (ms)',
-        data: data.map(d => d.responseTime),
-        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-        borderColor: 'rgb(16, 185, 129)',
+        label: "Response Time (ms)",
+        data: data.map((d) => d.responseTime),
+        backgroundColor: "rgba(16, 185, 129, 0.1)",
+        borderColor: "rgb(16, 185, 129)",
         borderWidth: 2,
         fill: true,
         tension: 0.4
@@ -175,10 +176,10 @@ function updateChart() {
     // Unique visitors (estimated)
     datasets = [
       {
-        label: 'Unique Visitors',
-        data: data.map(d => Math.floor(d.total * 0.7)),
-        backgroundColor: 'rgba(147, 51, 234, 0.1)',
-        borderColor: 'rgb(147, 51, 234)',
+        label: "Unique Visitors",
+        data: data.map((d) => Math.floor(d.total * 0.7)),
+        backgroundColor: "rgba(147, 51, 234, 0.1)",
+        borderColor: "rgb(147, 51, 234)",
         borderWidth: 2,
         fill: true,
         tension: 0.4
@@ -187,21 +188,21 @@ function updateChart() {
   }
 
   chart.value.data = {
-    labels: data.map(d => d.label),
+    labels: data.map((d) => d.label),
     datasets
   }
 
-  chart.value.update('none')
+  chart.value.update("none")
 }
 
 function initChart() {
   if (!chartCanvas.value) return
 
-  const ctx = chartCanvas.value.getContext('2d')
+  const ctx = chartCanvas.value.getContext("2d")
   if (!ctx) return
 
   chart.value = new Chart(ctx, {
-    type: 'line',
+    type: "line",
     data: {
       labels: [],
       datasets: []
@@ -211,17 +212,17 @@ function initChart() {
       maintainAspectRatio: false,
       interaction: {
         intersect: false,
-        mode: 'index'
+        mode: "index"
       },
       plugins: {
         legend: {
           display: false
         },
         tooltip: {
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          titleColor: '#fff',
-          bodyColor: '#fff',
-          borderColor: 'rgba(255, 255, 255, 0.1)',
+          backgroundColor: "rgba(0, 0, 0, 0.8)",
+          titleColor: "#fff",
+          bodyColor: "#fff",
+          borderColor: "rgba(255, 255, 255, 0.1)",
           borderWidth: 1
         }
       },
@@ -229,20 +230,20 @@ function initChart() {
         x: {
           display: true,
           grid: {
-            color: 'rgba(0, 0, 0, 0.1)'
+            color: "rgba(0, 0, 0, 0.1)"
           },
           ticks: {
-            color: '#6B7280'
+            color: "#6B7280"
           }
         },
         y: {
           display: true,
           beginAtZero: true,
           grid: {
-            color: 'rgba(0, 0, 0, 0.1)'
+            color: "rgba(0, 0, 0, 0.1)"
           },
           ticks: {
-            color: '#6B7280'
+            color: "#6B7280"
           }
         }
       }
@@ -264,9 +265,13 @@ onUnmounted(() => {
   }
 })
 
-watch(() => props.metrics, () => {
-  updateChart()
-}, { deep: true })
+watch(
+  () => props.metrics,
+  () => {
+    updateChart()
+  },
+  { deep: true }
+)
 
 watch(selectedMetric, () => {
   updateChart()

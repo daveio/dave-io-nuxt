@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
         // Handle both formats: simple string or full object
         try {
           redirectData = JSON.parse(kvData)
-        } catch (parseError) {
+        } catch (_parseError) {
           // If JSON parsing fails, treat as simple string URL
           redirectData = {
             slug: slug,

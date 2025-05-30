@@ -108,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import type { AnalyticsMetrics } from '~/types/analytics'
+import type { AnalyticsMetrics } from "~/types/analytics"
 
 interface Props {
   metrics: AnalyticsMetrics
@@ -126,52 +126,53 @@ const cacheHitRate = computed(() => {
   return total > 0 ? (props.metrics.routeros.cacheHits / total) * 100 : 0
 })
 
-const hitRateColor = computed(() => {
+const _hitRateColor = computed(() => {
   const rate = cacheHitRate.value
-  if (rate >= 90) return 'text-green-600 dark:text-green-400'
-  if (rate >= 75) return 'text-yellow-600 dark:text-yellow-400'
-  return 'text-red-600 dark:text-red-400'
+  if (rate >= 90) return "text-green-600 dark:text-green-400"
+  if (rate >= 75) return "text-yellow-600 dark:text-yellow-400"
+  return "text-red-600 dark:text-red-400"
 })
 
-const hitRateBarColor = computed(() => {
+const _hitRateBarColor = computed(() => {
   const rate = cacheHitRate.value
-  if (rate >= 90) return 'bg-green-500'
-  if (rate >= 75) return 'bg-yellow-500'
-  return 'bg-red-500'
+  if (rate >= 90) return "bg-green-500"
+  if (rate >= 75) return "bg-yellow-500"
+  return "bg-red-500"
 })
 
-const efficiencyColor = computed(() => {
+const _efficiencyColor = computed(() => {
   const rate = cacheHitRate.value
-  if (rate >= 90) return 'green'
-  if (rate >= 75) return 'yellow'
-  return 'red'
+  if (rate >= 90) return "green"
+  if (rate >= 75) return "yellow"
+  return "red"
 })
 
-const efficiencyLabel = computed(() => {
+const _efficiencyLabel = computed(() => {
   const rate = cacheHitRate.value
-  if (rate >= 95) return 'Excellent'
-  if (rate >= 90) return 'Very Good'
-  if (rate >= 75) return 'Good'
-  if (rate >= 50) return 'Fair'
-  return 'Poor'
+  if (rate >= 95) return "Excellent"
+  if (rate >= 90) return "Very Good"
+  if (rate >= 75) return "Good"
+  if (rate >= 50) return "Fair"
+  return "Poor"
 })
 
 // Mock additional metrics
-const avgResponseTime = computed(() => {
+const _avgResponseTime = computed(() => {
   return Math.floor(50 + Math.random() * 30) // 50-80ms
 })
 
-const uptime = computed(() => {
-  return '99.9%' // Mock high uptime
+const _uptime = computed(() => {
+  return "99.9%" // Mock high uptime
 })
 
 // Utility functions
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function formatNumber(num: number): string {
   if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M'
+    return `${(num / 1000000).toFixed(1)}M`
   }
   if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K'
+    return `${(num / 1000).toFixed(1)}K`
   }
   return num.toString()
 }

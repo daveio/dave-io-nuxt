@@ -93,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import type { AnalyticsMetrics } from '~/types/analytics'
+import type { AnalyticsMetrics } from "~/types/analytics"
 
 interface Props {
   metrics: AnalyticsMetrics
@@ -102,62 +102,64 @@ interface Props {
 const props = defineProps<Props>()
 
 // Computed values
-const processingSpeedColor = computed(() => {
+const _processingSpeedColor = computed(() => {
   const time = props.metrics.ai.averageProcessingTime
-  if (time < 500) return 'green'
-  if (time < 1500) return 'yellow'
-  return 'red'
+  if (time < 500) return "green"
+  if (time < 1500) return "yellow"
+  return "red"
 })
 
-const processingSpeedLabel = computed(() => {
+const _processingSpeedLabel = computed(() => {
   const time = props.metrics.ai.averageProcessingTime
-  if (time < 500) return 'Fast'
-  if (time < 1000) return 'Good'
-  if (time < 1500) return 'Fair'
-  return 'Slow'
+  if (time < 500) return "Fast"
+  if (time < 1000) return "Good"
+  if (time < 1500) return "Fair"
+  return "Slow"
 })
 
-const successRate = computed(() => {
+const _successRate = computed(() => {
   // Assume high success rate for AI operations
-  return '99.2'
+  return "99.2"
 })
 
 const performanceScore = computed(() => {
   const time = props.metrics.ai.averageProcessingTime
   let score = 100
-  
+
   // Deduct points for slow processing
   if (time > 500) score -= 10
   if (time > 1000) score -= 20
   if (time > 1500) score -= 30
   if (time > 2000) score -= 40
-  
+
   return Math.max(0, Math.min(100, score))
 })
 
-const performanceBarColor = computed(() => {
+const _performanceBarColor = computed(() => {
   const score = performanceScore.value
-  if (score >= 80) return 'bg-green-500'
-  if (score >= 60) return 'bg-yellow-500'
-  return 'bg-red-500'
+  if (score >= 80) return "bg-green-500"
+  if (score >= 60) return "bg-yellow-500"
+  return "bg-red-500"
 })
 
 // Utility functions
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function formatNumber(num: number): string {
   if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M'
+    return `${(num / 1000000).toFixed(1)}M`
   }
   if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K'
+    return `${(num / 1000).toFixed(1)}K`
   }
   return num.toString()
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B'
+  if (bytes === 0) return "0 B"
   const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
+  const sizes = ["B", "KB", "MB", "GB"]
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+  return `${Number.parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`
 }
 </script>

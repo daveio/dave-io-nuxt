@@ -14,8 +14,8 @@ actions:
         - git_hooks:
             - pre-commit
   enabled:
-#    - lint
-#    - typecheck
+    #    - lint
+    #    - typecheck
     - trunk-announce
     - trunk-check-pre-push
     - trunk-fmt-pre-commit

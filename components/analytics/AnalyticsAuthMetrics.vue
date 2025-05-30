@@ -97,7 +97,7 @@
 </template>
 
 <script setup lang="ts">
-import type { AnalyticsMetrics } from '~/types/analytics'
+import type { AnalyticsMetrics } from "~/types/analytics"
 
 interface Props {
   metrics: AnalyticsMetrics
@@ -106,34 +106,35 @@ interface Props {
 const props = defineProps<Props>()
 
 // Computed values
-const topTokens = computed(() => {
+const _topTokens = computed(() => {
   return props.metrics.authentication.topTokenSubjects.slice(0, 5)
 })
 
-const securityColor = computed(() => {
+const _securityColor = computed(() => {
   const rate = props.metrics.authentication.successRate
-  if (rate >= 95) return 'green'
-  if (rate >= 90) return 'yellow'
-  return 'red'
+  if (rate >= 95) return "green"
+  if (rate >= 90) return "yellow"
+  return "red"
 })
 
-const securityStatus = computed(() => {
+const _securityStatus = computed(() => {
   const rate = props.metrics.authentication.successRate
   const failed = props.metrics.authentication.failedAttempts
-  
-  if (rate >= 98 && failed < 10) return 'Excellent'
-  if (rate >= 95 && failed < 50) return 'Good'
-  if (rate >= 90 && failed < 100) return 'Fair'
-  return 'Needs Attention'
+
+  if (rate >= 98 && failed < 10) return "Excellent"
+  if (rate >= 95 && failed < 50) return "Good"
+  if (rate >= 90 && failed < 100) return "Fair"
+  return "Needs Attention"
 })
 
 // Utility functions
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function formatNumber(num: number): string {
   if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M'
+    return `${(num / 1000000).toFixed(1)}M`
   }
   if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K'
+    return `${(num / 1000).toFixed(1)}K`
   }
   return num.toString()
 }

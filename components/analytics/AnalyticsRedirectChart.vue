@@ -13,7 +13,7 @@
 
     <div class="space-y-4">
       <div
-        v-for="(slug, index) in topSlugs"
+        v-for="(slug, index) in _displayedSlugs"
         :key="slug.slug"
         class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
       >
@@ -42,7 +42,7 @@
       </div>
 
       <!-- Empty State -->
-      <div v-if="topSlugs.length === 0" class="text-center py-8">
+      <div v-if="_displayedSlugs.length === 0" class="text-center py-8">
         <Icon name="i-lucide-link" size="48" class="mx-auto text-gray-400 mb-4" />
         <p class="text-gray-500 dark:text-gray-400">
           No redirect clicks recorded yet
@@ -50,7 +50,7 @@
       </div>
     </div>
 
-    <template #footer v-if="hasMoreSlugs">
+    <template #footer v-if="_hasMoreSlugs">
       <div class="text-center">
         <UButton
           variant="ghost"
@@ -58,7 +58,7 @@
           size="sm"
           @click="showAllSlugs = !showAllSlugs"
         >
-          {{ showAllSlugs ? 'Show Less' : `Show ${remainingSlugs} More` }}
+          {{ showAllSlugs ? 'Show Less' : `Show ${_remainingSlugs} More` }}
         </UButton>
       </div>
     </template>
@@ -66,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import type { AnalyticsMetrics } from '~/types/analytics'
+import type { AnalyticsMetrics } from "~/types/analytics"
 
 interface Props {
   metrics: AnalyticsMetrics
@@ -77,22 +77,23 @@ const props = defineProps<Props>()
 const showAllSlugs = ref(false)
 const maxVisible = 5
 
-const topSlugs = computed(() => {
+const _displayedSlugs = computed(() => {
   const slugs = props.metrics.redirects.topSlugs || []
   return showAllSlugs.value ? slugs : slugs.slice(0, maxVisible)
 })
 
-const hasMoreSlugs = computed(() => {
+const _hasMoreSlugs = computed(() => {
   return (props.metrics.redirects.topSlugs?.length || 0) > maxVisible
 })
 
-const remainingSlugs = computed(() => {
+const _remainingSlugs = computed(() => {
   const total = props.metrics.redirects.topSlugs?.length || 0
   return Math.max(0, total - maxVisible)
 })
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function getClickPercentage(clicks: number): string {
   const total = props.metrics.redirects.totalClicks
-  return total > 0 ? ((clicks / total) * 100).toFixed(1) : '0.0'
+  return total > 0 ? ((clicks / total) * 100).toFixed(1) : "0.0"
 }
 </script>

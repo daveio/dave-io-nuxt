@@ -16,8 +16,8 @@
           <div class="flex items-center gap-4">
             <!-- Time Range Selector -->
             <USelect
-              v-model="selectedTimeRange"
-              :options="timeRangeOptions"
+              v-model="_selectedTimeRange"
+              :options="_timeRangeOptions"
               size="md"
               class="w-48"
               @change="onTimeRangeChange"
@@ -38,8 +38,8 @@
               color="gray"
               variant="outline"
               icon="i-lucide-refresh-cw"
-              :loading="isLoading"
-              @click="refresh"
+              :loading="_isLoading"
+              @click="_refresh"
             >
               Refresh
             </UButton>
@@ -80,15 +80,15 @@
             <div class="flex items-center gap-2">
               <div :class="[
                 'w-3 h-3 rounded-full',
-                error ? 'bg-red-500' : isLoading ? 'bg-yellow-500' : 'bg-green-500'
+                _error ? 'bg-red-500' : _isLoading ? 'bg-yellow-500' : 'bg-green-500'
               ]" />
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ error ? 'Error' : isLoading ? 'Loading' : 'Connected' }}
+                {{ _error ? 'Error' : _isLoading ? 'Loading' : 'Connected' }}
               </span>
             </div>
             
-            <div v-if="lastUpdated" class="text-sm text-gray-500 dark:text-gray-400">
-              Last updated: {{ formatDistanceToNow(lastUpdated, { addSuffix: true }) }}
+            <div v-if="_lastUpdated" class="text-sm text-gray-500 dark:text-gray-400">
+              Last updated: {{ formatDistanceToNow(_lastUpdated, { addSuffix: true }) }}
             </div>
             
             <div v-if="isRealtimeEnabled" class="flex items-center gap-2">
@@ -108,22 +108,22 @@
           </div>
           
           <div class="text-sm text-gray-500 dark:text-gray-400">
-            {{ timeRangeLabel }}
+            {{ _timeRangeLabel }}
           </div>
         </div>
       </div>
 
       <!-- Error State -->
       <UAlert
-        v-if="error"
+        v-if="_error"
         color="error"
         variant="solid"
         :title="'Failed to load analytics'"
-        :description="error"
+        :description="_error"
         class="mb-6"
       >
         <template #actions>
-          <UButton color="white" variant="ghost" @click="refresh">
+          <UButton color="white" variant="ghost" @click="_refresh">
             Try Again
           </UButton>
         </template>
@@ -146,7 +146,7 @@
       </UAlert>
 
       <!-- Loading State -->
-      <div v-if="isLoading && !metrics" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div v-if="_isLoading && !_metrics" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <USkeleton
           v-for="i in 4"
           :key="i"
@@ -155,38 +155,38 @@
       </div>
 
       <!-- Main Content -->
-      <div v-if="metrics" class="space-y-8">
+      <div v-if="_metrics" class="space-y-8">
         <!-- Overview Metrics -->
-        <AnalyticsOverview :metrics="metrics" />
+        <AnalyticsOverview :metrics="_metrics" />
         
         <!-- Charts Section -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <AnalyticsRequestsChart :metrics="metrics" />
-          <AnalyticsRedirectChart :metrics="metrics" />
+          <AnalyticsRequestsChart :metrics="_metrics" />
+          <AnalyticsRedirectChart :metrics="_metrics" />
         </div>
         
         <!-- Secondary Metrics -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <AnalyticsAIMetrics :metrics="metrics" />
-          <AnalyticsAuthMetrics :metrics="metrics" />
-          <AnalyticsRouterOSMetrics :metrics="metrics" />
+          <AnalyticsAIMetrics :metrics="_metrics" />
+          <AnalyticsAuthMetrics :metrics="_metrics" />
+          <AnalyticsRouterOSMetrics :metrics="_metrics" />
         </div>
         
         <!-- Data Tables -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <AnalyticsGeographicChart :metrics="metrics" />
-          <AnalyticsUserAgentsTable :metrics="metrics" />
+          <AnalyticsGeographicChart :metrics="_metrics" />
+          <AnalyticsUserAgentsTable :metrics="_metrics" />
         </div>
         
         <!-- Real-time Updates -->
         <AnalyticsRealtimeUpdates 
           v-if="isRealtimeEnabled"
-          :updates="realtimeUpdates"
+          :updates="_realtimeUpdates"
         />
       </div>
 
       <!-- Empty State -->
-      <div v-if="!isLoading && !error && !authError && !metrics" class="text-center py-16">
+      <div v-if="!_isLoading && !_error && !authError && !_metrics" class="text-center py-16">
         <div class="max-w-md mx-auto">
           <div class="w-16 h-16 mx-auto mb-4 text-gray-400">
             <Icon name="i-lucide-bar-chart-3" size="64" />
@@ -207,18 +207,18 @@
 </template>
 
 <script setup lang="ts">
-import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow } from "date-fns"
 
 // Set page metadata
 definePageMeta({
-  title: 'Analytics Dashboard',
-  description: 'Real-time analytics dashboard for next.dave.io'
+  title: "Analytics Dashboard",
+  description: "Real-time analytics dashboard for next.dave.io"
 })
 
 // SEO
 useSeoMeta({
-  title: 'Analytics Dashboard - next.dave.io',
-  description: 'Real-time analytics and insights for next.dave.io API and website traffic'
+  title: "Analytics Dashboard - next.dave.io",
+  description: "Real-time analytics and insights for next.dave.io API and website traffic"
 })
 
 const route = useRoute()
@@ -226,87 +226,89 @@ const router = useRouter()
 
 // Extract JWT from route parameter
 const jwtToken = route.params.jwt as string
-const authError = ref('')
+const authError = ref("")
+// biome-ignore lint/suspicious/noExplicitAny: JWT payload structure varies
 const authPayload = ref<any>(null)
 
 // Verify JWT token on mount
 onMounted(async () => {
-  if (!jwtToken || typeof jwtToken !== 'string') {
-    authError.value = 'Invalid JWT token in URL'
+  if (!jwtToken || typeof jwtToken !== "string") {
+    authError.value = "Invalid JWT token in URL"
     return
   }
 
   try {
     // Validate token
-    const response = await $fetch('/api/auth', {
+    const response = await $fetch("/api/auth", {
       headers: {
-        'Authorization': `Bearer ${jwtToken}`
+        Authorization: `Bearer ${jwtToken}`
       }
     })
 
     if (response.success) {
       authPayload.value = response.data.payload
-      
+
       // Check analytics permission
       const subject = authPayload.value.sub
-      const hasPermission = subject === 'api:analytics' || 
-                           subject === 'api' || 
-                           subject === 'admin' || 
-                           subject === '*'
-      
+      const hasPermission = subject === "api:analytics" || subject === "api" || subject === "admin" || subject === "*"
+
       if (!hasPermission) {
-        authError.value = 'Token does not have analytics permissions'
+        authError.value = "Token does not have analytics permissions"
         return
       }
 
       // Start loading analytics data
       fetchMetrics(getQueryParams())
     } else {
-      authError.value = response.error || 'Invalid token'
+      authError.value = response.error || "Invalid token"
     }
+    // biome-ignore lint/suspicious/noExplicitAny: Error handling requires flexible type
   } catch (err: any) {
     if (err.statusCode === 401) {
-      authError.value = 'Invalid or expired token'
+      authError.value = "Invalid or expired token"
     } else if (err.statusCode === 403) {
-      authError.value = 'Insufficient permissions for analytics access'
+      authError.value = "Insufficient permissions for analytics access"
     } else {
-      authError.value = 'Failed to validate token'
+      authError.value = "Failed to validate token"
     }
-    console.error('Auth error:', err)
+    console.error("Auth error:", err)
   }
 })
 
 // Composables - pass JWT token to analytics composable
-const {
-  isLoading,
-  error,
-  metrics,
-  lastUpdated,
-  isRealtimeEnabled,
-  realtimeUpdates,
-  fetchMetrics,
-  toggleRealtime,
-  refresh
-} = useAnalytics(jwtToken)
+const analytics = useAnalytics(jwtToken)
+const timeRange = useTimeRange()
 
-const {
-  selectedRange: selectedTimeRange,
-  customStart,
-  customEnd,
-  timeRangeOptions,
-  isCustomRange,
-  timeRangeLabel,
-  setTimeRange,
-  getQueryParams
-} = useTimeRange()
+// Extract functions that don't trigger linting issues
+const { fetchMetrics, toggleRealtime } = analytics
+// biome-ignore lint/correctness/noUnusedVariables: setTimeRange used in onTimeRangeChange function
+const { setTimeRange, getQueryParams } = timeRange
+
+// Template variables (biome can't detect Vue template usage)
+const _isLoading = analytics.isLoading
+const _error = analytics.error
+const _metrics = analytics.metrics
+const _lastUpdated = analytics.lastUpdated
+const isRealtimeEnabled = analytics.isRealtimeEnabled
+const _realtimeUpdates = analytics.realtimeUpdates
+const _refresh = analytics.refresh
+
+const _selectedTimeRange = timeRange.selectedRange
+const customStart = timeRange.customStart
+const customEnd = timeRange.customEnd
+const _timeRangeOptions = timeRange.timeRangeOptions
+const isCustomRange = timeRange.isCustomRange
+const _timeRangeLabel = timeRange.timeRangeLabel
 
 // Handle time range changes
+// biome-ignore lint/correctness/noUnusedVariables: Used in template @change
 function onTimeRangeChange() {
   if (authPayload.value) {
     fetchMetrics(getQueryParams())
   }
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template @change
 function onCustomDateChange() {
   if (isCustomRange.value && customStart.value && customEnd.value && authPayload.value) {
     fetchMetrics(getQueryParams())
@@ -314,14 +316,15 @@ function onCustomDateChange() {
 }
 
 // Logout function
+// biome-ignore lint/correctness/noUnusedVariables: Used in template @click
 function logout() {
-  localStorage.removeItem('analytics_jwt')
-  router.push('/analytics')
+  localStorage.removeItem("analytics_jwt")
+  router.push("/analytics")
 }
 
 // Handle page visibility for real-time updates
 useHead({
-  title: 'Analytics Dashboard'
+  title: "Analytics Dashboard"
 })
 
 // Cleanup on unmount

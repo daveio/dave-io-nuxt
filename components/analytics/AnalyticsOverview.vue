@@ -28,7 +28,7 @@
             Success Rate
           </p>
           <p class="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">
-            {{ successRate.toFixed(1) }}%
+            {{ _successRate.toFixed(1) }}%
           </p>
           <p class="text-sm text-green-600 dark:text-green-400 mt-1">
             {{ formatNumber(metrics.overview.successfulRequests) }} successful
@@ -50,8 +50,8 @@
           <p class="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">
             {{ Math.round(metrics.overview.averageResponseTime) }}ms
           </p>
-          <p class="text-sm" :class="responseTimeColor">
-            {{ responseTimeStatus }}
+          <p class="text-sm" :class="_responseTimeColor">
+            {{ _responseTimeStatus }}
           </p>
         </div>
         <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
@@ -128,7 +128,7 @@
 </template>
 
 <script setup lang="ts">
-import type { AnalyticsMetrics } from '~/types/analytics'
+import type { AnalyticsMetrics } from "~/types/analytics"
 
 interface Props {
   metrics: AnalyticsMetrics
@@ -137,33 +137,34 @@ interface Props {
 const props = defineProps<Props>()
 
 // Computed values
-const successRate = computed(() => {
+const _successRate = computed(() => {
   const total = props.metrics.overview.totalRequests
   return total > 0 ? (props.metrics.overview.successfulRequests / total) * 100 : 0
 })
 
-const responseTimeColor = computed(() => {
+const _responseTimeColor = computed(() => {
   const time = props.metrics.overview.averageResponseTime
-  if (time < 100) return 'text-green-600 dark:text-green-400'
-  if (time < 300) return 'text-yellow-600 dark:text-yellow-400'
-  return 'text-red-600 dark:text-red-400'
+  if (time < 100) return "text-green-600 dark:text-green-400"
+  if (time < 300) return "text-yellow-600 dark:text-yellow-400"
+  return "text-red-600 dark:text-red-400"
 })
 
-const responseTimeStatus = computed(() => {
+const _responseTimeStatus = computed(() => {
   const time = props.metrics.overview.averageResponseTime
-  if (time < 100) return 'Excellent'
-  if (time < 200) return 'Good'
-  if (time < 300) return 'Fair'
-  return 'Slow'
+  if (time < 100) return "Excellent"
+  if (time < 200) return "Good"
+  if (time < 300) return "Fair"
+  return "Slow"
 })
 
 // Utility functions
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function formatNumber(num: number): string {
   if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M'
+    return `${(num / 1000000).toFixed(1)}M`
   }
   if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K'
+    return `${(num / 1000).toFixed(1)}K`
   }
   return num.toString()
 }

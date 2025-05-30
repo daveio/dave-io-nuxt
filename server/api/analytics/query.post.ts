@@ -1,9 +1,15 @@
+import { z } from "zod"
+import {
+  aggregateAnalyticsMetrics,
+  buildAnalyticsQuery,
+  getAnalyticsCacheKey,
+  parseAnalyticsResults,
+  queryAnalyticsEngine
+} from "~/server/utils/analytics"
 import { requireAPIAuth } from "~/server/utils/auth-helpers"
 import { getCloudflareEnv, getKVNamespace } from "~/server/utils/cloudflare"
-import { createApiResponse, createApiError } from "~/server/utils/response"
-import { buildAnalyticsQuery, queryAnalyticsEngine, parseAnalyticsResults, aggregateAnalyticsMetrics, getAnalyticsCacheKey } from "~/server/utils/analytics"
-import type { AnalyticsQueryParams, AnalyticsEvent, AnalyticsResponse } from "~/types/analytics"
-import { z } from "zod"
+import { createApiError, createApiResponse } from "~/server/utils/response"
+import type { AnalyticsEvent, AnalyticsQueryParams, AnalyticsResponse } from "~/types/analytics"
 
 // Validation schema for query parameters
 const AnalyticsQuerySchema = z.object({
@@ -26,23 +32,25 @@ export default defineEventHandler(async (event) => {
   try {
     // Require analytics permissions
     await requireAPIAuth(event, "analytics")
-    
+
     const env = getCloudflareEnv(event)
     const kv = getKVNamespace(env)
-    
+
     // Parse and validate request body
     const body = await readBody(event)
     const params = AnalyticsQuerySchema.parse(body)
-    
+
     // Generate cache key if caching is enabled
     let cacheKey: string | undefined
     if (params.cacheResults) {
       cacheKey = getAnalyticsCacheKey(params)
       const cached = await kv.get(cacheKey)
-      
+
       if (cached) {
         const parsedCache = JSON.parse(cached)
-        if (Date.now() - parsedCache.timestamp < 2 * 60 * 1000) { // 2 minutes for custom queries
+        if (Date.now() - parsedCache.timestamp < 2 * 60 * 1000) {
+          // 2 minutes for custom queries
+          // biome-ignore lint/suspicious/noExplicitAny: Generic analytics response type
           return createApiResponse<AnalyticsResponse<any>>(
             {
               success: true,
@@ -60,89 +68,24 @@ export default defineEventHandler(async (event) => {
         }
       }
     }
-    
+
     const queryStartTime = Date.now()
-    
-    // Build and execute Analytics Engine query
-    const sqlQuery = buildAnalyticsQuery(params)
-    console.log("Generated Analytics Engine query:", sqlQuery)
-    
-    // For now, we'll return mock data since direct Analytics Engine querying 
-    // requires the Cloudflare GraphQL API which is complex to implement here
-    let events: AnalyticsEvent[] = []
-    
-    // Mock some events based on the query parameters
-    if (!params.eventTypes || params.eventTypes.includes("ping")) {
-      events.push({
-        type: "ping",
-        timestamp: new Date().toISOString(),
-        cloudflare: {
-          ray: "mock-ray-123",
-          country: params.country || "US",
-          ip: "192.168.1.1",
-          datacenter: "DFW",
-          userAgent: params.userAgent || "curl/8.1.0",
-          requestUrl: "/api/ping"
-        },
-        data: { pingCount: 1 }
-      })
-    }
-    
-    if (!params.eventTypes || params.eventTypes.includes("redirect")) {
-      events.push({
-        type: "redirect",
-        timestamp: new Date(Date.now() - 60000).toISOString(),
-        cloudflare: {
-          ray: "mock-ray-124",
-          country: params.country || "GB",
-          ip: "10.0.0.1",
-          datacenter: "LHR",
-          userAgent: params.userAgent || "Mozilla/5.0",
-          requestUrl: "/go/gh"
-        },
-        data: {
-          slug: "gh",
-          destinationUrl: "https://github.com/daveio",
-          clickCount: 1
-        }
-      })
-    }
-    
-    if (!params.eventTypes || params.eventTypes.includes("auth")) {
-      events.push({
-        type: "auth",
-        timestamp: new Date(Date.now() - 120000).toISOString(),
-        cloudflare: {
-          ray: "mock-ray-125",
-          country: params.country || "CA",
-          ip: "172.16.0.1",
-          datacenter: "YYZ",
-          userAgent: params.userAgent || "HTTPie/3.2.0",
-          requestUrl: "/api/metrics"
-        },
-        data: {
-          success: true,
-          tokenSubject: params.tokenSubject || "api:metrics",
-          endpoint: "/api/metrics"
-        }
-      })
-    }
-    
-    // Apply limit and offset
+
+    // Execute real Analytics Engine query
+    const engineResults = await queryAnalyticsEngine(event, params)
+    const events = parseAnalyticsResults(engineResults)
+
+    // Apply limit and offset to real events
     const paginatedEvents = events.slice(params.offset, params.offset + params.limit)
-    
+
     const queryTime = Date.now() - queryStartTime
-    
+
+    // biome-ignore lint/suspicious/noExplicitAny: Response data can be aggregated metrics or raw events
     let responseData: any
-    
+
     if (params.aggregated) {
       // Return aggregated metrics
-      responseData = aggregateAnalyticsMetrics(
-        paginatedEvents, 
-        params.timeRange, 
-        params.customStart, 
-        params.customEnd
-      )
+      responseData = aggregateAnalyticsMetrics(paginatedEvents, params.timeRange, params.customStart, params.customEnd)
     } else {
       // Return raw events
       responseData = {
@@ -153,15 +96,20 @@ export default defineEventHandler(async (event) => {
         hasMore: params.offset + params.limit < events.length
       }
     }
-    
+
     // Cache the results if enabled
     if (params.cacheResults && cacheKey) {
-      await kv.put(cacheKey, JSON.stringify({
-        data: responseData,
-        timestamp: Date.now()
-      }), { expirationTtl: 120 }) // 2 minutes
+      await kv.put(
+        cacheKey,
+        JSON.stringify({
+          data: responseData,
+          timestamp: Date.now()
+        }),
+        { expirationTtl: 120 }
+      ) // 2 minutes
     }
-    
+
+    // biome-ignore lint/suspicious/noExplicitAny: Generic analytics response type
     const response: AnalyticsResponse<any> = {
       success: true,
       data: responseData,
@@ -172,20 +120,19 @@ export default defineEventHandler(async (event) => {
         queryTime
       }
     }
-    
+
     return createApiResponse(response, "Custom analytics query executed successfully")
-    
   } catch (error: unknown) {
     console.error("Custom analytics query error:", error)
-    
+
     if (error instanceof z.ZodError) {
-      throw createApiError(400, `Invalid query parameters: ${error.errors.map(e => e.message).join(", ")}`)
+      throw createApiError(400, `Invalid query parameters: ${error.errors.map((e) => e.message).join(", ")}`)
     }
-    
+
     if (error instanceof Error) {
       throw createApiError(500, `Failed to execute analytics query: ${error.message}`)
     }
-    
+
     throw createApiError(500, "Failed to execute custom analytics query")
   }
 })

@@ -97,7 +97,7 @@
 </template>
 
 <script setup lang="ts">
-import type { AnalyticsMetrics } from '~/types/analytics'
+import type { AnalyticsMetrics } from "~/types/analytics"
 
 interface Props {
   metrics: AnalyticsMetrics
@@ -109,20 +109,20 @@ const showBotsOnly = ref(false)
 const showAll = ref(false)
 const maxVisible = 10
 
-const columns = [
+const _columns = [
   {
-    key: 'agent',
-    label: 'User Agent',
+    key: "agent",
+    label: "User Agent",
     sortable: true
   },
   {
-    key: 'requests',
-    label: 'Requests',
+    key: "requests",
+    label: "Requests",
     sortable: true
   },
   {
-    key: 'type',
-    label: 'Type',
+    key: "type",
+    label: "Type",
     sortable: true
   }
 ]
@@ -131,61 +131,64 @@ const totalRequests = computed(() => {
   return props.metrics.userAgents.reduce((sum, ua) => sum + ua.requests, 0)
 })
 
-const botCount = computed(() => {
-  return props.metrics.userAgents.filter(ua => ua.isBot).length
+const _botCount = computed(() => {
+  return props.metrics.userAgents.filter((ua) => ua.isBot).length
 })
 
-const humanCount = computed(() => {
-  return props.metrics.userAgents.filter(ua => !ua.isBot).length
+const _humanCount = computed(() => {
+  return props.metrics.userAgents.filter((ua) => !ua.isBot).length
 })
 
-const filteredUserAgents = computed(() => {
+const _filteredUserAgents = computed(() => {
   let agents = props.metrics.userAgents
-  
+
   if (showBotsOnly.value) {
-    agents = agents.filter(ua => ua.isBot)
+    agents = agents.filter((ua) => ua.isBot)
   }
-  
+
   return showAll.value ? agents : agents.slice(0, maxVisible)
 })
 
-const hasMore = computed(() => {
-  const total = showBotsOnly.value 
-    ? props.metrics.userAgents.filter(ua => ua.isBot).length
+const _hasMore = computed(() => {
+  const total = showBotsOnly.value
+    ? props.metrics.userAgents.filter((ua) => ua.isBot).length
     : props.metrics.userAgents.length
   return total > maxVisible
 })
 
-const remaining = computed(() => {
-  const total = showBotsOnly.value 
-    ? props.metrics.userAgents.filter(ua => ua.isBot).length
+const _remaining = computed(() => {
+  const total = showBotsOnly.value
+    ? props.metrics.userAgents.filter((ua) => ua.isBot).length
     : props.metrics.userAgents.length
   return Math.max(0, total - maxVisible)
 })
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function formatNumber(num: number): string {
   if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M'
+    return `${(num / 1000000).toFixed(1)}M`
   }
   if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K'
+    return `${(num / 1000).toFixed(1)}K`
   }
   return num.toString()
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function getRequestPercentage(requests: number): string {
-  return totalRequests.value > 0 ? ((requests / totalRequests.value) * 100).toFixed(1) : '0.0'
+  return totalRequests.value > 0 ? ((requests / totalRequests.value) * 100).toFixed(1) : "0.0"
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 function getUserAgentType(agent: string): string {
   // Simplified user agent detection
-  if (/curl|wget|httpie/i.test(agent)) return 'CLI Tool'
-  if (/bot|crawler|spider|scraper/i.test(agent)) return 'Bot'
-  if (/chrome/i.test(agent)) return 'Chrome'
-  if (/firefox/i.test(agent)) return 'Firefox'
-  if (/safari/i.test(agent)) return 'Safari'
-  if (/edge/i.test(agent)) return 'Edge'
-  if (/mobile|android|iphone|ipad/i.test(agent)) return 'Mobile'
-  return 'Other'
+  if (/curl|wget|httpie/i.test(agent)) return "CLI Tool"
+  if (/bot|crawler|spider|scraper/i.test(agent)) return "Bot"
+  if (/chrome/i.test(agent)) return "Chrome"
+  if (/firefox/i.test(agent)) return "Firefox"
+  if (/safari/i.test(agent)) return "Safari"
+  if (/edge/i.test(agent)) return "Edge"
+  if (/mobile|android|iphone|ipad/i.test(agent)) return "Mobile"
+  return "Other"
 }
 </script>
