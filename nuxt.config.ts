@@ -62,7 +62,6 @@ export default defineNuxtConfig({
     }
   },
   modules: [
-    "@nuxt/content",
     "@nuxt/fonts",
     "@nuxt/icon",
     "@nuxt/image",
@@ -72,5 +71,5 @@ export default defineNuxtConfig({
     "@nuxtjs/color-mode",
     "@pinia/nuxt",
     "nitro-cloudflare-dev"
-  ]
+  ],
 })

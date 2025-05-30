@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash",
+      "cloudflareRendering",
+      "context7",
+      "duckduckgo",
+      "fetch",
+      "git",
+      "Glob",
+      "Grep",
+      "LS",
+      "mcp__cloudflareDocumentation__search_cloudflare_documentation",
+      "mcp__context7__get-library-docs",
+      "mcp__context7__resolve-library-id",
+      "mcp__pieces__create_pieces_memory",
+      "mcp__sharedMemory__create_entities",
+      "mcp__sharedMemory__search_nodes",
+      "pdfReader",
+      "Read",
+      "sharedMemory",
+      "Task",
+      "WebFetch",
+      "WebSearch"
+    ],
+    "deny": []
+  },
+  "model": "claude-sonnet-4-20250514"
+}
