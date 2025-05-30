@@ -1,22 +1,35 @@
-import { authorizeEndpoint } from "~/server/utils/auth"
-import { createApiError, isApiError } from "~/server/utils/response"
-import { AiAltTextRequestSchema, AiAltTextResponseSchema } from "~/server/utils/schemas"
+import {
+  checkAIRateLimit as checkAIRateLimitAuth,
+  requireAIAuth,
+  setRateLimitHeaders
+} from "~/server/utils/auth-helpers"
+import { getCloudflareEnv } from "~/server/utils/cloudflare"
+import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
+import { AiAltTextRequestSchema } from "~/server/utils/schemas"
 
 export default defineEventHandler(async (event) => {
   try {
-    // Check authorization for AI alt-text endpoint
-    const authFunc = await authorizeEndpoint("ai", "alt")
-    const auth = await authFunc(event)
-    if (!auth.success) {
-      createApiError(401, auth.error || "Unauthorized")
-    }
+    // Check authorization for AI alt text generation using helper
+    const auth = await requireAIAuth(event, "alt")
 
-    // Get environment bindings
-    const env = event.context.cloudflare?.env as { DATA?: KVNamespace; AI?: Ai }
+    // Get environment bindings using helper
+    const env = getCloudflareEnv(event)
 
     // Parse and validate request body
     const body = await readBody(event)
     const request = AiAltTextRequestSchema.parse(body)
+
+    // Check rate limiting using shared helper
+    const userId = auth.payload?.jti || auth.payload?.sub || "anonymous"
+    const rateLimit = await checkAIRateLimitAuth(userId, env.DATA)
+
+    if (!rateLimit.allowed) {
+      setRateLimitHeaders(event, 100, 0, rateLimit.resetTime)
+      throw createApiError(429, "Rate limit exceeded. Maximum 100 requests per hour.")
+    }
+
+    // Set rate limit headers using helper
+    setRateLimitHeaders(event, 100, rateLimit.remaining, rateLimit.resetTime)
 
     const startTime = Date.now()
 
@@ -59,14 +72,14 @@ export default defineEventHandler(async (event) => {
 
     // Use Cloudflare AI for image analysis
     let altText: string
-    let confidence: number
+    const aiModel = "@cf/llava-hf/llava-1.5-7b-hf"
 
     if (!env?.AI) {
       throw createApiError(503, "AI service not available")
     }
 
     try {
-      const result = (await env.AI.run("@cf/llava-hf/llava-1.5-7b-hf", {
+      const result = (await env.AI.run(aiModel as "@cf/llava-hf/llava-1.5-7b-hf", {
         image: Array.from(new Uint8Array(imageData)),
         prompt:
           "Describe this image in detail for use as alt text. Focus on the main subjects, actions, and important visual elements that would help someone understand the image content. Be concise but descriptive.",
@@ -81,8 +94,7 @@ export default defineEventHandler(async (event) => {
         altText = `${altText.substring(0, 297)}...`
       }
 
-      // Set confidence based on response quality
-      confidence = altText.length > 20 ? 0.92 : 0.75
+      // AI processing successful
     } catch (error) {
       console.error("AI processing failed:", error)
       throw createApiError(500, "Failed to process image with AI")
@@ -90,16 +102,21 @@ export default defineEventHandler(async (event) => {
 
     const processingTime = Date.now() - startTime
 
-    // Build response
-    const response = AiAltTextResponseSchema.parse({
-      success: true,
-      alt_text: altText,
-      confidence: Math.round(confidence * 100) / 100,
-      processing_time_ms: processingTime,
-      timestamp: new Date().toISOString()
-    })
-
-    return response
+    return createApiResponse(
+      {
+        altText,
+        imageSource: request.url || "uploaded-file",
+        model: aiModel,
+        timestamp: new Date().toISOString(),
+        processingTimeMs: processingTime,
+        imageSizeBytes: imageData.length,
+        rateLimit: {
+          remaining: rateLimit.remaining,
+          resetTime: rateLimit.resetTime.toISOString()
+        }
+      },
+      "Alt text generated successfully"
+    )
   } catch (error: unknown) {
     console.error("AI alt-text error:", error)
 

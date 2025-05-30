@@ -23,12 +23,14 @@ Originally, Dave's site was a simple Cloudflare Worker. But why keep things simp
 - JSONC configuration parsing because Dave believes in good developer experience
 - Graceful fallback when Cloudflare credentials are missing (because sometimes you just want to work offline)
 
-### 🤖 AI Integration
+### 🤖 AI Integration (Now With Real AI Magic!)
 
-- Alt-text generation for images (URL or file upload)
-- Because accessibility matters, even for personal sites
-- Cloudflare AI integration (when configured, simulated otherwise)
-- File size validation and proper error handling
+- Alt-text generation for images (URL or file upload) using Cloudflare AI
+- Powered by `@cf/llava-hf/llava-1.5-7b-hf` model (because we don't mess around with fake AI)
+- Because accessibility matters, even for personal sites that are way too complicated
+- Comprehensive rate limiting (100 requests/hour per token, because Dave doesn't trust anyone)
+- File size validation and proper error handling (up to 10MB images)
+- Consistent authentication and response formatting across both GET and POST endpoints
 
 ### 📊 Metrics & Analytics That Would Make Google Jealous
 
@@ -528,10 +530,11 @@ MIT License - Because sharing is caring, and Dave believes in open source (and g
 ### Immediate Improvements
 
 - **Frontend Development**: Build actual website content (the current `app.vue` is a bit lonely)
-- **Real AI Integration**: Replace simulated responses with actual Cloudflare AI
+- **✅ Real AI Integration**: ~~Replace simulated responses with actual Cloudflare AI~~ **DONE!** Now using real Cloudflare AI for alt-text generation with consistent rate limiting and authentication
 - **Enhanced Monitoring**: Add comprehensive logging and alerting
-- **Custom Domain**: Set up production domain routing
+- **✅ Custom Domain Setup**: ~~Set up production domain routing~~ **DONE!** Configured for both `next.dave.io` with comprehensive route patterns
 - **✅ D1 Integration**: ~~Implement database features for persistent storage~~ **DONE!** Now with full JWT token management
+- **✅ Code Quality**: ~~Fix all TypeScript, linting, and build warnings~~ **DONE!** Now passing all checks with proper types and security practices
 - **JWT Management Dashboard**: Build a web UI for token management (because CLI tools are great, but pretty interfaces are better)
 
 ### Security Enhancements

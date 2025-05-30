@@ -4,7 +4,7 @@ import { Command } from "commander"
 import { SignJWT, jwtVerify } from "jose"
 import readlineSync from "readline-sync"
 import { v4 as uuidv4 } from "uuid"
-import { getJWTSecret, parseCompoundDuration, parseExpiration } from "./shared/cli-utils"
+import { getJWTSecret, parseExpiration } from "./shared/cli-utils"
 import { createCloudflareClient, executeD1Query } from "./shared/cloudflare"
 
 interface JWTRequest {
@@ -459,8 +459,8 @@ program
       await client.kv.namespaces.values.update(kvNamespaceId, `auth:revocation:${uuid}`, {
         account_id: config.accountId,
         value: "true",
-        metadata: {}
-      } as any)
+        metadata: "{}"
+      })
 
       console.log("✅ Token revoked successfully")
       console.log("   The token is now immediately invalid and cannot be used")

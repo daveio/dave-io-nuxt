@@ -163,5 +163,5 @@ export function logCloudflareRequest(
     ...additionalInfo
   }
 
-  console.log(`[${logData.timestamp}] ${method} ${info.requestUrl}`, logData)
+  console.log("[%s] %s %s", logData.timestamp, method, info.requestUrl, logData)
 }

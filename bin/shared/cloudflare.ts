@@ -2,8 +2,8 @@
  * Shared Cloudflare configuration and client management for CLI tools
  */
 
-import { readFileSync } from "fs"
-import { join } from "path"
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
 import Cloudflare from "cloudflare"
 import { parse as parseJSONC } from "jsonc-parser"
 
@@ -12,6 +12,16 @@ export interface CloudflareConfig {
   accountId: string
   databaseId?: string
   kvNamespaceId?: string
+}
+
+interface D1Database {
+  binding: string
+  database_id: string
+}
+
+interface KVNamespace {
+  binding: string
+  id: string
 }
 
 export interface CloudflareClientResult {
@@ -36,7 +46,7 @@ export function getWranglerConfig(): WranglerConfig {
     // Extract D1 database ID
     let databaseId: string | undefined
     if (wranglerConfig.d1_databases && Array.isArray(wranglerConfig.d1_databases)) {
-      const dbBinding = wranglerConfig.d1_databases.find((db: any) => db.binding === "DB")
+      const dbBinding = (wranglerConfig.d1_databases as D1Database[]).find((db) => db.binding === "DB")
       if (dbBinding?.database_id) {
         databaseId = dbBinding.database_id
       }
@@ -45,7 +55,7 @@ export function getWranglerConfig(): WranglerConfig {
     // Extract KV namespace ID
     let kvNamespaceId: string | undefined
     if (wranglerConfig.kv_namespaces && Array.isArray(wranglerConfig.kv_namespaces)) {
-      const kvBinding = wranglerConfig.kv_namespaces.find((kv: any) => kv.binding === "DATA")
+      const kvBinding = (wranglerConfig.kv_namespaces as KVNamespace[]).find((kv) => kv.binding === "DATA")
       if (kvBinding?.id) {
         kvNamespaceId = kvBinding.id
       }
@@ -124,7 +134,7 @@ export function createOptionalCloudflareClient(
 ): CloudflareClientResult | null {
   try {
     return createCloudflareClient(includeDatabase, includeKV)
-  } catch (error) {
+  } catch {
     return null
   }
 }

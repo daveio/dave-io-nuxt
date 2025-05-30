@@ -18,7 +18,7 @@ import { resolve } from "node:path"
 import type Cloudflare from "cloudflare"
 import { Command } from "commander"
 import { getTimestamp, keyMatchesPatterns, tryParseJson } from "./shared/cli-utils"
-import { createOptionalCloudflareClient, getWranglerConfig, validateCloudflareConfig } from "./shared/cloudflare"
+import { getWranglerConfig, validateCloudflareConfig } from "./shared/cloudflare"
 
 const BACKUP_DIR = "_backup"
 

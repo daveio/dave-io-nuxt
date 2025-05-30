@@ -3,6 +3,19 @@ import type { H3Event } from "h3"
 import { dump as yamlDump } from "js-yaml"
 import { createApiError } from "./response"
 
+interface RSSItem {
+  title?: string
+  link?: string
+  description?: string
+  pubDate?: string
+}
+
+interface RouterOSOptions {
+  listName?: string
+  comment?: string
+  timestamp?: string
+}
+
 /**
  * Format metrics data as YAML using js-yaml library
  * Replaces manual string concatenation in metrics endpoint
@@ -160,7 +173,7 @@ export function parseRSSFeed(xmlContent: string): Array<{
 
     const items = Array.isArray(channel.item) ? channel.item : [channel.item].filter(Boolean)
 
-    return items.map((item: any) => ({
+    return items.map((item: RSSItem) => ({
       title: item.title || "Untitled",
       link: item.link || "",
       description: item.description || undefined,
@@ -240,7 +253,7 @@ export function generateScript(templateName: string, variables: Record<string, u
       return generateRouterOSScript(
         variables.ipv4Ranges as string[],
         variables.ipv6Ranges as string[],
-        variables.options as any
+        variables.options as RouterOSOptions
       )
     default:
       throw createApiError(400, `Unknown script template: ${templateName}`)
