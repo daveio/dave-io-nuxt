@@ -15,7 +15,7 @@
   "analytics_engine_datasets": [
     {
       "binding": "ANALYTICS",
-      "dataset": "NEXT_DAVE_IO_ANALYTICS"
+      "dataset": "next-dave-io"
     }
   ],
   "kv_namespaces": [
