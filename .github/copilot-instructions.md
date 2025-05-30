@@ -6,7 +6,7 @@ Configuration for AI behavior when interacting with Codacy's MCP Server
 - ALWAYS use:
  - provider: gh
  - organization: daveio
- - repository: dave-io-nuxt
+ - repository: next-dave-io
 - Avoid calling `git remote -v` unless really necessary
 
 ## After ANY successful `edit_file` or `reapply` operation
