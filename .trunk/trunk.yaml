@@ -55,7 +55,7 @@ lint:
     - linters:
         - biome
       paths:
-        - .claude/settings.local.json
+        - "**/.claude/settings.local.json"
     - linters:
         - trunk-toolbox
       paths:
