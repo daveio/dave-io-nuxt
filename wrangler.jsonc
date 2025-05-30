@@ -35,10 +35,6 @@
     {
       "pattern": "next.dave.io",
       "custom_domain": true
-    },
-    {
-      "pattern": "next.dave.io/*",
-      "custom_domain": true
-    },
+    }
   ]
 }
