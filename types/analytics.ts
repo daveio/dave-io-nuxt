@@ -165,6 +165,28 @@ export interface RateLimitEvent extends AnalyticsEvent {
 }
 
 /**
+ * Time series data point for charts
+ */
+export interface TimeSeriesDataPoint {
+  timestamp: string
+  value: number
+  label?: string
+}
+
+/**
+ * Time series data for different metrics
+ */
+export interface TimeSeriesData {
+  requests: TimeSeriesDataPoint[]
+  redirects: TimeSeriesDataPoint[]
+  auth: TimeSeriesDataPoint[]
+  ai: TimeSeriesDataPoint[]
+  responseTime: TimeSeriesDataPoint[]
+  errors: TimeSeriesDataPoint[]
+  rateLimits: TimeSeriesDataPoint[]
+}
+
+/**
  * Aggregated analytics metrics
  */
 export interface AnalyticsMetrics {
@@ -173,6 +195,7 @@ export interface AnalyticsMetrics {
     end: string
     range: AnalyticsTimeRange
   }
+  timeSeries: TimeSeriesData
   overview: {
     totalRequests: number
     successfulRequests: number

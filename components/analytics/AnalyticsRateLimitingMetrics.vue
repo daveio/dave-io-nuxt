@@ -4,15 +4,15 @@
       <div class="flex items-center justify-between">
         <h3 class="text-lg font-semibold">Rate Limiting</h3>
         <div class="flex items-center space-x-2">
-          <UBadge 
-            :color="rateLimitingData.throttledRequests > 0 ? 'red' : 'green'" 
+          <UBadge
+            :color="rateLimitingData.throttledRequests > 0 ? 'red' : 'green'"
             variant="soft"
           >
             {{ rateLimitingData.throttledRequests }} Throttled
           </UBadge>
-          <UBadge 
-            v-if="props.realtimeUpdates && isRealTimeActive" 
-            color="blue" 
+          <UBadge
+            v-if="props.realtimeUpdates && isRealTimeActive"
+            color="blue"
             variant="soft"
             class="animate-pulse"
           >
@@ -75,8 +75,8 @@
       <div v-if="rateLimitingData.throttledByToken.length > 0">
         <h4 class="text-md font-semibold mb-3">Most Throttled Tokens</h4>
         <div class="space-y-2">
-          <div 
-            v-for="token in rateLimitingData.throttledByToken.slice(0, 5)" 
+          <div
+            v-for="token in rateLimitingData.throttledByToken.slice(0, 5)"
             :key="token.tokenSubject"
             class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
           >
@@ -90,9 +90,9 @@
               <UBadge color="red" variant="soft">
                 {{ token.throttledCount }} throttled
               </UBadge>
-              <UButton 
-                size="xs" 
-                variant="ghost" 
+              <UButton
+                size="xs"
+                variant="ghost"
                 @click="viewTokenDetails(token.tokenSubject)"
               >
                 View
@@ -144,6 +144,7 @@ const props = withDefaults(defineProps<Props>(), {
 const realtimeData = ref<any[]>([])
 const lastRateLimitEvent = ref<Date | null>(null)
 const isRealTimeActive = ref(false)
+const eventSource = ref<EventSource | null>(null)
 
 // Computed properties for rate limiting data
 // biome-ignore lint/correctness/noUnusedVariables: Used in template for displaying rate limiting metrics
@@ -211,9 +212,7 @@ function aggregateRealtimeTokens(rateLimitEvents: any[]) {
   }))
 }
 
-// Real-time event handling
-// TODO: Integrate handleRealtimeUpdate with real-time SSE connection for live rate limiting updates
-// biome-ignore lint/correctness/noUnusedVariables: Will be used when real-time SSE integration is implemented
+// Real-time event handling with SSE connection
 // biome-ignore lint/suspicious/noExplicitAny: SSE update events have dynamic structure that varies by source
 function handleRealtimeUpdate(update: any) {
   if (!update || !update.event) {
@@ -235,14 +234,82 @@ function handleRealtimeUpdate(update: any) {
   }
 }
 
-// Watch for real-time updates toggle
-watchEffect(() => {
-  if (props.realtimeUpdates) {
-    isRealTimeActive.value = true
-  } else {
+// Start real-time updates with EventSource connection
+function startRealtimeUpdates() {
+  if (eventSource.value) return
+
+  try {
+    eventSource.value = new EventSource("/api/analytics/realtime")
+
+    eventSource.value.onopen = () => {
+      console.log("Rate limiting metrics SSE connected")
+      isRealTimeActive.value = true
+    }
+
+    eventSource.value.onmessage = (event) => {
+      try {
+        const update = JSON.parse(event.data)
+
+        if (update.type === "connected" || update.type === "error") {
+          return
+        }
+
+        // Handle real analytics updates
+        handleRealtimeUpdate(update)
+      } catch (error) {
+        console.error("Failed to parse rate limiting SSE message:", error)
+      }
+    }
+
+    eventSource.value.onerror = (error) => {
+      console.error("Rate limiting EventSource error:", error)
+      isRealTimeActive.value = false
+
+      // Retry connection after a delay
+      setTimeout(() => {
+        if (props.realtimeUpdates && !eventSource.value) {
+          startRealtimeUpdates()
+        }
+      }, 5000)
+    }
+  } catch (error) {
+    console.error("Failed to start rate limiting EventSource:", error)
     isRealTimeActive.value = false
-    realtimeData.value = []
   }
+}
+
+// Stop real-time updates
+function stopRealtimeUpdates() {
+  if (eventSource.value) {
+    eventSource.value.close()
+    eventSource.value = null
+  }
+  isRealTimeActive.value = false
+}
+
+// Watch for real-time updates toggle
+watch(
+  () => props.realtimeUpdates,
+  (enabled) => {
+    if (enabled) {
+      startRealtimeUpdates()
+    } else {
+      stopRealtimeUpdates()
+      realtimeData.value = []
+    }
+  },
+  { immediate: true }
+)
+
+// Lifecycle hooks
+onMounted(() => {
+  if (props.realtimeUpdates) {
+    startRealtimeUpdates()
+  }
+})
+
+onBeforeUnmount(() => {
+  stopRealtimeUpdates()
 })
 </script>
 

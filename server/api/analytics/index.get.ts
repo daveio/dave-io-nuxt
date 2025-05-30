@@ -4,7 +4,8 @@ import {
   getKVMetrics,
   getTimeRangeBoundaries,
   parseAnalyticsResults,
-  queryAnalyticsEngine
+  queryAnalyticsEngine,
+  queryTimeSeriesData
 } from "~/server/utils/analytics"
 import { requireAPIAuth } from "~/server/utils/auth-helpers"
 import { getCloudflareEnv, getKVNamespace } from "~/server/utils/cloudflare"
@@ -65,8 +66,11 @@ export default defineEventHandler(async (event) => {
     // Calculate time boundaries for the request
     const { start: _start, end: _end } = getTimeRangeBoundaries(params.timeRange, params.customStart, params.customEnd)
 
-    // Query real Analytics Engine data for detailed insights
-    const engineResults = await queryAnalyticsEngine(event, params)
+    // Query real Analytics Engine data for detailed insights and time-series
+    const [engineResults, timeSeriesData] = await Promise.all([
+      queryAnalyticsEngine(event, params),
+      queryTimeSeriesData(event, params)
+    ])
     const events = parseAnalyticsResults(engineResults)
 
     // Aggregate real analytics events into comprehensive metrics
@@ -75,6 +79,7 @@ export default defineEventHandler(async (event) => {
     // Merge KV metrics (fast queries) with Analytics Engine data (detailed analysis)
     const metrics: AnalyticsMetrics = {
       timeframe: aggregatedMetrics.timeframe,
+      timeSeries: timeSeriesData,
       overview: {
         // Use KV for accurate request counts, Analytics Engine for calculated metrics
         totalRequests: kvMetrics.totalRequests || aggregatedMetrics.overview.totalRequests,

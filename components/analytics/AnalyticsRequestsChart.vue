@@ -64,25 +64,35 @@ const metricOptions = [
   { value: "unique_visitors", label: "Visitors" }
 ]
 
-// Real time series data from Analytics Engine using useChartData
-const { formatTimeSeriesData } = useChartData()
+// Real time series data from Analytics Engine
 
 const chartData = computed(() => {
-  const field = selectedMetric.value === "response_time" ? "averageResponseTime" : "totalRequests"
-  const timeSeriesData = formatTimeSeriesData(props.metrics, field)
+  const field = selectedMetric.value === "response_time" ? "responseTime" : "requests"
 
-  return timeSeriesData.map((point) => ({
-    timestamp: point.timestamp,
-    label: point.label,
-    total: point.value,
-    successful: selectedMetric.value === "requests" ? Math.round(point.value * 0.85) : point.value,
-    failed: selectedMetric.value === "requests" ? Math.round(point.value * 0.15) : 0,
-    responseTime: selectedMetric.value === "response_time" ? point.value : props.metrics.overview.averageResponseTime
-  }))
+  if (!props.metrics.timeSeries) {
+    throw new Error("Time series data not available")
+  }
+
+  const timeSeriesData = props.metrics.timeSeries[field]
+  if (!timeSeriesData) {
+    throw new Error(`Time series data not available for field: ${field}`)
+  }
+
+  return timeSeriesData.map((point) => {
+    const date = new Date(point.timestamp)
+    const formattedLabel = formatTimeLabel(date, props.metrics.timeframe.range)
+
+    return {
+      timestamp: point.timestamp,
+      label: formattedLabel,
+      total: point.value,
+      successful: selectedMetric.value === "requests" ? Math.round(point.value * 0.85) : point.value,
+      failed: selectedMetric.value === "requests" ? Math.round(point.value * 0.15) : 0,
+      responseTime: selectedMetric.value === "response_time" ? point.value : props.metrics.overview.averageResponseTime
+    }
+  })
 })
 
-// TODO: Integrate formatTimeLabel with chart data generation for proper time-based label formatting
-// biome-ignore lint/correctness/noUnusedVariables: Will be used when chart label formatting is implemented
 function formatTimeLabel(date: Date, range: string): string {
   switch (range) {
     case "1h":

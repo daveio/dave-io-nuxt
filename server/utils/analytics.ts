@@ -339,6 +339,15 @@ export function aggregateAnalyticsMetrics(
       end: end.toISOString(),
       range: timeRange
     },
+    timeSeries: {
+      requests: [],
+      redirects: [],
+      auth: [],
+      ai: [],
+      responseTime: [],
+      errors: [],
+      rateLimits: []
+    },
     overview: {
       totalRequests,
       successfulRequests,
@@ -538,7 +547,7 @@ function buildAnalyticsEngineQuery(params: AnalyticsQueryParams): string {
   // - index2: specific identifier (slug, tokenSubject, operation, etc.)
 
   const selectClause = `
-    SELECT 
+    SELECT
       timestamp,
       blob1,
       blob2,
@@ -818,4 +827,220 @@ export function getAnalyticsCacheKey(params: AnalyticsQueryParams): string {
   const filters = [timeRange, eventTypes?.join(",") || "all", country || "all", tokenSubject || "all"].join(":")
 
   return `analytics:cache:${filters}`
+}
+
+/**
+ * Build SQL query for time-series data with proper time buckets
+ */
+export function buildTimeSeriesQuery(params: AnalyticsQueryParams): string {
+  const { start, end } = getTimeRangeBoundaries(params.timeRange, params.customStart, params.customEnd)
+
+  // Determine time bucket size based on range
+  let timeBucket: string
+  switch (params.timeRange) {
+    case "1h":
+      timeBucket = "INTERVAL 5 MINUTE" // 5-minute buckets for 1 hour
+      break
+    case "24h":
+      timeBucket = "INTERVAL 1 HOUR" // 1-hour buckets for 24 hours
+      break
+    case "7d":
+      timeBucket = "INTERVAL 6 HOUR" // 6-hour buckets for 7 days
+      break
+    case "30d":
+      timeBucket = "INTERVAL 1 DAY" // 1-day buckets for 30 days
+      break
+    default:
+      timeBucket = "INTERVAL 1 HOUR"
+  }
+
+  let whereClause = `timestamp >= '${start.toISOString()}' AND timestamp <= '${end.toISOString()}'`
+
+  if (params.eventTypes && params.eventTypes.length > 0) {
+    const types = params.eventTypes.map((t) => `'${t}'`).join(", ")
+    whereClause += ` AND index1 IN (${types})`
+  }
+
+  if (params.country) {
+    whereClause += ` AND blob6 = '${params.country}'`
+  }
+
+  if (params.tokenSubject) {
+    whereClause += ` AND blob3 = '${params.tokenSubject}'`
+  }
+
+  return `
+    SELECT
+      toStartOfInterval(timestamp, ${timeBucket}) as time_bucket,
+      index1 as event_type,
+      COUNT(*) as event_count,
+      AVG(double1) as avg_processing_time,
+      SUM(CASE WHEN blob2 = 'success' THEN 1 ELSE 0 END) as success_count,
+      SUM(CASE WHEN blob2 != 'success' THEN 1 ELSE 0 END) as error_count
+    FROM analytics_dataset
+    WHERE ${whereClause}
+    GROUP BY time_bucket, event_type
+    ORDER BY time_bucket DESC, event_type
+  `.trim()
+}
+
+/**
+ * Query Analytics Engine for time-series data and convert to TimeSeriesData
+ */
+export async function queryTimeSeriesData(
+  _event: H3Event,
+  params: AnalyticsQueryParams
+): Promise<import("~/types/analytics").TimeSeriesData> {
+  const apiToken = getEnvironmentVariable("CLOUDFLARE_API_TOKEN", true)
+  const accountId = getEnvironmentVariable("CLOUDFLARE_ACCOUNT_ID", true)
+
+  if (!apiToken || !accountId) {
+    throw new Error("CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are required for time-series queries")
+  }
+
+  try {
+    const client = new Cloudflare({
+      apiToken: apiToken
+    })
+
+    const sqlQuery = buildTimeSeriesQuery(params)
+
+    // Execute time-series query
+    const response = (await client.post(`/accounts/${accountId}/analytics_engine/sql`, {
+      body: sqlQuery
+    })) as AnalyticsEngineSQLResponse
+
+    if (!response.success) {
+      throw new Error(`Time-series query failed: ${response.errors.join(", ")}`)
+    }
+
+    // Transform response to TimeSeriesData structure
+    return transformTimeSeriesResponse(response.result.data, params)
+  } catch (error) {
+    console.error("Time-series query failed:", error)
+
+    if (error instanceof Cloudflare.APIError) {
+      throw new Error(`Analytics Engine API error: ${error.status} - ${error.message}`)
+    }
+
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    throw new Error(`Time-series query failed: ${errorMessage}`)
+  }
+}
+
+/**
+ * Transform Analytics Engine SQL response to TimeSeriesData
+ */
+function transformTimeSeriesResponse(
+  // biome-ignore lint/suspicious/noExplicitAny: SQL response structure is dynamic from Cloudflare API
+  data: any[],
+  params: AnalyticsQueryParams
+): import("~/types/analytics").TimeSeriesData {
+  const result: import("~/types/analytics").TimeSeriesData = {
+    requests: [],
+    redirects: [],
+    auth: [],
+    ai: [],
+    responseTime: [],
+    errors: [],
+    rateLimits: []
+  }
+
+  // Group by time bucket
+  const groupedData = groupBy(data, "time_bucket")
+
+  // Generate complete time series with zero values for missing data points
+  const { start, end } = getTimeRangeBoundaries(params.timeRange, params.customStart, params.customEnd)
+  const timePoints = generateTimePoints(start, end, params.timeRange)
+
+  for (const timePoint of timePoints) {
+    const timestamp = timePoint.toISOString()
+    const bucketData = groupedData[timestamp] || []
+
+    // Aggregate data for this time bucket
+    let totalRequests = 0
+    let redirects = 0
+    let auth = 0
+    let ai = 0
+    let errors = 0
+    let rateLimits = 0
+    let totalResponseTime = 0
+    let responseTimeCount = 0
+
+    for (const row of bucketData) {
+      const eventType = row.event_type
+      const count = Number(row.event_count) || 0
+      const avgTime = Number(row.avg_processing_time) || 0
+      const errorCount = Number(row.error_count) || 0
+
+      totalRequests += count
+
+      switch (eventType) {
+        case "redirect":
+          redirects += count
+          break
+        case "auth":
+          auth += count
+          break
+        case "ai":
+          ai += count
+          if (avgTime > 0) {
+            totalResponseTime += avgTime * count
+            responseTimeCount += count
+          }
+          break
+        case "rate_limit":
+          rateLimits += count
+          break
+      }
+
+      errors += errorCount
+    }
+
+    // Calculate average response time for this bucket
+    const avgResponseTime = responseTimeCount > 0 ? totalResponseTime / responseTimeCount : 0
+
+    result.requests.push({ timestamp, value: totalRequests })
+    result.redirects.push({ timestamp, value: redirects })
+    result.auth.push({ timestamp, value: auth })
+    result.ai.push({ timestamp, value: ai })
+    result.responseTime.push({ timestamp, value: avgResponseTime })
+    result.errors.push({ timestamp, value: errors })
+    result.rateLimits.push({ timestamp, value: rateLimits })
+  }
+
+  return result
+}
+
+/**
+ * Generate time points for a given range to ensure complete time series
+ */
+function generateTimePoints(start: Date, end: Date, range: AnalyticsTimeRange): Date[] {
+  const points: Date[] = []
+  let current = new Date(start)
+
+  let increment: number
+  switch (range) {
+    case "1h":
+      increment = 5 * 60 * 1000 // 5 minutes
+      break
+    case "24h":
+      increment = 60 * 60 * 1000 // 1 hour
+      break
+    case "7d":
+      increment = 6 * 60 * 60 * 1000 // 6 hours
+      break
+    case "30d":
+      increment = 24 * 60 * 60 * 1000 // 1 day
+      break
+    default:
+      increment = 60 * 60 * 1000 // 1 hour
+  }
+
+  while (current <= end) {
+    points.push(new Date(current))
+    current = new Date(current.getTime() + increment)
+  }
+
+  return points
 }

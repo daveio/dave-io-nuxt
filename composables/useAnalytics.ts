@@ -290,22 +290,22 @@ export function useTimeRange() {
  */
 export function useChartData() {
   /**
-   * Format time series data for charts - REAL DATA ONLY
-   *
-   * TODO: This function currently generates fake time-series data by distributing
-   * aggregated metrics across artificial time intervals. This violates the NO MOCK DATA rule.
-   *
-   * REQUIRED: Implement real time-series data by:
-   * 1. Querying Analytics Engine with time-based GROUP BY clauses
-   * 2. Returning actual event timestamps and counts per interval
-   * 3. Using SQL aggregation instead of fake distribution
-   *
-   * Until real implementation: throw error to surface missing functionality
+   * Format time series data for charts using real Analytics Engine data
    */
-  function formatTimeSeriesData(_metrics: AnalyticsMetrics, field: string): never {
-    throw new Error(
-      `Time series data for ${field} requires real Analytics Engine time-based queries. Current implementation artificially distributes aggregate data across fake intervals, which violates the NO MOCK DATA rule. Implement proper SQL GROUP BY time intervals.`
-    )
+  function formatTimeSeriesData(metrics: AnalyticsMetrics, field: string): Array<{ time: string; value: number }> {
+    if (!metrics.timeSeries) {
+      throw new Error(`Time series data not available for field: ${field}`)
+    }
+
+    const data = metrics.timeSeries[field as keyof typeof metrics.timeSeries]
+    if (!data) {
+      throw new Error(`Unknown time series field: ${field}`)
+    }
+
+    return data.map((point) => ({
+      time: point.timestamp,
+      value: point.value
+    }))
   }
 
   /**

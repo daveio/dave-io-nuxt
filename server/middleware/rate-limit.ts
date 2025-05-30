@@ -713,3 +713,6 @@ export async function checkRateLimit(
     totalRequests: status.totalRequests
   }
 }
+
+// Export the middleware as default for Nuxt with eventHandler wrapper
+export default defineEventHandler(rateLimitMiddleware)

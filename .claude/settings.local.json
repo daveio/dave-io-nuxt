@@ -11,7 +11,8 @@
       "Bash(bun add zod jose)",
       "mcp__sharedMemory__search_nodes",
       "mcp__sharedMemory__create_entities",
-      "mcp__cloudflareDocumentation__search_cloudflare_documentation"
+      "mcp__cloudflareDocumentation__search_cloudflare_documentation",
+      "mcp__pieces__create_pieces_memory"
     ]
   },
   "enableAllProjectMcpServers": false
