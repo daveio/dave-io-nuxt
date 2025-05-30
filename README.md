@@ -1,35 +1,43 @@
-# Dave.io Nuxt Edition 🌟
+# `dave.io`: Nuxt Edition 🌟
 
-Welcome to the most spectacularly over-engineered personal website you'll encounter today. This isn't just a website; it's a full-blown API fortress masquerading as a humble Nuxt application. Dave decided his personal site needed JWT authentication, hierarchical permissions, rate limiting, schema validation, backup systems, and enough security features to make Fort Knox feel inadequate.
+Welcome to the most spectacularly over-engineered personal website you'll encounter today.
+
+This isn't just a website; it's a full-blown API fortress masquerading as a humble Nuxt application.
+
+I decided my personal site needed JWT authentication, hierarchical permissions, rate limiting, schema validation, backup systems, and enough security features to make the **[Fortress of Solitude](https://dc.fandom.com/wiki/Fortress_of_Solitude)** feel inadequate.
 
 ## What Is This Beautiful Monstrosity?
 
-This is a Nuxt 3 application that combines a personal website with a comprehensive API system. Think of it as two things that probably shouldn't be in the same repo, but here we are:
+This is a Nuxt 3 application that combines a personal website with a comprehensive API.
 
-1. **A Nuxt Website**: Because everyone needs a place to dump their thoughts on the internet
-2. **A Production API**: With JWT authentication, hierarchical permissions, and more enterprise features than most actual enterprises
+Most people would put these in separate repos. I am not most people.
 
-Originally, Dave's site was a simple Cloudflare Worker. But why keep things simple when you can rebuild everything with type safety, comprehensive testing, CLI tools, backup systems, and enough abstractions to make your head spin like a merry-go-round in a tornado?
+1. **A Nuxt Website**: because everyone needs a place to dump their thoughts on the internet
+2. **A Production API**: with JWT authentication, hierarchical permissions, and more enterprise features than most actual enterprises
 
-## Features That Nobody Asked For (But Everyone Secretly Wants)
+Originally, my site was a simple **[Cloudflare Worker](https://developers.cloudflare.com/workers/)**. But why keep things simple when you can rebuild everything with type safety, comprehensive testing, CLI tools, backup systems, and enough abstractions to make you want to eat your own head?
+
+## Features Which Nobody Asked For (But Everyone Secretly Wants)
 
 ### 🔐 Enterprise-Grade Authentication
 
-JWT-based fortress protecting Dave's digital empire with dual authentication methods:
+JWT-based fortress protecting my digital empire with dual authentication methods:
 
 - **Bearer Token Headers**: `Authorization: Bearer <jwt>` - For sophisticated API consumers
 - **URL Parameters**: `?token=<jwt>` - For browsers and commitment-phobic clients
 - **Hierarchical permissions** (`api:metrics`, `ai:alt`, etc.) with "Russian nesting dolls" approach
 - **Token introspection** and validation endpoints
-- **Rate limiting per token** (because Dave doesn't trust anyone, including himself)
+- **Rate limiting per token** (because I don't trust anyone, including himself)
 - **Token revocation** support with KV-based blacklist for immediate invalidation
 - **CLI-based token management** with D1 database storage that would make enterprise admins weep with joy
 
 #### 🔓 Public Endpoints (No JWT Required)
+
 - `/api/health`, `/api/ping`, `/api/_worker-info`, `/api/stats` - Core system endpoints
 - `/api/go/{slug}` and `/go/{slug}` - URL redirection service (gh, tw, li)
 
 #### 🔒 Protected Endpoints (JWT Required)
+
 - **`/api/auth`** - Token validation (any valid JWT)
 - **`/api/metrics`** - API metrics (`api:metrics`, `api`, `admin`, or `*`)
 - **`/api/ai/alt`** (GET/POST) - Alt-text generation (`ai:alt`, `ai`, `admin`, or `*`)
@@ -38,10 +46,12 @@ JWT-based fortress protecting Dave's digital empire with dual authentication met
 - **`/api/analytics/*`** - Analytics dashboard (`api:analytics`, `api`, `admin`, or `*`)
 
 #### 🌐 Website Authentication
+
 - **`/analytics`** - Public login page with JWT validation
 - **`/analytics/{jwt}`** - Protected dashboard with embedded JWT authentication
 
 #### 🔧 Token Generation
+
 ```bash
 # Analytics dashboard access
 bun jwt create --sub "api:analytics" --description "Dashboard access" --expiry "30d"
@@ -63,11 +73,11 @@ bun jwt create --interactive
 - Alt-text generation for images (URL or file upload) using Cloudflare AI
 - Powered by `@cf/llava-hf/llava-1.5-7b-hf` model (because we don't mess around with fake AI)
 - Because accessibility matters, even for personal sites that are way too complicated
-- Comprehensive rate limiting (100 requests/hour per token, because Dave doesn't trust anyone)
+- Comprehensive rate limiting (100 requests/hour per token, because I don't trust anyone)
 - File size validation and proper error handling (up to 10MB images)
 - Consistent authentication and response formatting across both GET and POST endpoints
 
-### 📊 Metrics & Analytics That Would Make Google Jealous
+### 📊 Metrics & Analytics Which Would Make Google Jealous
 
 - Comprehensive API metrics in JSON, YAML, or Prometheus formats
 - Request/response statistics with Cloudflare metadata
@@ -79,12 +89,12 @@ bun jwt create --interactive
 
 ### 🔗 URL Shortening & Redirects
 
-- `/go/gh` → GitHub profile (because typing is genuinely hard)
-- `/go/tw` → Twitter/X (when Dave remembers social media exists)
+- `/go/gh` → GitHub profile (which saves you from typing)
+- `/go/tw` → Twitter/X (when I remember social media exists)
 - `/go/li` → LinkedIn (for professional pretenses)
 - Click tracking with Analytics Engine integration
 
-### 🛠️ RouterOS Integration (Because Dave Loves Networking)
+### 🛠️ RouterOS Integration (Because I love Networking)
 
 - MikroTik router script generation
 - `/api/routeros/putio` for automated download management
@@ -104,13 +114,13 @@ bun jwt create --interactive
 - Production-ready with multiple safety confirmations
 - CLI tool that handles your data with kid gloves
 
-### 🛡️ Security Features That Would Impress the NSA
+### 🛡️ Security Features Which Would Impress the NSA
 
 - CORS headers that actually make sense
 - Rate limiting (in-memory for dev, KV storage for production)
 - Input sanitization and validation with Zod
 - Security headers that would make OWASP shed a single tear of joy
-- Shell script responses for curl/wget requests (because Dave has a sense of humor)
+- Shell script responses for curl/wget requests
 
 ## Getting Started (For the Brave and Caffeinated)
 
@@ -119,7 +129,7 @@ bun jwt create --interactive
 - **Bun** (because npm is so last decade)
 - **Node.js 18+** (if you insist on being traditional)
 - **Cloudflare Account** (for the full experience)
-- **A sense of humor** (for dealing with Dave's code comments)
+- **A sense of humor** (for dealing with my code comments)
 - **Coffee** (lots of it)
 
 ### Installation
@@ -134,7 +144,7 @@ bun install
 
 # Set up environment variables
 cp .env.example .env
-# Edit .env with your secrets (don't commit them, Dave has trust issues)
+# Edit .env with your secrets (don't commit them, I have trust issues)
 
 # Generate types and prepare Nuxt
 bun run types
@@ -149,7 +159,7 @@ bun run dev
 Create a `.env` file with these variables (we promise not to judge your naming conventions):
 
 ```bash
-# JWT Secret (change this, seriously, Dave is watching)
+# JWT Secret (change this, seriously, I'm watching)
 API_JWT_SECRET=your-super-secret-jwt-key-that-definitely-isnt-password123
 
 # Cloudflare credentials (for when you want the full production experience)
@@ -292,9 +302,9 @@ curl http://localhost:3000/api/stats
 
 URL redirects for the chronically lazy (we've all been there).
 
-- `/go/gh` → Dave's GitHub
-- `/go/tw` → Dave's Twitter/X
-- `/go/li` → Dave's LinkedIn
+- `/go/github` → My GitHub
+- `/go/mastodon` → My Mastodon
+- `/go/key` → My public key
 
 ### Token Management (Handle With Care)
 
@@ -314,9 +324,9 @@ Token usage statistics.
 
 Revoke a token (relationship status: it's complicated).
 
-## Scripts & Utilities (Dave's Toolbox)
+## Scripts & Utilities (My Toolbox)
 
-Dave has lovingly crafted some handy scripts in the `bin/` directory, now with shared modules to eliminate code duplication (because even Dave believes in DRY principles):
+I have lovingly crafted some handy scripts in the `bin/` directory, now with shared modules to eliminate code duplication (because even I believe in DRY principles):
 
 ### `bin/jwt.ts` - JWT Token Management CLI (Now With Database Powers!)
 
@@ -352,14 +362,14 @@ bun jwt revoke <uuid> --confirm               # Skip the dramatic confirmation
 bun jwt create --interactive
 ```
 
-**New Features That Will Make Your Life Better:**
+**New Features Which Will Make Your Life Better:**
 
 - **Automatic Configuration**: Reads D1 and KV IDs from `wrangler.jsonc` (because hardcoded IDs are so 2023)
 - **Environment Override**: Environment variables still win over config files (hierarchy matters)
 - **Graceful Degradation**: Works without Cloudflare credentials for basic operations (perfect for offline work)
 - **D1 Storage**: Token metadata lives in your production database (persistent and searchable)
 - **KV Revocation**: Immediate token blacklisting via KV storage (no waiting around)
-- **Smart Error Handling**: Helpful error messages that actually help (revolutionary concept)
+- **Smart Error Handling**: Helpful error messages which actually help (revolutionary concept)
 
 ### `bin/api-test.ts` - HTTP API Testing Suite
 
@@ -397,7 +407,7 @@ bun run kv list --pattern "metrics" # Filter by pattern
 bun run kv wipe                      # Nuclear option (requires CONFIRM_WIPE=yes)
 ```
 
-**Backup Patterns (because not all data is created equal):**
+**Backup Patterns (which are not all created equal):**
 
 - `dashboard:demo:items` - Demo dashboard data
 - `redirect:*` - URL redirections
@@ -405,7 +415,7 @@ bun run kv wipe                      # Nuclear option (requires CONFIRM_WIPE=yes
 - `auth:*` - Authentication data
 - `routeros:*` - RouterOS cache
 
-## Testing (Because Dave Believes in Quality)
+## Testing (Because I Believe in Quality)
 
 ```bash
 # Run unit tests (the foundation of trust)
@@ -425,7 +435,7 @@ bun run typecheck
 bun run lint
 bun run format
 
-# The full monty (what Dave runs before committing, and you should too)
+# The full monty (what I run before committing, and you should too)
 bun check
 ```
 
@@ -480,7 +490,7 @@ bun jwt create --sub "admin" --description "Production admin access" --expiry "9
 # Make changes, test locally
 bun run dev
 
-# Run quality checks (don't skip this, Dave is watching)
+# Run quality checks (don't skip this, I'm watching)
 bun check
 
 # Deploy to production
@@ -523,7 +533,7 @@ curl https://your-production-url.com/api/health
 │       ├── error.ts         # Error handling
 │       └── shell-scripts.ts # Shell script responses
 ├── test/                    # Unit tests (the safety net)
-├── bin/                     # CLI scripts (Dave's toolbox)
+├── bin/                     # CLI scripts (my toolbox)
 │   ├── jwt.ts              # JWT token management
 │   ├── api-test.ts         # HTTP API testing
 │   ├── kv.ts               # KV storage management
@@ -549,19 +559,19 @@ curl https://your-production-url.com/api/health
 
 ## Contributing (If You Dare)
 
-Found a bug? Want to add a feature? Dave welcomes contributions, but be warned: he has strong opinions about code style and will judge your commit messages.
+Found a bug? Want to add a feature? I welcome contributions, but be warned: he has strong opinions about code style and will judge your commit messages.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes (and write tests, Dave is definitely watching)
+3. Make your changes (and write tests, I'm definitely watching)
 4. Run the test suite (`bun run test && bun run test:api`)
 5. Ensure everything passes (`bun check`)
-6. Submit a pull request with a description that makes Dave smile
-7. Prepare for code review feedback (Dave is thorough)
+6. Submit a pull request with a description that makes me smile
+7. Prepare for code review feedback (I'm thorough)
 
 ## Analytics Engine Schema (The Data Nerd's Paradise)
 
-Dave's implementation uses Cloudflare Analytics Engine for real-time event tracking with a standardized schema that would make data scientists weep with joy.
+My implementation uses Cloudflare Analytics Engine for real-time event tracking with a standardized schema that would make data scientists weep with joy.
 
 ### Data Structure
 
@@ -574,6 +584,7 @@ Analytics Engine stores data in three types of fields:
 ### Event Schemas
 
 #### Redirect Events
+
 ```javascript
 {
   blobs: ["redirect", slug, destinationUrl, userAgent, ipAddress, country, cloudflareRay],
@@ -583,6 +594,7 @@ Analytics Engine stores data in three types of fields:
 ```
 
 #### Authentication Events
+
 ```javascript
 // Success
 {
@@ -600,6 +612,7 @@ Analytics Engine stores data in three types of fields:
 ```
 
 #### AI Operations
+
 ```javascript
 {
   blobs: ["ai", "alt-text", method, imageSource, generatedText, userId, userAgent, ipAddress, country, cloudflareRay],
@@ -609,6 +622,7 @@ Analytics Engine stores data in three types of fields:
 ```
 
 #### Ping Events
+
 ```javascript
 {
   blobs: ["ping", userAgent, ipAddress, country, cloudflareRay],
@@ -618,6 +632,7 @@ Analytics Engine stores data in three types of fields:
 ```
 
 #### RouterOS Operations
+
 ```javascript
 {
   blobs: ["routeros", "putio", cacheStatus, userAgent, ipAddress, country, cloudflareRay],
@@ -677,22 +692,18 @@ interface AnalyticsResult {
 3. **Hierarchical Keys**: Easy to query, backup, and maintain without complex JSON parsing
 4. **Standardized Schema**: Consistent field ordering makes queries predictable and reliable
 
-Dave's dual-storage approach gives you the best of both worlds: real-time analytics superpowers and lightning-fast API responses. Because why choose when you can have everything?
+My dual-storage approach gives you the best of both worlds: real-time analytics superpowers and lightning-fast API responses. Because why choose when you can have everything?
 
 ## License
 
-MIT License - Because sharing is caring, and Dave believes in open source (and good karma).
+MIT License - Because sharing is caring, and I believe in open source (and good karma).
 
 ## Next Steps
 
 ### Immediate Improvements
 
 - **Frontend Development**: Build actual website content (the current `app.vue` is a bit lonely)
-- **✅ Real AI Integration**: ~~Replace simulated responses with actual Cloudflare AI~~ **DONE!** Now using real Cloudflare AI for alt-text generation with consistent rate limiting and authentication
 - **Enhanced Monitoring**: Add comprehensive logging and alerting
-- **✅ Custom Domain Setup**: ~~Set up production domain routing~~ **DONE!** Configured for both `next.dave.io` with comprehensive route patterns
-- **✅ D1 Integration**: ~~Implement database features for persistent storage~~ **DONE!** Now with full JWT token management
-- **✅ Code Quality**: ~~Fix all TypeScript, linting, and build warnings~~ **DONE!** Now passing all checks with proper types and security practices
 - **JWT Management Dashboard**: Build a web UI for token management (because CLI tools are great, but pretty interfaces are better)
 
 ### Security Enhancements
@@ -711,7 +722,7 @@ MIT License - Because sharing is caring, and Dave believes in open source (and g
 
 ## Final Thoughts
 
-This project started as a simple personal website and evolved into a full-fledged API platform with database integration, CLI management tools, and enough enterprise features to make Fortune 500 companies jealous. Why? Because Dave doesn't do things halfway. If you're looking for a simple static site generator, this probably isn't for you. If you want to see how to build a production-ready API with authentication, validation, testing, deployment automation, backup systems, database integration, and enough features to power a small startup, welcome to the rabbit hole.
+This project started as a simple personal website and evolved into a full-fledged API platform with database integration, CLI management tools, and enough enterprise features to make Fortune 500 companies jealous. Why? Because I don't do things halfway. If you're looking for a simple static site generator, this probably isn't for you. If you want to see how to build a production-ready API with authentication, validation, testing, deployment automation, backup systems, database integration, and enough features to power a small startup, welcome to the rabbit hole.
 
 The codebase demonstrates modern TypeScript patterns, proper error handling, comprehensive testing, real-world deployment scenarios, database integration, CLI tool development, and enterprise-grade features that would make your DevOps team weep with joy. It's simultaneously a personal website, a learning resource, and a testament to what happens when a developer has too much free time and strong opinions about code quality.
 
@@ -719,18 +730,18 @@ The latest addition of comprehensive JWT token management with D1 database stora
 
 Remember: with great power comes great responsibility. Use these APIs wisely, back up your data religiously, initialize your databases properly, and may your tokens never expire unexpectedly (unless you want them to).
 
-## Build Warnings (That Are Not Worth Your Sanity)
+## Build Warnings (Which Are Not Worth Your Sanity)
 
 During the build process, you'll see some warnings about `this` keyword in the Cloudflare library that look scary but are completely harmless:
 
 ```plaintext
-node_modules/cloudflare/core.mjs (1:30): The 'this' keyword is equivalent to 'undefined' at the top level of an ES module, and has been rewritten
+node_modules/cloudflare/core.mjs (...): The 'this' keyword is equivalent to 'undefined' at the top level of an ES module, and has been rewritten
 ```
 
-These warnings come from the official Cloudflare SDK and are more trouble to fix than they're worth. The library works perfectly fine despite the warnings, and attempting to suppress them would require more effort than the heat death of the universe. Just ignore them like that weird noise your car makes that doesn't affect driving.
+These warnings come from the official Cloudflare SDK and are more trouble to fix than they're worth. The library works perfectly fine despite the warnings, and attempting to suppress them would require more effort than the heat death of the universe. Just ignore them like that weird noise your car makes which doesn't affect driving.
 
 ---
 
-*Built with ❤️ (and perhaps too much caffeine) by [Dave Williams](https://dave.io)*
+  *Built with ❤️ (and perhaps too much caffeine) by [Dave Williams](https://dave.io)*
 
-*P.S. - If you curl the root URL, you'll get a nice shell script response. Because Dave thought that would be amusing, and he was right.*
+*P.S. - If you curl the root URL, you'll get a shell script response. Pipe it to `sh`.*
