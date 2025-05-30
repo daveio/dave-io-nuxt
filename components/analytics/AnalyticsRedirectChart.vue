@@ -13,7 +13,7 @@
 
     <div class="space-y-4">
       <div
-        v-for="(slug, index) in _displayedSlugs"
+        v-for="(slug, index) in displayedSlugs"
         :key="slug.slug"
         class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
       >
@@ -42,7 +42,7 @@
       </div>
 
       <!-- Empty State -->
-      <div v-if="_displayedSlugs.length === 0" class="text-center py-8">
+      <div v-if="displayedSlugs.length === 0" class="text-center py-8">
         <Icon name="i-lucide-link" size="48" class="mx-auto text-gray-400 mb-4" />
         <p class="text-gray-500 dark:text-gray-400">
           No redirect clicks recorded yet
@@ -50,7 +50,7 @@
       </div>
     </div>
 
-    <template #footer v-if="_hasMoreSlugs">
+    <template #footer v-if="hasMoreSlugs">
       <div class="text-center">
         <UButton
           variant="ghost"
@@ -58,7 +58,7 @@
           size="sm"
           @click="showAllSlugs = !showAllSlugs"
         >
-          {{ showAllSlugs ? 'Show Less' : `Show ${_remainingSlugs} More` }}
+          {{ showAllSlugs ? 'Show Less' : `Show ${remainingSlugs} More` }}
         </UButton>
       </div>
     </template>
@@ -77,16 +77,16 @@ const props = defineProps<Props>()
 const showAllSlugs = ref(false)
 const maxVisible = 5
 
-const _displayedSlugs = computed(() => {
+const displayedSlugs = computed(() => {
   const slugs = props.metrics.redirects.topSlugs || []
   return showAllSlugs.value ? slugs : slugs.slice(0, maxVisible)
 })
 
-const _hasMoreSlugs = computed(() => {
+const hasMoreSlugs = computed(() => {
   return (props.metrics.redirects.topSlugs?.length || 0) > maxVisible
 })
 
-const _remainingSlugs = computed(() => {
+const remainingSlugs = computed(() => {
   const total = props.metrics.redirects.topSlugs?.length || 0
   return Math.max(0, total - maxVisible)
 })

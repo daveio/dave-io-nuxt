@@ -102,14 +102,14 @@ interface Props {
 const props = defineProps<Props>()
 
 // Computed values
-const _processingSpeedColor = computed(() => {
+const processingSpeedColor = computed(() => {
   const time = props.metrics.ai.averageProcessingTime
   if (time < 500) return "green"
   if (time < 1500) return "yellow"
   return "red"
 })
 
-const _processingSpeedLabel = computed(() => {
+const processingSpeedLabel = computed(() => {
   const time = props.metrics.ai.averageProcessingTime
   if (time < 500) return "Fast"
   if (time < 1000) return "Good"
@@ -117,7 +117,7 @@ const _processingSpeedLabel = computed(() => {
   return "Slow"
 })
 
-const _successRate = computed(() => {
+const successRate = computed(() => {
   // Calculate real success rate from AI operations data
   const totalOps = props.metrics.ai.totalOperations
   if (totalOps === 0) {
@@ -143,7 +143,7 @@ const performanceScore = computed(() => {
   return Math.max(0, Math.min(100, score))
 })
 
-const _performanceBarColor = computed(() => {
+const performanceBarColor = computed(() => {
   const score = performanceScore.value
   if (score >= 80) return "bg-green-500"
   if (score >= 60) return "bg-yellow-500"

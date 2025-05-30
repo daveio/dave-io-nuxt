@@ -1,7 +1,7 @@
 # CLAUDE.md - AI Agent Instructions
 
 ## ⚠️ CRITICAL DEVELOPMENT RULE: ABSOLUTELY NO MOCK DATA
-**ZERO TOLERANCE FOR MOCK DATA, SIMULATIONS, OR FAKE RESPONSES**. Use ONLY real `env.ANALYTICS.sql()`, `env.AI.run()`, `env.DATA.get/put()` calls.
+**ZERO TOLERANCE FOR MOCK DATA, SIMULATIONS, OR FAKE RESPONSES**. Use ONLY real `env.ANALYTICS.sql()`, `env.AI.run()`, `env.DATA.get/put()` calls. Mocks or simulations are allowable in tests.
 
 **FORBIDDEN PATTERNS:**
 - ❌ `Math.random()` for any data generation
