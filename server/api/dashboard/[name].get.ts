@@ -1,5 +1,4 @@
 import { getCloudflareEnv, getKVNamespace } from "~/server/utils/cloudflare"
-import { shouldAllowMockData } from "~/server/utils/environment"
 import { parseRSSFeed } from "~/server/utils/formatters"
 import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 

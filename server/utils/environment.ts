@@ -54,10 +54,3 @@ export function isDevelopment(): boolean {
 export function isProduction(): boolean {
   return getEnvironmentConfig().environment === "production"
 }
-
-/**
- * Check if mock data should be allowed
- */
-export function shouldAllowMockData(): boolean {
-  return getEnvironmentConfig().allowMockData
-}

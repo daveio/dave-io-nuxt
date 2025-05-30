@@ -1,6 +1,7 @@
 import { parseISO, subDays, subHours } from "date-fns"
 import type { H3Event } from "h3"
 import { groupBy, mean, sortBy, sum, take } from "lodash-es"
+import Cloudflare from "cloudflare"
 import type {
   AIEvent,
   APIRequestEvent,
@@ -17,6 +18,7 @@ import type {
   RouterOSEvent
 } from "~/types/analytics"
 import { getCloudflareEnv } from "./cloudflare"
+import { getEnvironmentVariable } from "./environment"
 
 /**
  * Calculate time range boundaries
@@ -433,37 +435,217 @@ export async function getKVMetrics(kv: KVNamespace): Promise<KVMetrics> {
 }
 
 /**
- * Query Analytics Engine using Cloudflare REST API
+ * Analytics Engine SQL API response structure
+ */
+interface AnalyticsEngineSQLResponse {
+  success: boolean
+  errors: string[]
+  messages: string[]
+  result: {
+    data: Array<Record<string, unknown>>
+    rows: number
+    meta: {
+      duration: number
+      rows_read: number
+      bytes_read: number
+    }
+  }
+}
+
+/**
+ * Query Analytics Engine using Cloudflare SQL API
+ * 
+ * This implementation queries our custom Analytics Engine dataset "NEXT_DAVE_IO_ANALYTICS"
+ * using the SQL API. The dataset contains structured events with:
+ * - blob1-blob10: String fields (event type, userAgent, IP, country, etc.)
+ * - double1-double20: Numeric fields (processing times, counts, status codes, etc.) 
+ * - index1-index5: Indexed fields for fast filtering (event type, identifiers)
+ * - timestamp: Event timestamp
+ * - _sample_interval: Sampling weight for aggregations
  */
 export async function queryAnalyticsEngine(
   event: H3Event,
   params: AnalyticsQueryParams
 ): Promise<AnalyticsEngineResult[]> {
+  // biome-ignore lint/correctness/noUnusedVariables: env would be used for Analytics Engine binding check but not needed for SQL API calls
   const env = getCloudflareEnv(event)
 
-  if (!env.ANALYTICS) {
-    throw new Error("Analytics Engine not available")
+  // Check for required environment variables
+  const apiToken = getEnvironmentVariable("CLOUDFLARE_API_TOKEN", true)
+  const accountId = getEnvironmentVariable("CLOUDFLARE_ACCOUNT_ID", true)
+
+  if (!apiToken || !accountId) {
+    throw new Error("CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are required for Analytics Engine queries")
   }
 
-  // Build Analytics Engine SQL query
-  const sqlQuery = buildAnalyticsQuery(params)
-
   try {
-    // CONSTRAINT: Analytics Engine in Workers runtime does not support direct SQL querying
-    // Analytics Engine only supports writing data points via writeDataPoint()
-    // Analytics querying requires Cloudflare's GraphQL API with proper credentials
+    // Create Cloudflare client
+    const client = new Cloudflare({
+      apiToken: apiToken
+    })
 
-    console.error("Analytics Engine querying not implemented: requires GraphQL API access")
-    console.error("Query attempted:", sqlQuery)
+    // Build SQL query based on parameters
+    const sqlQuery = buildAnalyticsEngineQuery(params)
+    
+    // Make request to Analytics Engine SQL API using Cloudflare client
+    const response = await client.post(`/accounts/${accountId}/analytics_engine/sql`, {
+      body: sqlQuery
+    }) as AnalyticsEngineSQLResponse
 
-    // Return empty array - this is a service limitation, not mock data
-    // See: https://developers.cloudflare.com/analytics/graphql-api/
-    return []
+    if (!response.success) {
+      throw new Error(`Analytics Engine SQL query failed: ${response.errors.join(", ")}`)
+    }
+
+    // Transform SQL response to AnalyticsEngineResult[]
+    return transformSQLResponseToAnalyticsResults(response.result.data)
+
   } catch (error) {
-    console.error("Analytics Engine query preparation failed:", error)
+    console.error("Analytics Engine SQL query failed:", error)
+    
+    // Handle Cloudflare API errors
+    if (error instanceof Cloudflare.APIError) {
+      throw new Error(`Analytics Engine API error: ${error.status} - ${error.message}`)
+    }
+    
     const errorMessage = error instanceof Error ? error.message : String(error)
     throw new Error(`Analytics Engine query failed: ${errorMessage}`)
   }
+}
+
+/**
+ * Build Analytics Engine SQL query based on query parameters
+ */
+function buildAnalyticsEngineQuery(params: AnalyticsQueryParams): string {
+  const { timeRange, customStart, customEnd, eventTypes, limit = 1000, offset = 0 } = params
+
+  // Calculate time boundaries
+  const { start, end } = getTimeRangeBoundaries(timeRange, customStart, customEnd)
+
+  // Build WHERE conditions
+  const conditions: string[] = [
+    `timestamp >= '${start}'`,
+    `timestamp <= '${end}'`
+  ]
+
+  // Filter by event types if specified
+  if (eventTypes && eventTypes.length > 0) {
+    const eventTypeConditions = eventTypes.map(type => `index1 = '${type}'`).join(" OR ")
+    conditions.push(`(${eventTypeConditions})`)
+  }
+
+  // Build the main query with our dataset structure
+  // Based on our writeDataPoint structure:
+  // - blob1: event type (redirect, auth, ai, etc.)
+  // - blob2-blob10: various string data (slug, endpoint, userAgent, ip, country, etc.)
+  // - double1-double2: numeric data (counts, processing time, etc.)
+  // - index1: event type for fast filtering
+  // - index2: specific identifier (slug, tokenSubject, operation, etc.)
+  
+  const selectClause = `
+    SELECT 
+      timestamp,
+      blob1,
+      blob2,
+      blob3,
+      blob4,
+      blob5,
+      blob6,
+      blob7,
+      blob8,
+      blob9,
+      blob10,
+      double1,
+      double2,
+      double3,
+      double4,
+      double5,
+      double6,
+      double7,
+      double8,
+      double9,
+      double10,
+      double11,
+      double12,
+      double13,
+      double14,
+      double15,
+      double16,
+      double17,
+      double18,
+      double19,
+      double20,
+      index1,
+      index2,
+      index3,
+      index4,
+      index5,
+      _sample_interval
+  `
+
+  const query = `
+    ${selectClause}
+    FROM NEXT_DAVE_IO_ANALYTICS
+    WHERE ${conditions.join(" AND ")}
+    ORDER BY timestamp DESC
+    LIMIT ${limit}
+    OFFSET ${offset}
+  `
+
+  return query.trim()
+}
+
+/**
+ * Transform SQL API response data to AnalyticsEngineResult[]
+ */
+function transformSQLResponseToAnalyticsResults(data: Array<Record<string, unknown>>): AnalyticsEngineResult[] {
+  return data.map(row => ({
+    // Map timestamp
+    timestamp: row.timestamp as string,
+    
+    // Map blob fields (strings)
+    blob1: row.blob1 as string | undefined,
+    blob2: row.blob2 as string | undefined,
+    blob3: row.blob3 as string | undefined,
+    blob4: row.blob4 as string | undefined,
+    blob5: row.blob5 as string | undefined,
+    blob6: row.blob6 as string | undefined,
+    blob7: row.blob7 as string | undefined,
+    blob8: row.blob8 as string | undefined,
+    blob9: row.blob9 as string | undefined,
+    blob10: row.blob10 as string | undefined,
+
+    // Map double fields (numbers)
+    double1: row.double1 as number | undefined,
+    double2: row.double2 as number | undefined,
+    double3: row.double3 as number | undefined,
+    double4: row.double4 as number | undefined,
+    double5: row.double5 as number | undefined,
+    double6: row.double6 as number | undefined,
+    double7: row.double7 as number | undefined,
+    double8: row.double8 as number | undefined,
+    double9: row.double9 as number | undefined,
+    double10: row.double10 as number | undefined,
+    double11: row.double11 as number | undefined,
+    double12: row.double12 as number | undefined,
+    double13: row.double13 as number | undefined,
+    double14: row.double14 as number | undefined,
+    double15: row.double15 as number | undefined,
+    double16: row.double16 as number | undefined,
+    double17: row.double17 as number | undefined,
+    double18: row.double18 as number | undefined,
+    double19: row.double19 as number | undefined,
+    double20: row.double20 as number | undefined,
+
+    // Map index fields (strings)
+    index1: row.index1 as string | undefined,
+    index2: row.index2 as string | undefined,
+    index3: row.index3 as string | undefined,
+    index4: row.index4 as string | undefined,
+    index5: row.index5 as string | undefined,
+
+    // Map sample interval
+    _sample_interval: row._sample_interval as number | undefined
+  }))
 }
 
 /**
