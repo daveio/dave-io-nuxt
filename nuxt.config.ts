@@ -67,9 +67,12 @@ export default defineNuxtConfig({
     "@nuxt/image",
     "@nuxt/scripts",
     "@nuxt/test-utils",
-    "@nuxt/ui",
+    "@nuxtjs/tailwindcss",
     "@nuxtjs/color-mode",
     "@pinia/nuxt",
     "nitro-cloudflare-dev"
+  ],
+  css: [
+    '~/assets/css/main.css'
   ]
 })
