@@ -3,7 +3,7 @@ import {
   requireAIAuth,
   setRateLimitHeaders
 } from "~/server/utils/auth-helpers"
-import { getCloudflareEnv } from "~/server/utils/cloudflare"
+import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
 import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 import { AiAltTextRequestSchema } from "~/server/utils/schemas"
 
@@ -101,6 +101,21 @@ export default defineEventHandler(async (event) => {
     }
 
     const processingTime = Date.now() - startTime
+
+    // Write analytics data to Analytics Engine
+    try {
+      const cfInfo = getCloudflareRequestInfo(event)
+      if (env?.ANALYTICS) {
+        env.ANALYTICS.writeDataPoint({
+          blobs: ["ai", "alt-text", "post", request.url || "uploaded-file", altText.substring(0, 100), auth.payload?.sub || "anonymous", cfInfo.userAgent, cfInfo.ip, cfInfo.country, cfInfo.ray],
+          doubles: [processingTime, imageData.length], // Processing time and image size
+          indexes: ["ai", "alt-text", auth.payload?.sub || "anonymous"] // For querying AI operations
+        })
+      }
+    } catch (error) {
+      console.error("Failed to write AI analytics:", error)
+      // Continue with response even if analytics fails
+    }
 
     return createApiResponse(
       {

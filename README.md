@@ -38,6 +38,9 @@ Originally, Dave's site was a simple Cloudflare Worker. But why keep things simp
 - Request/response statistics with Cloudflare metadata
 - Perfect for when you want to obsess over your site's performance
 - KV-cached metrics with automatic invalidation
+- **Dual Storage Architecture**: Analytics Engine for detailed event data, KV storage for queryable metrics
+- **Hierarchical KV Keys**: Simple data with kebab-cased keys like `metrics:redirect:gh:clicks`
+- **Real-time Analytics**: Every request, redirect, AI operation, and system event tracked
 
 ### 🔗 URL Shortening & Redirects
 
@@ -520,6 +523,126 @@ Found a bug? Want to add a feature? Dave welcomes contributions, but be warned: 
 5. Ensure everything passes (`bun check`)
 6. Submit a pull request with a description that makes Dave smile
 7. Prepare for code review feedback (Dave is thorough)
+
+## Analytics Engine Schema (The Data Nerd's Paradise)
+
+Dave's implementation uses Cloudflare Analytics Engine for real-time event tracking with a standardized schema that would make data scientists weep with joy.
+
+### Data Structure
+
+Analytics Engine stores data in three types of fields:
+
+- **`blobs`**: String data (up to 10 fields per event)
+- **`doubles`**: Numeric data (up to 20 fields per event)  
+- **`indexes`**: Optimized for querying (up to 5 fields per event)
+
+### Event Schemas
+
+#### Redirect Events
+```javascript
+{
+  blobs: ["redirect", slug, destinationUrl, userAgent, ipAddress, country, cloudflareRay],
+  doubles: [1], // Click count
+  indexes: ["redirect", slug] // For querying all redirects or specific slug
+}
+```
+
+#### Authentication Events
+```javascript
+// Success
+{
+  blobs: ["auth", "success", tokenSubject, userAgent, ipAddress, country, cloudflareRay],
+  doubles: [1], // Auth count
+  indexes: ["auth", tokenSubject]
+}
+
+// Failure
+{
+  blobs: ["auth", "failed", "unknown", userAgent, ipAddress, country, cloudflareRay],
+  doubles: [1], // Failed auth count
+  indexes: ["auth", "failed"]
+}
+```
+
+#### AI Operations
+```javascript
+{
+  blobs: ["ai", "alt-text", method, imageSource, generatedText, userId, userAgent, ipAddress, country, cloudflareRay],
+  doubles: [processingTimeMs, imageSizeBytes], // Performance metrics
+  indexes: ["ai", "alt-text", userId] // For querying AI usage
+}
+```
+
+#### Ping Events
+```javascript
+{
+  blobs: ["ping", userAgent, ipAddress, country, cloudflareRay],
+  doubles: [1], // Ping count
+  indexes: ["ping"] // For health monitoring
+}
+```
+
+#### RouterOS Operations
+```javascript
+{
+  blobs: ["routeros", "putio", cacheStatus, userAgent, ipAddress, country, cloudflareRay],
+  doubles: [ipv4Count, ipv6Count], // Range counts
+  indexes: ["routeros", "putio"] // For infrastructure monitoring
+}
+```
+
+### KV Storage Patterns (The Other Half)
+
+While Analytics Engine handles event streams, KV stores queryable metrics using hierarchical keys:
+
+```bash
+# Metrics for the /api/metrics endpoint
+metrics:requests:total              # "12345"
+metrics:requests:successful         # "12000"
+metrics:requests:failed            # "345"
+metrics:redirect:total:clicks      # "5678"
+metrics:redirect:gh:clicks         # "1234"
+metrics:redirect:tw:clicks         # "567"
+
+# 24-hour rolling metrics
+metrics:24h:total                  # "2345"
+metrics:24h:successful             # "2300"
+metrics:24h:failed                 # "45"
+metrics:24h:redirects              # "123"
+
+# RouterOS cache metrics
+metrics:routeros:cache-hits        # "89"
+metrics:routeros:cache-misses      # "12"
+```
+
+### Querying Analytics Engine
+
+When Cloudflare returns Analytics Engine data, fields are named `blob1`, `blob2`, etc. based on array position:
+
+```typescript
+// For redirect event: ["redirect", "gh", "https://github.com/daveio", ...]
+interface AnalyticsResult {
+  blob1: "redirect"     // Event type
+  blob2: "gh"          // Slug
+  blob3: string        // Destination URL
+  blob4: string        // User agent
+  blob5: string        // IP address
+  blob6: string        // Country
+  blob7: string        // Cloudflare Ray ID
+  double1: number      // Click count (always 1 per event)
+  index1: "redirect"   // Primary index
+  index2: string       // Slug index
+}
+```
+
+### Why This Architecture?
+
+1. **Analytics Engine**: Perfect for high-volume event streams, real-time insights, and historical analysis
+2. **KV Storage**: Ideal for fast queries needed by the metrics API endpoints
+3. **Hierarchical Keys**: Easy to query, backup, and maintain without complex JSON parsing
+4. **Standardized Schema**: Consistent field ordering makes queries predictable and reliable
+
+Dave's dual-storage approach gives you the best of both worlds: real-time analytics superpowers and lightning-fast API responses. Because why choose when you can have everything?
 
 ## License
 

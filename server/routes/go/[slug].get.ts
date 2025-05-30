@@ -1,5 +1,5 @@
-import { getHeader, sendRedirect } from "h3"
-import { getCloudflareEnv, getKVNamespace, getAnalyticsBinding } from "~/server/utils/cloudflare"
+import { getHeader, sendRedirect, setHeader, setResponseStatus } from "h3"
+import { getCloudflareRequestInfo, getCloudflareEnv, getKVNamespace, getAnalyticsBinding } from "~/server/utils/cloudflare"
 import { createApiError, isApiError } from "~/server/utils/response"
 import { UrlRedirectSchema } from "~/server/utils/schemas"
 
@@ -85,14 +85,10 @@ export default defineEventHandler(async (event) => {
     }
 
     // Write analytics data to Analytics Engine
-    const userAgent = getHeader(event, "user-agent") || "unknown"
-    const ip = getHeader(event, "cf-connecting-ip") || getHeader(event, "x-forwarded-for") || "unknown"
-    const cfCountry = getHeader(event, "cf-ipcountry") || "unknown"
-    const cfRay = getHeader(event, "cf-ray") || "unknown"
-
+    const cfInfo = getCloudflareRequestInfo(event)
     try {
       analytics.writeDataPoint({
-        blobs: ["redirect", slug, redirect.url, userAgent, ip, cfCountry, cfRay],
+        blobs: ["redirect", slug, redirect.url, cfInfo.userAgent, cfInfo.ip, cfInfo.country, cfInfo.ray],
         doubles: [1], // Click count
         indexes: ["redirect", slug] // For querying redirects and by slug
       })
@@ -102,11 +98,13 @@ export default defineEventHandler(async (event) => {
     }
 
     console.log(
-      `[REDIRECT] ${slug} -> ${redirect.url} | IP: ${ip} | Country: ${cfCountry} | Ray: ${cfRay} | UA: ${userAgent}`
+      `[REDIRECT] ${slug} -> ${redirect.url} | IP: ${cfInfo.ip} | Country: ${cfInfo.country} | Ray: ${cfInfo.ray} | UA: ${cfInfo.userAgent}`
     )
 
     // Perform redirect (302 Found)
-    return sendRedirect(event, redirect.url, 302)
+    setResponseStatus(event, 302)
+    setHeader(event, 'Location', redirect.url)
+    return
   } catch (error: unknown) {
     console.error("Redirect error:", error)
 

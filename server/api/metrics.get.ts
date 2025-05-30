@@ -12,7 +12,8 @@ async function getMetricsFromAnalytics(
   successful_requests: number
   failed_requests: number
   rate_limited_requests: number
-  last_24h: { total: number; successful: number; failed: number }
+  redirect_clicks: number
+  last_24h: { total: number; successful: number; failed: number; redirects: number }
 }> {
   if (!analytics || !kv) {
     throw new Error("Analytics Engine and KV storage are required for metrics")
@@ -45,10 +46,16 @@ async function getMetricsFromAnalytics(
     )
 
     // Get 24h metrics from KV using batch helper
-    const [last24hTotal = 0, last24hSuccessful = 0, last24hFailed = 0] = await batchKVGet(kv, [
+    const [last24hTotal = 0, last24hSuccessful = 0, last24hFailed = 0, last24hRedirects = 0] = await batchKVGet(kv, [
       "metrics:24h:total",
       "metrics:24h:successful",
-      "metrics:24h:failed"
+      "metrics:24h:failed",
+      "metrics:24h:redirects"
+    ])
+    
+    // Get redirect click metrics from KV
+    const [totalRedirectClicks = 0] = await batchKVGet(kv, [
+      "metrics:redirect:total:clicks"
     ])
 
     const metricsData = {
@@ -56,10 +63,12 @@ async function getMetricsFromAnalytics(
       successful_requests: successfulRequests,
       failed_requests: failedRequests,
       rate_limited_requests: rateLimitedRequests,
+      redirect_clicks: totalRedirectClicks,
       last_24h: {
         total: last24hTotal,
         successful: last24hSuccessful,
-        failed: last24hFailed
+        failed: last24hFailed,
+        redirects: last24hRedirects
       }
     }
 

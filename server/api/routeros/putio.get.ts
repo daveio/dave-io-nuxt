@@ -1,4 +1,5 @@
 import { generateRouterOSScript, handleResponseFormat } from "~/server/utils/formatters"
+import { getCloudflareRequestInfo } from "~/server/utils/cloudflare"
 import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 
 interface BGPPrefix {
@@ -152,7 +153,7 @@ export default defineEventHandler(async (event) => {
     // Format parameter will be handled by handleResponseFormat
 
     // Get environment bindings
-    const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
+    const env = event.context.cloudflare?.env as { DATA?: KVNamespace; ANALYTICS?: AnalyticsEngineDataset }
 
     if (!env?.DATA) {
       throw createApiError(503, "RouterOS service not available")
@@ -175,6 +176,21 @@ export default defineEventHandler(async (event) => {
       } catch (error) {
         console.error("Failed to update cache miss metrics:", error)
       }
+    }
+
+    // Write analytics data to Analytics Engine
+    try {
+      const cfInfo = getCloudflareRequestInfo(event)
+      if (env?.ANALYTICS) {
+        env.ANALYTICS.writeDataPoint({
+          blobs: ["routeros", "putio", data.cacheHit ? "cache-hit" : "cache-miss", cfInfo.userAgent, cfInfo.ip, cfInfo.country, cfInfo.ray],
+          doubles: [data.ipv4Ranges.length, data.ipv6Ranges.length], // IPv4 and IPv6 range counts
+          indexes: ["routeros", "putio"] // For querying RouterOS operations
+        })
+      }
+    } catch (error) {
+      console.error("Failed to write RouterOS analytics:", error)
+      // Continue with response even if analytics fails
     }
 
     // Return based on format using shared formatter

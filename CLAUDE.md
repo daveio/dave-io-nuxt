@@ -628,6 +628,136 @@ When working with this codebase, follow these principles:
 
 This codebase serves as a reference implementation for production-ready serverless APIs with modern TypeScript, comprehensive testing, and enterprise-grade security features. The architecture balances developer experience with performance and maintainability requirements.
 
+## Analytics Engine Implementation
+
+### Dual Storage Architecture
+
+The application implements a sophisticated dual-storage analytics system:
+
+1. **Analytics Engine**: Real-time event streaming for detailed analytics and historical data
+2. **KV Storage**: Fast queryable metrics using hierarchical keys for API endpoints
+
+### Analytics Engine Schema
+
+All events follow a standardized schema with three field types:
+
+- **`blobs`**: String data (up to 10 fields per event)
+- **`doubles`**: Numeric data (up to 20 fields per event)  
+- **`indexes`**: Optimized for querying (up to 5 fields per event)
+
+#### Event Patterns
+
+**Redirect Events**:
+```typescript
+{
+  blobs: ["redirect", slug, destinationUrl, userAgent, ipAddress, country, cloudflareRay],
+  doubles: [1], // Click count
+  indexes: ["redirect", slug] // For querying all redirects or specific slug
+}
+```
+
+**Authentication Events**:
+```typescript
+// Success
+{
+  blobs: ["auth", "success", tokenSubject, userAgent, ipAddress, country, cloudflareRay],
+  doubles: [1], // Auth count
+  indexes: ["auth", tokenSubject]
+}
+
+// Failure
+{
+  blobs: ["auth", "failed", "unknown", userAgent, ipAddress, country, cloudflareRay],
+  doubles: [1], // Failed auth count
+  indexes: ["auth", "failed"]
+}
+```
+
+**AI Operations**:
+```typescript
+{
+  blobs: ["ai", "alt-text", method, imageSource, generatedText, userId, userAgent, ipAddress, country, cloudflareRay],
+  doubles: [processingTimeMs, imageSizeBytes], // Performance metrics
+  indexes: ["ai", "alt-text", userId] // For querying AI usage
+}
+```
+
+**Ping Events**:
+```typescript
+{
+  blobs: ["ping", userAgent, ipAddress, country, cloudflareRay],
+  doubles: [1], // Ping count
+  indexes: ["ping"] // For health monitoring
+}
+```
+
+**RouterOS Operations**:
+```typescript
+{
+  blobs: ["routeros", "putio", cacheStatus, userAgent, ipAddress, country, cloudflareRay],
+  doubles: [ipv4Count, ipv6Count], // Range counts
+  indexes: ["routeros", "putio"] // For infrastructure monitoring
+}
+```
+
+### KV Storage Patterns
+
+KV storage uses hierarchical kebab-cased keys with simple string values:
+
+```bash
+# API Metrics (for /api/metrics endpoint)
+metrics:requests:total              # "12345"
+metrics:requests:successful         # "12000" 
+metrics:requests:failed            # "345"
+metrics:redirect:total:clicks      # "5678"
+metrics:redirect:gh:clicks         # "1234"
+
+# 24-hour rolling metrics
+metrics:24h:total                  # "2345"
+metrics:24h:successful             # "2300"
+metrics:24h:redirects              # "123"
+
+# RouterOS metrics
+metrics:routeros:cache-hits        # "89"
+metrics:routeros:cache-misses      # "12"
+```
+
+### Data Flow Patterns
+
+1. **Metrics Endpoint Data**: Stored in BOTH KV (for fast queries) AND Analytics Engine (for detailed analysis)
+2. **Event-Only Data**: Stored ONLY in Analytics Engine (ping events, detailed auth logs, etc.)
+3. **Exception**: RouterOS put.io data stored as JSON in KV due to unknown object size
+
+### Analytics Engine Query Results
+
+When querying Analytics Engine, Cloudflare returns data with positional field names:
+
+```typescript
+// For redirect event: ["redirect", "gh", "https://github.com/daveio", ...]
+interface AnalyticsResult {
+  blob1: "redirect"     // Event type (blobs[0])
+  blob2: "gh"          // Slug (blobs[1])
+  blob3: string        // Destination URL (blobs[2])
+  blob4: string        // User agent (blobs[3])
+  blob5: string        // IP address (blobs[4])
+  blob6: string        // Country (blobs[5])
+  blob7: string        // Cloudflare Ray ID (blobs[6])
+  double1: number      // Click count (doubles[0])
+  index1: "redirect"   // Primary index (indexes[0])
+  index2: string       // Slug index (indexes[1])
+}
+```
+
+### Analytics Implementation Guidelines
+
+1. **Event Structure**: Always include event type as first blob, maintain consistent field ordering
+2. **User Context**: Include user identification (token subject, IP, country) for all events
+3. **Performance Data**: Use doubles for numeric metrics (processing time, sizes, counts)
+4. **Queryable Indexes**: Include primary event type and relevant secondary indexes
+5. **Error Handling**: Never fail requests due to analytics errors - log and continue
+6. **KV Hierarchical Keys**: Use colon-separated, kebab-cased keys for metrics
+7. **Dual Storage**: Store queryable metrics in both KV and Analytics Engine
+
 ### CLI Tools Development
 
 1. **Configuration Management**: Use JSONC parsing for reading `wrangler.jsonc` configuration files

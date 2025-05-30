@@ -1,4 +1,4 @@
-import { getCloudflareRequestInfo } from "~/server/utils/cloudflare"
+import { getCloudflareRequestInfo, getCloudflareEnv, getAnalyticsBinding } from "~/server/utils/cloudflare"
 import { createApiResponse } from "~/server/utils/response"
 
 export default defineEventHandler(async (event) => {
@@ -12,6 +12,21 @@ export default defineEventHandler(async (event) => {
     cf_datacenter: cfInfo.datacenter,
     cf_country: cfInfo.country,
     user_agent: cfInfo.userAgent
+  }
+
+  // Write analytics data to Analytics Engine
+  try {
+    const env = getCloudflareEnv(event)
+    const analytics = getAnalyticsBinding(env)
+    
+    analytics.writeDataPoint({
+      blobs: ["ping", cfInfo.userAgent, cfInfo.ip, cfInfo.country, cfInfo.ray],
+      doubles: [1], // Ping count
+      indexes: ["ping"] // For querying ping events
+    })
+  } catch (error) {
+    console.error("Failed to write ping analytics:", error)
+    // Continue with response even if analytics fails
   }
 
   // Log ping for analytics using structured logging

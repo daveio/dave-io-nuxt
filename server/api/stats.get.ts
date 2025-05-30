@@ -4,26 +4,26 @@ import { SystemMetricsSchema } from "~/server/utils/schemas"
 export default defineEventHandler(async (event) => {
   try {
     const env = event.context.cloudflare?.env as {
-      KV?: KVNamespace
+      DATA?: KVNamespace
       ANALYTICS?: AnalyticsEngineDataset
     }
 
-    if (!env?.KV || !env?.ANALYTICS) {
+    if (!env?.DATA || !env?.ANALYTICS) {
       throw createApiError(503, "Analytics services not available")
     }
 
     // Get real statistics from KV and Analytics Engine
     const [userCount, postCount, apiMetrics] = await Promise.all([
-      env.KV.get("stats:users:total").then((v) => Number.parseInt(v || "0")),
-      env.KV.get("stats:posts:total").then((v) => Number.parseInt(v || "0")),
-      env.KV.get("stats:api:endpoints").then((v) => Number.parseInt(v || "8"))
+      env.DATA.get("stats:users:total").then((v) => Number.parseInt(v || "0")),
+      env.DATA.get("stats:posts:total").then((v) => Number.parseInt(v || "0")),
+      env.DATA.get("stats:api:endpoints").then((v) => Number.parseInt(v || "8"))
     ])
 
     // Get active users from the last 24 hours via Analytics
-    const activeUsers = await env.KV.get("stats:users:active_24h").then((v) => Number.parseInt(v || "0"))
-    const newUsersToday = await env.KV.get("stats:users:new_today").then((v) => Number.parseInt(v || "0"))
-    const publishedPosts = await env.KV.get("stats:posts:published").then((v) => Number.parseInt(v || "0"))
-    const draftPosts = await env.KV.get("stats:posts:drafts").then((v) => Number.parseInt(v || "0"))
+    const activeUsers = await env.DATA.get("stats:users:active-24h").then((v) => Number.parseInt(v || "0"))
+    const newUsersToday = await env.DATA.get("stats:users:new-today").then((v) => Number.parseInt(v || "0"))
+    const publishedPosts = await env.DATA.get("stats:posts:published").then((v) => Number.parseInt(v || "0"))
+    const draftPosts = await env.DATA.get("stats:posts:drafts").then((v) => Number.parseInt(v || "0"))
 
     const stats = SystemMetricsSchema.parse({
       users: {
