@@ -30,3 +30,4 @@ logs
 worker-configuration.d.ts
 env.d.ts
 .codacy/
+.claude/
