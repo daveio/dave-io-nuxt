@@ -101,42 +101,42 @@ export default defineEventHandler(async (event) => {
     if (url.startsWith("/api/")) {
       const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
 
-      if (!env?.DATA) {
-        throw createError({
-          statusCode: 503,
-          statusMessage: "Service Unavailable",
-          data: {
-            success: false,
-            error: "Rate limiting service not available",
-            timestamp: new Date().toISOString()
-          }
+      // Only apply rate limiting if KV storage is available
+      // This allows 404s to be returned properly when services are unavailable
+      if (env?.DATA) {
+        const rateLimitKey = `${ip}:${method}:${url}`
+        const rateLimit = await checkRateLimit(rateLimitKey, env.DATA, 100, 60000)
+        if (!rateLimit.allowed) {
+          throw createError({
+            statusCode: 429,
+            statusMessage: "Too Many Requests",
+            data: {
+              success: false,
+              error: "Rate limit exceeded",
+              meta: { retry_after: 60 },
+              timestamp: new Date().toISOString()
+            }
+          })
+        }
+
+        const rateLimitInfo = await getRateLimitInfo(rateLimitKey, env.DATA, 100, 60000)
+
+        // Add API-specific headers
+        setHeaders(event, {
+          "X-API-Version": "1.0.0",
+          "X-RateLimit-Limit": "100",
+          "X-RateLimit-Remaining": rateLimitInfo.remaining.toString(),
+          "X-RateLimit-Reset": Math.floor(rateLimitInfo.resetTime / 1000).toString()
+        })
+      } else {
+        // KV storage not available - add headers without rate limiting
+        setHeaders(event, {
+          "X-API-Version": "1.0.0",
+          "X-RateLimit-Limit": "disabled",
+          "X-RateLimit-Remaining": "N/A",
+          "X-RateLimit-Reset": "N/A"
         })
       }
-
-      const rateLimitKey = `${ip}:${method}:${url}`
-      const rateLimit = await checkRateLimit(rateLimitKey, env.DATA, 100, 60000)
-      if (!rateLimit.allowed) {
-        throw createError({
-          statusCode: 429,
-          statusMessage: "Too Many Requests",
-          data: {
-            success: false,
-            error: "Rate limit exceeded",
-            meta: { retry_after: 60 },
-            timestamp: new Date().toISOString()
-          }
-        })
-      }
-
-      const rateLimitInfo = await getRateLimitInfo(rateLimitKey, env?.DATA, 100, 60000)
-
-      // Add API-specific headers
-      setHeaders(event, {
-        "X-API-Version": "1.0.0",
-        "X-RateLimit-Limit": "100",
-        "X-RateLimit-Remaining": rateLimitInfo.remaining.toString(),
-        "X-RateLimit-Reset": Math.floor(rateLimitInfo.resetTime / 1000).toString()
-      })
     }
 
     // Add request logging for both API and redirect routes

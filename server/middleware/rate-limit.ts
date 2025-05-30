@@ -204,6 +204,12 @@ export async function applyRateLimit(event: H3Event, config?: RateLimitConfig): 
   }
 
   const env = getCloudflareEnv(event)
+  
+  // Skip rate limiting if required services are not available
+  if (!env.DATA || !env.ANALYTICS) {
+    return
+  }
+  
   const kv = getKVNamespace(env)
   const analytics = getAnalyticsBinding(env)
   const cloudflareInfo = getCloudflareRequestInfo(event)
@@ -239,7 +245,7 @@ export async function applyRateLimit(event: H3Event, config?: RateLimitConfig): 
         }
       }
 
-      writeAnalyticsEvent(analytics, rateLimitEvent)
+      await writeAnalyticsEvent(analytics, rateLimitEvent)
       await updateRateLimitMetrics(kv, "blocked", tokenSubject)
 
       // Throw rate limit error with custom message if provided
@@ -286,7 +292,7 @@ export async function applyRateLimit(event: H3Event, config?: RateLimitConfig): 
         }
       }
 
-      writeAnalyticsEvent(analytics, rateLimitEvent)
+      await writeAnalyticsEvent(analytics, rateLimitEvent)
     }
   } catch (error) {
     // Re-throw rate limit errors
@@ -329,6 +335,19 @@ export async function getRateLimitStatus(
   }
 
   const env = getCloudflareEnv(event)
+  
+  // Return disabled state if KV storage is not available
+  if (!env.DATA) {
+    return {
+      allowed: true,
+      remaining: rateLimitConfig.maxRequests,
+      resetTime: new Date().toISOString(),
+      totalRequests: 0,
+      limit: rateLimitConfig.maxRequests,
+      windowMs: rateLimitConfig.windowMs
+    }
+  }
+  
   const kv = getKVNamespace(env)
 
   const rateLimitKey = generateRateLimitKey(event, rateLimitConfig)
@@ -484,6 +503,12 @@ export async function rateLimitMiddleware(event: H3Event): Promise<void> {
   }
 
   const env = getCloudflareEnv(event)
+  
+  // Skip rate limiting if KV storage is not available (allows proper 404s)
+  if (!env.DATA) {
+    return
+  }
+  
   const kv = getKVNamespace(env)
   const analytics = getAnalyticsBinding(env)
   const cloudflareInfo = getCloudflareRequestInfo(event)
@@ -547,7 +572,7 @@ export async function rateLimitMiddleware(event: H3Event): Promise<void> {
         }
       }
 
-      writeAnalyticsEvent(analytics, rateLimitEvent)
+      await writeAnalyticsEvent(analytics, rateLimitEvent)
 
       // Update KV metrics
       await updateRateLimitMetrics(kv, action, tokenSubject)
@@ -610,7 +635,7 @@ export async function rateLimitMiddleware(event: H3Event): Promise<void> {
         }
       }
 
-      writeAnalyticsEvent(analytics, rateLimitEvent)
+      await writeAnalyticsEvent(analytics, rateLimitEvent)
     }
   } catch (error) {
     // If it's a rate limit error, re-throw it

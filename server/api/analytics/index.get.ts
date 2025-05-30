@@ -153,7 +153,7 @@ export default defineEventHandler(async (event) => {
             cached ? 1 : 0, // was cached
             engineResults.length // number of raw events
           ],
-          indexes: ["api_request", "/api/analytics", authToken || "anonymous"]
+          indexes: ["api_request"] // Analytics Engine only supports 1 index
         })
       }
 

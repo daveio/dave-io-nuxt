@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
           new Date().toISOString()
         ],
         doubles: [1, Date.now()],
-        indexes: ["test", "analytics-test"]
+        indexes: ["test"] // Analytics Engine only supports 1 index
       })
 
       console.log("✅ Analytics Engine write successful")

@@ -173,7 +173,7 @@ export default defineEventHandler(async (event) => {
             ""
           ],
           doubles: [responseTime, statusCode, 0], // responseTime, statusCode, success
-          indexes: ["api_request", "/api/routeros/cache", "error"]
+          indexes: ["api_request"] // Analytics Engine only supports 1 index
         })
       }
     } catch (analyticsError) {

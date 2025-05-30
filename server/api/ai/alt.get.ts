@@ -180,7 +180,7 @@ export default defineEventHandler(async (event) => {
             errorType
           ],
           doubles: [0, 0], // No processing time or image size for early failures
-          indexes: ["ai", "alt-text", "anonymous"]
+          indexes: ["ai"] // Analytics Engine only supports 1 index
         })
       }
     } catch (analyticsError) {

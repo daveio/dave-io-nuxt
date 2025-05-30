@@ -741,7 +741,7 @@ export async function writeAnalytics(
   try {
     // Always write to Analytics Engine
     if (analytics) {
-      writeAnalyticsEvent(analytics, event)
+      await writeAnalyticsEvent(analytics, event)
     }
 
     // Write to KV only if kv flag is true
@@ -965,10 +965,8 @@ interface StandardAnalyticsMapping {
   double9: number // custom_metric_1
   double10: number // custom_metric_2
 
-  // Index fields - for fast querying
+  // Index field - for fast querying (Analytics Engine supports only 1 index)
   index1: string // event_type (same as blob1, for fast filtering)
-  index2: string // primary_identifier (endpoint, slug, operation, etc.)
-  index3: string // secondary_identifier (token_subject, user_id, etc.)
 }
 
 /**
@@ -1003,9 +1001,8 @@ function createStandardAnalyticsMapping(event: AnalyticsEvent): Partial<Standard
         double7: 0,
         double8: 0,
         double9: 0,
-        double10: 0,
-        index2: data.endpoint,
-        index3: data.tokenSubject || "anonymous"
+        double10: 0
+        // index2 and index3 not used - Analytics Engine only supports 1 index
       }
     }
 
@@ -1027,9 +1024,8 @@ function createStandardAnalyticsMapping(event: AnalyticsEvent): Partial<Standard
         double7: 0,
         double8: 0,
         double9: 0,
-        double10: 0,
-        index2: data.endpoint || "",
-        index3: data.tokenSubject
+        double10: 0
+        // index2 and index3 not used - Analytics Engine only supports 1 index
       }
     }
 
@@ -1051,9 +1047,8 @@ function createStandardAnalyticsMapping(event: AnalyticsEvent): Partial<Standard
         double7: 0,
         double8: 0,
         double9: 0,
-        double10: 0,
-        index2: data.slug,
-        index3: ""
+        double10: 0
+        // index2 and index3 not used - Analytics Engine only supports 1 index
       }
     }
 
@@ -1075,9 +1070,8 @@ function createStandardAnalyticsMapping(event: AnalyticsEvent): Partial<Standard
         double7: 0,
         double8: 0,
         double9: 0,
-        double10: 0,
-        index2: data.operation,
-        index3: data.userId || "anonymous"
+        double10: 0
+        // index2 and index3 not used - Analytics Engine only supports 1 index
       }
     }
 
@@ -1099,9 +1093,8 @@ function createStandardAnalyticsMapping(event: AnalyticsEvent): Partial<Standard
         double7: data.requestsInWindow,
         double8: data.maxRequests,
         double9: data.remainingRequests,
-        double10: 0,
-        index2: data.endpoint,
-        index3: data.tokenSubject || "anonymous"
+        double10: 0
+        // index2 and index3 not used - Analytics Engine only supports 1 index
       }
     }
 
@@ -1123,9 +1116,8 @@ function createStandardAnalyticsMapping(event: AnalyticsEvent): Partial<Standard
         double7: data.ipv4Count || 0,
         double8: data.ipv6Count || 0,
         double9: 0,
-        double10: 0,
-        index2: data.operation,
-        index3: ""
+        double10: 0
+        // index2 and index3 not used - Analytics Engine only supports 1 index
       }
     }
 
@@ -1147,9 +1139,8 @@ function createStandardAnalyticsMapping(event: AnalyticsEvent): Partial<Standard
         double7: 0,
         double8: 0,
         double9: 0,
-        double10: 0,
-        index2: "ping",
-        index3: ""
+        double10: 0
+        // index2 and index3 not used - Analytics Engine only supports 1 index
       }
     }
 
@@ -1161,8 +1152,13 @@ function createStandardAnalyticsMapping(event: AnalyticsEvent): Partial<Standard
 /**
  * Write analytics event to Analytics Engine with standardized field mapping
  */
-export function writeAnalyticsEvent(analytics: AnalyticsEngineDataset, event: AnalyticsEvent): void {
+export async function writeAnalyticsEvent(analytics: AnalyticsEngineDataset, event: AnalyticsEvent): Promise<void> {
   try {
+    if (!analytics) {
+      console.warn("Analytics Engine dataset not available - skipping write")
+      return
+    }
+
     // Use standardized mapping for consistent field positions
     const mapping = createStandardAnalyticsMapping(event)
 
@@ -1193,15 +1189,21 @@ export function writeAnalyticsEvent(analytics: AnalyticsEngineDataset, event: An
       mapping.double10 || 0
     ]
 
-    const indexes = [mapping.index1 || "", mapping.index2 || "", mapping.index3 || ""]
+    const indexes = [mapping.index1 || ""] // Analytics Engine only supports 1 index
 
-    analytics.writeDataPoint({
+    console.log(`Writing analytics event: ${event.type} with index: ${indexes[0]}`)
+    
+    await analytics.writeDataPoint({
       blobs,
       doubles,
       indexes
     })
+    
+    console.log(`✅ Analytics event written successfully: ${event.type}`)
   } catch (error) {
-    console.error("Failed to write analytics event:", error)
+    console.error("❌ Failed to write analytics event:", error)
+    console.error("Event type:", event.type)
+    console.error("Error details:", error instanceof Error ? error.message : String(error))
     // Don't throw - analytics should never break the main flow
   }
 }
