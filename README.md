@@ -46,7 +46,7 @@ JWT-based fortress protecting Dave's digital empire with dual authentication met
 # Analytics dashboard access
 bun jwt create --sub "api:analytics" --description "Dashboard access" --expiry "30d"
 
-# AI service access  
+# AI service access
 bun jwt create --sub "ai:alt" --description "Alt-text generation" --expiry "7d"
 
 # Full API access
@@ -568,7 +568,7 @@ Dave's implementation uses Cloudflare Analytics Engine for real-time event track
 Analytics Engine stores data in three types of fields:
 
 - **`blobs`**: String data (up to 10 fields per event)
-- **`doubles`**: Numeric data (up to 20 fields per event)  
+- **`doubles`**: Numeric data (up to 20 fields per event)
 - **`indexes`**: Optimized for querying (up to 5 fields per event)
 
 ### Event Schemas
@@ -723,7 +723,7 @@ Remember: with great power comes great responsibility. Use these APIs wisely, ba
 
 During the build process, you'll see some warnings about `this` keyword in the Cloudflare library that look scary but are completely harmless:
 
-```
+```plaintext
 node_modules/cloudflare/core.mjs (1:30): The 'this' keyword is equivalent to 'undefined' at the top level of an ES module, and has been rewritten
 ```
 
