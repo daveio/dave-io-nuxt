@@ -1,40 +1,5 @@
-import { describe, it, expect } from "vitest"
-
-// TODO: Import actual functions once they are exported from auth utils
-// import { hasPermission, validateTokenPermissions } from "~/server/utils/auth"
-
-// Mock implementations for testing the expected behavior
-function hasPermission(permissions: string[], required: string): boolean {
-  // Check for wildcard or admin access
-  if (permissions.includes("*") || permissions.includes("admin")) {
-    return true
-  }
-  
-  // Check for exact match
-  if (permissions.includes(required)) {
-    return true
-  }
-  
-  // Check for hierarchical match (parent:child pattern)
-  const parts = required.split(":")
-  for (let i = parts.length - 1; i > 0; i--) {
-    const parent = parts.slice(0, i).join(":")
-    if (permissions.includes(parent)) {
-      return true
-    }
-  }
-  
-  return false
-}
-
-function validateTokenPermissions(token: { sub: string; permissions: string[]; iat: number; exp?: number }, required: string): boolean {
-  // Check if token is expired
-  if (token.exp && token.exp < Math.floor(Date.now() / 1000)) {
-    return false
-  }
-  
-  return hasPermission(token.permissions, required)
-}
+import { describe, expect, it } from "vitest"
+import { hasPermission, validateTokenPermissions } from "~/server/utils/auth"
 
 describe("JWT Hierarchical Permissions", () => {
   describe("hasPermission", () => {
@@ -87,7 +52,7 @@ describe("JWT Hierarchical Permissions", () => {
       const permissions = ["api"]
       expect(hasPermission(permissions, "api:tokens:create")).toBe(true)
       expect(hasPermission(permissions, "api:analytics:query")).toBe(true)
-      
+
       const specificPermissions = ["api:tokens"]
       expect(hasPermission(specificPermissions, "api:tokens:create")).toBe(true)
       expect(hasPermission(specificPermissions, "api:tokens:revoke")).toBe(true)
@@ -103,18 +68,18 @@ describe("JWT Hierarchical Permissions", () => {
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600
       }
-      
+
       expect(validateTokenPermissions(token, "api:metrics")).toBe(true)
     })
 
     it("should reject token without required permission", () => {
       const token = {
-        sub: "user@example.com", 
+        sub: "user@example.com",
         permissions: ["api:read"],
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600
       }
-      
+
       expect(validateTokenPermissions(token, "routeros:cache")).toBe(false)
     })
 
@@ -123,9 +88,9 @@ describe("JWT Hierarchical Permissions", () => {
         sub: "user@example.com",
         permissions: ["api:metrics"],
         iat: Math.floor(Date.now() / 1000) - 7200, // 2 hours ago
-        exp: Math.floor(Date.now() / 1000) - 3600  // 1 hour ago (expired)
+        exp: Math.floor(Date.now() / 1000) - 3600 // 1 hour ago (expired)
       }
-      
+
       expect(validateTokenPermissions(token, "api:metrics")).toBe(false)
     })
 
@@ -136,7 +101,7 @@ describe("JWT Hierarchical Permissions", () => {
         iat: Math.floor(Date.now() / 1000)
         // No exp field - should not expire
       }
-      
+
       expect(validateTokenPermissions(token, "api:metrics")).toBe(true)
     })
 
@@ -147,7 +112,7 @@ describe("JWT Hierarchical Permissions", () => {
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600
       }
-      
+
       expect(validateTokenPermissions(token, "api:metrics")).toBe(true)
       expect(validateTokenPermissions(token, "routeros:cache")).toBe(true)
       expect(validateTokenPermissions(token, "dashboard:view")).toBe(true)
@@ -164,7 +129,12 @@ describe("JWT Hierarchical Permissions", () => {
     it("should handle whitespace in permissions", () => {
       const permissions = [" api:metrics ", "routeros:cache"]
       // Assuming permissions are normalized
-      expect(hasPermission(permissions.map(p => p.trim()), "api:metrics")).toBe(true)
+      expect(
+        hasPermission(
+          permissions.map((p) => p.trim()),
+          "api:metrics"
+        )
+      ).toBe(true)
     })
 
     it("should handle colon-only permissions", () => {
@@ -183,13 +153,13 @@ describe("JWT Hierarchical Permissions", () => {
       const adminPermissions = ["admin"]
       const categoryPermissions = ["api"]
       const specificPermissions = ["api:metrics"]
-      
+
       const requiredPermission = "api:metrics"
-      
+
       expect(hasPermission(adminPermissions, requiredPermission)).toBe(true)
       expect(hasPermission(categoryPermissions, requiredPermission)).toBe(true)
       expect(hasPermission(specificPermissions, requiredPermission)).toBe(true)
-      
+
       // But specific doesn't grant category-level access for different endpoints
       expect(hasPermission(specificPermissions, "api:auth")).toBe(false)
     })
@@ -203,7 +173,7 @@ describe("JWT Hierarchical Permissions", () => {
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600
       }
-      
+
       expect(validateTokenPermissions(readOnlyToken, "analytics:view")).toBe(true)
       expect(validateTokenPermissions(readOnlyToken, "analytics:query")).toBe(false)
     })
@@ -215,7 +185,7 @@ describe("JWT Hierarchical Permissions", () => {
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600
       }
-      
+
       expect(validateTokenPermissions(aiToken, "ai:alt")).toBe(true)
       expect(validateTokenPermissions(aiToken, "api:metrics")).toBe(false)
     })
@@ -227,7 +197,7 @@ describe("JWT Hierarchical Permissions", () => {
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600
       }
-      
+
       expect(validateTokenPermissions(routerosToken, "routeros:cache")).toBe(true)
       expect(validateTokenPermissions(routerosToken, "routeros:putio")).toBe(true)
       expect(validateTokenPermissions(routerosToken, "routeros:reset")).toBe(true)
@@ -241,7 +211,7 @@ describe("JWT Hierarchical Permissions", () => {
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600
       }
-      
+
       expect(validateTokenPermissions(tokenAdminToken, "api:tokens:usage")).toBe(true)
       expect(validateTokenPermissions(tokenAdminToken, "api:tokens:revoke")).toBe(true)
       expect(validateTokenPermissions(tokenAdminToken, "api:analytics")).toBe(false)

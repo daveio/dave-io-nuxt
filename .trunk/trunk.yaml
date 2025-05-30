@@ -63,7 +63,9 @@ lint:
         - "**/*.png"
         - "**/*.ico"
         - "**/*.mdc"
+        - "**/*.md"
         - "**/nuxt.config.ts"
+        - "**/public/dennis-nedry.gif"
 plugins:
   # https://docs.trunk.io/plugins
   sources:

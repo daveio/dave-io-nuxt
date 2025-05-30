@@ -24,11 +24,11 @@ export default defineEventHandler(async (event) => {
     // Parse query parameters
     const query = getQuery(event)
     const params: AnalyticsQueryParams = {
-      // biome-ignore lint/suspicious/noExplicitAny: Query params need type flexibility
+      // biome-ignore lint/suspicious/noExplicitAny: Query params need type flexibility for enum casting
       timeRange: (query.timeRange as any) || "24h",
       customStart: query.customStart as string,
       customEnd: query.customEnd as string,
-      // biome-ignore lint/suspicious/noExplicitAny: Dynamic string array from query
+      // biome-ignore lint/suspicious/noExplicitAny: Dynamic string array from query params needs flexible typing
       eventTypes: query.eventTypes ? ((query.eventTypes as string).split(",") as any[]) : undefined,
       country: query.country as string,
       tokenSubject: query.tokenSubject as string,

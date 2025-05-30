@@ -77,15 +77,18 @@ const props = defineProps<Props>()
 const showAllSlugs = ref(false)
 const maxVisible = 5
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template for displaying filtered slug list
 const displayedSlugs = computed(() => {
   const slugs = props.metrics.redirects.topSlugs || []
   return showAllSlugs.value ? slugs : slugs.slice(0, maxVisible)
 })
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template for show more button visibility
 const hasMoreSlugs = computed(() => {
   return (props.metrics.redirects.topSlugs?.length || 0) > maxVisible
 })
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template for show more button text
 const remainingSlugs = computed(() => {
   const total = props.metrics.redirects.topSlugs?.length || 0
   return Math.max(0, total - maxVisible)

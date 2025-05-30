@@ -290,98 +290,22 @@ export function useTimeRange() {
  */
 export function useChartData() {
   /**
-   * Format metrics for line chart (time series)
-   * Aggregates real Analytics Engine events into time-based buckets
+   * Format time series data for charts - REAL DATA ONLY
+   *
+   * TODO: This function currently generates fake time-series data by distributing
+   * aggregated metrics across artificial time intervals. This violates the NO MOCK DATA rule.
+   *
+   * REQUIRED: Implement real time-series data by:
+   * 1. Querying Analytics Engine with time-based GROUP BY clauses
+   * 2. Returning actual event timestamps and counts per interval
+   * 3. Using SQL aggregation instead of fake distribution
+   *
+   * Until real implementation: throw error to surface missing functionality
    */
-  function formatTimeSeriesData(metrics: AnalyticsMetrics, field: string) {
-    // Generate time intervals based on the timeframe
-    const { start, end, range } = metrics.timeframe
-    const startDate = new Date(start)
-    const endDate = new Date(end)
-
-    const intervals: Date[] = []
-    let intervalMs: number
-
-    switch (range) {
-      case "1h":
-        intervalMs = 5 * 60 * 1000 // 5 minutes
-        break
-      case "24h":
-        intervalMs = 60 * 60 * 1000 // 1 hour
-        break
-      case "7d":
-        intervalMs = 6 * 60 * 60 * 1000 // 6 hours
-        break
-      case "30d":
-        intervalMs = 24 * 60 * 60 * 1000 // 1 day
-        break
-      default:
-        intervalMs = 60 * 60 * 1000 // 1 hour
-    }
-
-    for (let time = startDate.getTime(); time <= endDate.getTime(); time += intervalMs) {
-      intervals.push(new Date(time))
-    }
-
-    // Extract value based on field parameter
-    const getValue = (field: string, metrics: AnalyticsMetrics): number => {
-      switch (field) {
-        case "totalRequests":
-          return metrics.overview.totalRequests
-        case "successfulRequests":
-          return metrics.overview.successfulRequests
-        case "failedRequests":
-          return metrics.overview.failedRequests
-        case "totalClicks":
-          return metrics.redirects.totalClicks
-        case "totalOperations":
-          return metrics.ai.totalOperations
-        case "totalAttempts":
-          return metrics.authentication.totalAttempts
-        case "throttledRequests":
-          return metrics.rateLimiting.throttledRequests
-        default:
-          return metrics.overview.totalRequests
-      }
-    }
-
-    const totalValue = getValue(field, metrics)
-    const valuePerInterval = totalValue / intervals.length
-
-    // Distribute values across intervals with some realistic variation
-    return intervals.map((time, index) => {
-      // Add some realistic variation based on time of day
-      const hourWeight = getHourWeight(time)
-      const adjustedValue = Math.round(valuePerInterval * hourWeight)
-
-      return {
-        timestamp: time.toISOString(),
-        value: Math.max(0, adjustedValue),
-        label: time.toLocaleDateString(
-          "en-US",
-          range === "30d"
-            ? { month: "short", day: "numeric" }
-            : range === "7d"
-              ? { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }
-              : { hour: "2-digit", minute: "2-digit" }
-        )
-      }
-    })
-  }
-
-  /**
-   * Calculate hour-based traffic weight for realistic distribution
-   */
-  function getHourWeight(date: Date): number {
-    const hour = date.getHours()
-    // Peak traffic during business hours (9-17 UTC), lower at night
-    if (hour >= 9 && hour <= 17) {
-      return 1.2 + Math.random() * 0.3 // 1.2-1.5x multiplier
-    } else if (hour >= 6 && hour <= 22) {
-      return 0.8 + Math.random() * 0.4 // 0.8-1.2x multiplier  
-    } else {
-      return 0.3 + Math.random() * 0.4 // 0.3-0.7x multiplier
-    }
+  function formatTimeSeriesData(_metrics: AnalyticsMetrics, field: string): never {
+    throw new Error(
+      `Time series data for ${field} requires real Analytics Engine time-based queries. Current implementation artificially distributes aggregate data across fake intervals, which violates the NO MOCK DATA rule. Implement proper SQL GROUP BY time intervals.`
+    )
   }
 
   /**

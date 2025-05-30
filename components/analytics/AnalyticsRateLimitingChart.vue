@@ -133,11 +133,14 @@ const chart = ref<Chart>()
 const isRefreshing = ref(false)
 
 // Real-time state
+// biome-ignore lint/suspicious/noExplicitAny: Real-time events from SSE have dynamic structure that varies by event type
 const realtimeEvents = ref<any[]>([])
 const lastUpdate = ref<Date | null>(null)
 const updateInterval = ref<NodeJS.Timeout | null>(null)
 
 // Computed properties
+// TODO: Implement rate limiting data display in chart template
+// biome-ignore lint/correctness/noUnusedVariables: Will be used when rate limiting metrics display is implemented
 const rateLimitingData = computed(() => {
   return (
     props.metrics?.rateLimiting || {
@@ -151,6 +154,7 @@ const hasChartData = computed(() => {
   return props.realtimeUpdates && realtimeEvents.value.length > 0
 })
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template for displaying top rate-limited endpoints
 const topEndpoints = computed(() => {
   if (!props.realtimeUpdates || realtimeEvents.value.length === 0) {
     return []
@@ -159,6 +163,7 @@ const topEndpoints = computed(() => {
   // Aggregate ONLY real-time events by endpoint
   const endpointCounts = new Map<string, number>()
 
+  // biome-ignore lint/complexity/noForEach: Map.set in forEach is the intended aggregation pattern
   realtimeEvents.value.forEach((event) => {
     if (
       event.event?.type === "rate_limit" &&
@@ -256,9 +261,11 @@ const chartOptions = {
       mode: "index" as const,
       intersect: false,
       callbacks: {
+        // biome-ignore lint/suspicious/noExplicitAny: Chart.js tooltip callbacks have complex generic types that vary by chart type
         title: (tooltipItems: any[]) => {
           return `Time: ${tooltipItems[0].label}`
         },
+        // biome-ignore lint/suspicious/noExplicitAny: Chart.js tooltip context has complex dynamic structure
         label: (context: any) => {
           return `${context.dataset.label}: ${context.parsed.y} requests`
         }
@@ -324,6 +331,7 @@ const updateChart = (animate = false) => {
 }
 
 // Handle real-time updates
+// biome-ignore lint/suspicious/noExplicitAny: SSE update events have dynamic structure that varies by source
 function handleRealtimeUpdate(update: any) {
   if (!update || !update.event) {
     throw new Error("Invalid real-time update: missing event data")
@@ -355,10 +363,12 @@ function handleRealtimeUpdate(update: any) {
 }
 
 // Start real-time updates
+// TODO: Replace timer-based updates with real SSE connection to /api/analytics/realtime
 function startRealtimeUpdates() {
   if (updateInterval.value) return
 
-  // Update chart every 30 seconds for smooth real-time experience
+  // TODO: Implement EventSource connection instead of timer-based polling
+  // Current implementation: Update chart every 30 seconds for smooth real-time experience
   updateInterval.value = setInterval(() => {
     if (chart.value) {
       updateChart(false)
@@ -375,6 +385,7 @@ function stopRealtimeUpdates() {
 }
 
 // Refresh data
+// biome-ignore lint/correctness/noUnusedVariables: Used in template for refresh button click handler
 const refreshData = async () => {
   isRefreshing.value = true
 

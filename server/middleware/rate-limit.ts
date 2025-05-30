@@ -7,6 +7,11 @@ import {
   getCloudflareRequestInfo,
   getKVNamespace
 } from "~/server/utils/cloudflare"
+import {
+  getCachedRateLimit,
+  getSlidingWindowRateLimit,
+  initializeRateLimitCache
+} from "~/server/utils/rate-limit-cache"
 import type { RateLimitEvent } from "~/types/analytics"
 
 /**
@@ -50,6 +55,14 @@ export const RATE_LIMIT_PRESETS = {
   // AI/ML - for compute-intensive operations
   AI_OPERATIONS: { windowMs: 60 * 1000, maxRequests: 20 } // 20 per minute
 } as const
+
+/**
+ * Rate limiting exemptions for specific endpoints
+ */
+export const RATE_LIMIT_EXEMPTIONS = new Set(["/api/health", "/api/ping", "/api/_worker-info"])
+
+// Initialize rate limiting cache on module load
+initializeRateLimitCache()
 
 /**
  * Helper function to create a rate limit configuration
@@ -194,31 +207,16 @@ export async function applyRateLimit(event: H3Event, config?: RateLimitConfig): 
   const tokenSubject = await extractTokenSubject(event)
 
   try {
-    const now = Date.now()
-    const windowStart = now - rateLimitConfig.windowMs
-
-    // Get stored rate limit data from KV
-    const storedData = await kv.get(rateLimitKey)
-    let requestCount = 0
-    let windowStartTime = now
-
-    if (storedData) {
-      try {
-        const parsed = JSON.parse(storedData)
-        if (parsed.windowStart && parsed.windowStart > windowStart) {
-          requestCount = parsed.count || 0
-          windowStartTime = parsed.windowStart
-        }
-      } catch (parseError) {
-        console.warn("Failed to parse rate limit data:", parseError)
-      }
-    }
-
-    // Increment request count
-    requestCount++
+    // Use new caching layer for improved performance
+    const rateLimitResult = await getCachedRateLimit(
+      rateLimitKey,
+      rateLimitConfig.maxRequests,
+      rateLimitConfig.windowMs,
+      kv
+    )
 
     // Check if rate limit is exceeded
-    if (requestCount > rateLimitConfig.maxRequests) {
+    if (!rateLimitResult.allowed) {
       // Log rate limit violation
       const rateLimitEvent: RateLimitEvent = {
         type: "rate_limit",
@@ -228,11 +226,11 @@ export async function applyRateLimit(event: H3Event, config?: RateLimitConfig): 
           action: "blocked",
           endpoint: pathname,
           tokenSubject,
-          requestsInWindow: requestCount,
+          requestsInWindow: rateLimitConfig.maxRequests - rateLimitResult.remaining + 1,
           windowSizeMs: rateLimitConfig.windowMs,
           maxRequests: rateLimitConfig.maxRequests,
-          remainingRequests: 0,
-          resetTime: new Date(windowStartTime + rateLimitConfig.windowMs).toISOString()
+          remainingRequests: rateLimitResult.remaining,
+          resetTime: new Date(rateLimitResult.resetTime).toISOString()
         }
       }
 
@@ -247,36 +245,26 @@ export async function applyRateLimit(event: H3Event, config?: RateLimitConfig): 
           error: "Rate limit exceeded",
           limit: rateLimitConfig.maxRequests,
           windowMs: rateLimitConfig.windowMs,
-          remaining: 0,
-          resetTime: new Date(windowStartTime + rateLimitConfig.windowMs).toISOString(),
-          retryAfter: Math.ceil((windowStartTime + rateLimitConfig.windowMs - now) / 1000)
+          remaining: rateLimitResult.remaining,
+          resetTime: new Date(rateLimitResult.resetTime).toISOString(),
+          retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
         }
       })
     }
 
-    // Store updated count in KV
-    const rateLimitData = {
-      count: requestCount,
-      windowStart: windowStartTime,
-      lastUpdated: now,
-      endpoint: pathname
-    }
-
-    await kv.put(rateLimitKey, JSON.stringify(rateLimitData), {
-      expirationTtl: Math.ceil(rateLimitConfig.windowMs / 1000) + 300
-    })
+    // Rate limit not exceeded - set headers and check for warnings
+    // (KV update is handled by the caching layer asynchronously)
 
     // Set rate limit headers
-    const remaining = Math.max(0, rateLimitConfig.maxRequests - requestCount)
-    const resetTime = new Date(windowStartTime + rateLimitConfig.windowMs).toISOString()
-
     setHeader(event, "X-RateLimit-Limit", rateLimitConfig.maxRequests.toString())
-    setHeader(event, "X-RateLimit-Remaining", remaining.toString())
-    setHeader(event, "X-RateLimit-Reset", resetTime)
+    setHeader(event, "X-RateLimit-Remaining", rateLimitResult.remaining.toString())
+    setHeader(event, "X-RateLimit-Reset", new Date(rateLimitResult.resetTime).toISOString())
     setHeader(event, "X-RateLimit-Window", rateLimitConfig.windowMs.toString())
+    setHeader(event, "X-RateLimit-Cached", rateLimitResult.fromCache.toString())
 
     // Log warning events when approaching limit
-    if (requestCount > rateLimitConfig.maxRequests * 0.8) {
+    const requestsUsed = rateLimitConfig.maxRequests - rateLimitResult.remaining
+    if (requestsUsed > rateLimitConfig.maxRequests * 0.8) {
       const rateLimitEvent: RateLimitEvent = {
         type: "rate_limit",
         timestamp: new Date().toISOString(),
@@ -285,11 +273,11 @@ export async function applyRateLimit(event: H3Event, config?: RateLimitConfig): 
           action: "warning",
           endpoint: pathname,
           tokenSubject,
-          requestsInWindow: requestCount,
+          requestsInWindow: requestsUsed,
           windowSizeMs: rateLimitConfig.windowMs,
           maxRequests: rateLimitConfig.maxRequests,
-          remainingRequests: remaining,
-          resetTime
+          remainingRequests: rateLimitResult.remaining,
+          resetTime: new Date(rateLimitResult.resetTime).toISOString()
         }
       }
 
@@ -559,7 +547,9 @@ export async function rateLimitMiddleware(event: H3Event): Promise<void> {
           retryAfter: Math.ceil((windowStartTime + config.windowMs - now) / 1000)
         }
       })
-    } else if (requestCount > config.maxRequests * 0.8) {
+    }
+
+    if (requestCount > config.maxRequests * 0.8) {
       // Warning when approaching limit (80% threshold)
       action = "warning"
     }
@@ -622,7 +612,7 @@ async function extractTokenSubject(event: H3Event): Promise<string | undefined> 
   const authHeader = getHeader(event, "authorization")
   const tokenFromQuery = getQuery(event).token as string
 
-  if (authHeader && authHeader.startsWith("Bearer ")) {
+  if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.substring(7)
     try {
       // Use the real JWT verification function from auth helpers
@@ -636,7 +626,7 @@ async function extractTokenSubject(event: H3Event): Promise<string | undefined> 
         return authResult.payload.sub
       }
       return `token:${token.substring(0, 8)}...${token.substring(token.length - 8)}`
-    } catch (error) {
+    } catch (_error) {
       // Invalid JWT - return undefined to trigger IP-based rate limiting
       return undefined
     }
@@ -654,7 +644,7 @@ async function extractTokenSubject(event: H3Event): Promise<string | undefined> 
         return authResult.payload.sub
       }
       return `query:${tokenFromQuery.substring(0, 8)}`
-    } catch (error) {
+    } catch (_error) {
       // Invalid JWT in query - return undefined
       return undefined
     }
@@ -668,7 +658,7 @@ async function extractTokenSubject(event: H3Event): Promise<string | undefined> 
  */
 async function updateRateLimitMetrics(
   kv: KVNamespace,
-  action: "throttled" | "blocked",
+  _action: "throttled" | "blocked",
   tokenSubject?: string
 ): Promise<void> {
   try {

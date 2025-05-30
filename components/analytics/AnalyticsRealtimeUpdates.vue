@@ -112,7 +112,8 @@ const showAll = ref(false)
 const maxVisible = 10
 const lastUpdateTime = ref<string>("")
 
-const _displayedUpdates = computed(() => {
+// biome-ignore lint/correctness/noUnusedVariables: Used in template for displaying filtered updates
+const displayedUpdates = computed(() => {
   return showAll.value ? props.updates : props.updates.slice(0, maxVisible)
 })
 

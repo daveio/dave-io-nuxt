@@ -133,6 +133,7 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 **TypeScript `any` Types**:
 - Prefer specific types whenever possible
 - Use `any` when necessary for external libraries or complex dynamic structures
+- Consider ': any' AND 'as any'
 - **ALWAYS** add Biome ignore comment when using `any`: `// biome-ignore lint/suspicious/noExplicitAny: [REASON FOR ANY TYPE USAGE]`
 
 **Unused Variables/Functions**:

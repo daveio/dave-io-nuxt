@@ -57,6 +57,7 @@ const chart = ref<Chart>()
 const selectedMetric = ref("requests")
 const peakRequests = ref(0)
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template for metric selection dropdown
 const metricOptions = [
   { value: "requests", label: "Requests" },
   { value: "response_time", label: "Response Time" },
@@ -69,8 +70,8 @@ const { formatTimeSeriesData } = useChartData()
 const chartData = computed(() => {
   const field = selectedMetric.value === "response_time" ? "averageResponseTime" : "totalRequests"
   const timeSeriesData = formatTimeSeriesData(props.metrics, field)
-  
-  return timeSeriesData.map(point => ({
+
+  return timeSeriesData.map((point) => ({
     timestamp: point.timestamp,
     label: point.label,
     total: point.value,
@@ -80,6 +81,8 @@ const chartData = computed(() => {
   }))
 })
 
+// TODO: Integrate formatTimeLabel with chart data generation for proper time-based label formatting
+// biome-ignore lint/correctness/noUnusedVariables: Will be used when chart label formatting is implemented
 function formatTimeLabel(date: Date, range: string): string {
   switch (range) {
     case "1h":
@@ -104,7 +107,7 @@ function updateChart() {
   const data = chartData.value
   peakRequests.value = Math.max(...data.map((d) => d.total))
 
-  // biome-ignore lint/suspicious/noExplicitAny: Chart.js datasets require flexible structure
+  // biome-ignore lint/suspicious/noExplicitAny: Chart.js datasets have complex nested structure that's difficult to type
   let datasets: any[] = []
 
   if (selectedMetric.value === "requests") {

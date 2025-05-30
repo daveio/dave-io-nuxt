@@ -140,11 +140,13 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 // Real-time state
+// biome-ignore lint/suspicious/noExplicitAny: Real-time events from SSE have dynamic structure that varies by event type
 const realtimeData = ref<any[]>([])
 const lastRateLimitEvent = ref<Date | null>(null)
 const isRealTimeActive = ref(false)
 
 // Computed properties for rate limiting data
+// biome-ignore lint/correctness/noUnusedVariables: Used in template for displaying rate limiting metrics
 const rateLimitingData = computed(() => {
   const baseData = props.metrics?.rateLimiting || {
     throttledRequests: 0,
@@ -171,16 +173,19 @@ const rateLimitingData = computed(() => {
 // Removed averageRateLimit - no mock data allowed
 
 // Helper functions
+// biome-ignore lint/correctness/noUnusedVariables: Used in template for number formatting
 function formatNumber(num: number): string {
   return new Intl.NumberFormat().format(num)
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template for token display
 function truncateToken(token: string): string {
   if (token === "anonymous") return "Anonymous"
   if (token.length <= 20) return token
   return `${token.substring(0, 10)}...${token.substring(token.length - 7)}`
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template click handlers
 function viewTokenDetails(tokenSubject: string) {
   if (!tokenSubject) {
     throw new Error("Cannot view token details: no token subject provided")
@@ -190,9 +195,11 @@ function viewTokenDetails(tokenSubject: string) {
   // This could navigate to a detailed view or emit an event
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: Real-time rate limit events have nested dynamic structure from SSE updates
 function aggregateRealtimeTokens(rateLimitEvents: any[]) {
   const tokenCounts = new Map<string, number>()
 
+  // biome-ignore lint/complexity/noForEach: Map.set in forEach is the intended pattern for aggregation
   rateLimitEvents.forEach((event) => {
     const tokenSubject = event.event?.data?.tokenSubject || "anonymous"
     tokenCounts.set(tokenSubject, (tokenCounts.get(tokenSubject) || 0) + 1)
@@ -205,6 +212,9 @@ function aggregateRealtimeTokens(rateLimitEvents: any[]) {
 }
 
 // Real-time event handling
+// TODO: Integrate handleRealtimeUpdate with real-time SSE connection for live rate limiting updates
+// biome-ignore lint/correctness/noUnusedVariables: Will be used when real-time SSE integration is implemented
+// biome-ignore lint/suspicious/noExplicitAny: SSE update events have dynamic structure that varies by source
 function handleRealtimeUpdate(update: any) {
   if (!update || !update.event) {
     throw new Error("Invalid real-time update: missing event data")

@@ -227,7 +227,7 @@ const router = useRouter()
 // Extract JWT from route parameter
 const jwtToken = route.params.jwt as string
 const authError = ref("")
-// biome-ignore lint/suspicious/noExplicitAny: JWT payload structure varies
+// biome-ignore lint/suspicious/noExplicitAny: JWT payload structure is dynamic and varies by token type
 const authPayload = ref<any>(null)
 
 // Verify JWT token on mount

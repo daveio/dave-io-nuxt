@@ -102,6 +102,7 @@ interface Props {
 const props = defineProps<Props>()
 
 // Computed values
+// biome-ignore lint/correctness/noUnusedVariables: Used in template for badge color
 const processingSpeedColor = computed(() => {
   const time = props.metrics.ai.averageProcessingTime
   if (time < 500) return "green"
@@ -109,6 +110,7 @@ const processingSpeedColor = computed(() => {
   return "red"
 })
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template for speed label display
 const processingSpeedLabel = computed(() => {
   const time = props.metrics.ai.averageProcessingTime
   if (time < 500) return "Fast"
@@ -117,6 +119,7 @@ const processingSpeedLabel = computed(() => {
   return "Slow"
 })
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template for success rate display
 const successRate = computed(() => {
   // Calculate real success rate from AI operations data
   const totalOps = props.metrics.ai.totalOperations
@@ -143,6 +146,7 @@ const performanceScore = computed(() => {
   return Math.max(0, Math.min(100, score))
 })
 
+// biome-ignore lint/correctness/noUnusedVariables: Used in template for progress bar styling
 const performanceBarColor = computed(() => {
   const score = performanceScore.value
   if (score >= 80) return "bg-green-500"

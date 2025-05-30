@@ -10,7 +10,8 @@
  *   bun run bin/kv backup             - Backup KV data matching configured patterns
  *   bun run bin/kv backup --all       - Backup all KV data
  *   bun run bin/kv restore <filename> - Restore KV data from backup file
- *   bun run bin/kv wipe               - Wipe all KV data (DANGEROUS!)
+ *   bun run bin/kv list [--pattern]   - List KV keys with optional pattern filtering
+ *   bun run bin/kv wipe [--pattern]   - Wipe KV data (optionally matching pattern)
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"

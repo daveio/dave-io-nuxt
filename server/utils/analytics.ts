@@ -1,7 +1,7 @@
+import Cloudflare from "cloudflare"
 import { parseISO, subDays, subHours } from "date-fns"
 import type { H3Event } from "h3"
 import { groupBy, mean, sortBy, sum, take } from "lodash-es"
-import Cloudflare from "cloudflare"
 import type {
   AIEvent,
   APIRequestEvent,
@@ -454,11 +454,11 @@ interface AnalyticsEngineSQLResponse {
 
 /**
  * Query Analytics Engine using Cloudflare SQL API
- * 
+ *
  * This implementation queries our custom Analytics Engine dataset "NEXT_DAVE_IO_ANALYTICS"
  * using the SQL API. The dataset contains structured events with:
  * - blob1-blob10: String fields (event type, userAgent, IP, country, etc.)
- * - double1-double20: Numeric fields (processing times, counts, status codes, etc.) 
+ * - double1-double20: Numeric fields (processing times, counts, status codes, etc.)
  * - index1-index5: Indexed fields for fast filtering (event type, identifiers)
  * - timestamp: Event timestamp
  * - _sample_interval: Sampling weight for aggregations
@@ -486,11 +486,11 @@ export async function queryAnalyticsEngine(
 
     // Build SQL query based on parameters
     const sqlQuery = buildAnalyticsEngineQuery(params)
-    
+
     // Make request to Analytics Engine SQL API using Cloudflare client
-    const response = await client.post(`/accounts/${accountId}/analytics_engine/sql`, {
+    const response = (await client.post(`/accounts/${accountId}/analytics_engine/sql`, {
       body: sqlQuery
-    }) as AnalyticsEngineSQLResponse
+    })) as AnalyticsEngineSQLResponse
 
     if (!response.success) {
       throw new Error(`Analytics Engine SQL query failed: ${response.errors.join(", ")}`)
@@ -498,15 +498,14 @@ export async function queryAnalyticsEngine(
 
     // Transform SQL response to AnalyticsEngineResult[]
     return transformSQLResponseToAnalyticsResults(response.result.data)
-
   } catch (error) {
     console.error("Analytics Engine SQL query failed:", error)
-    
+
     // Handle Cloudflare API errors
     if (error instanceof Cloudflare.APIError) {
       throw new Error(`Analytics Engine API error: ${error.status} - ${error.message}`)
     }
-    
+
     const errorMessage = error instanceof Error ? error.message : String(error)
     throw new Error(`Analytics Engine query failed: ${errorMessage}`)
   }
@@ -522,14 +521,11 @@ function buildAnalyticsEngineQuery(params: AnalyticsQueryParams): string {
   const { start, end } = getTimeRangeBoundaries(timeRange, customStart, customEnd)
 
   // Build WHERE conditions
-  const conditions: string[] = [
-    `timestamp >= '${start}'`,
-    `timestamp <= '${end}'`
-  ]
+  const conditions: string[] = [`timestamp >= '${start}'`, `timestamp <= '${end}'`]
 
   // Filter by event types if specified
   if (eventTypes && eventTypes.length > 0) {
-    const eventTypeConditions = eventTypes.map(type => `index1 = '${type}'`).join(" OR ")
+    const eventTypeConditions = eventTypes.map((type) => `index1 = '${type}'`).join(" OR ")
     conditions.push(`(${eventTypeConditions})`)
   }
 
@@ -540,7 +536,7 @@ function buildAnalyticsEngineQuery(params: AnalyticsQueryParams): string {
   // - double1-double2: numeric data (counts, processing time, etc.)
   // - index1: event type for fast filtering
   // - index2: specific identifier (slug, tokenSubject, operation, etc.)
-  
+
   const selectClause = `
     SELECT 
       timestamp,
@@ -598,10 +594,10 @@ function buildAnalyticsEngineQuery(params: AnalyticsQueryParams): string {
  * Transform SQL API response data to AnalyticsEngineResult[]
  */
 function transformSQLResponseToAnalyticsResults(data: Array<Record<string, unknown>>): AnalyticsEngineResult[] {
-  return data.map(row => ({
+  return data.map((row) => ({
     // Map timestamp
     timestamp: row.timestamp as string,
-    
+
     // Map blob fields (strings)
     blob1: row.blob1 as string | undefined,
     blob2: row.blob2 as string | undefined,

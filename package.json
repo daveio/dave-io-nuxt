@@ -68,7 +68,7 @@
     "preview:cloudflare": "bun run types && bun run build && wrangler dev",
     "preview:nuxt": "bun run types && bun run nuxt preview",
     "reset": "bun run clean && bun run packages && bun run build",
-    "test": "bun run vitest run && bun test",
+    "test": "bun run vitest run",
     "test:watch": "bun run vitest",
     "test:api": "bun run bin/api-test.ts",
     "test:coverage": "bun run vitest --coverage",

@@ -8,6 +8,7 @@ export interface JWTTokenPayload extends JWTPayload {
   exp?: number // Expiration time
   jti?: string // JWT ID for revocation
   maxRequests?: number // Request limit for this token
+  permissions?: string[] // Hierarchical permissions array
 }
 
 // Authorization result
@@ -69,30 +70,52 @@ export async function verifyJWT(token: string, secret: string): Promise<AuthResu
   }
 }
 
-// Check if subject has permission for endpoint
-export function checkEndpointPermission(subject: string, endpoint: string): boolean {
-  // Hierarchical permission system like dave-io
-  // Format: "endpoint:subresource" or just "endpoint"
-
-  if (subject === endpoint) {
+// Check if permissions array contains required permission (hierarchical)
+export function hasPermission(permissions: string[], required: string): boolean {
+  // Check for wildcard or admin access
+  if (permissions.includes("*") || permissions.includes("admin")) {
     return true
   }
 
-  // Check if subject is a parent permission
-  // e.g., "api" allows access to "api:auth", "api:metrics", etc.
-  if (endpoint.includes(":")) {
-    const [endpointBase] = endpoint.split(":")
-    if (subject === endpointBase) {
+  // Check for exact match
+  if (permissions.includes(required)) {
+    return true
+  }
+
+  // Check for hierarchical match (parent:child pattern)
+  const parts = required.split(":")
+  for (let i = parts.length - 1; i > 0; i--) {
+    const parent = parts.slice(0, i).join(":")
+    if (permissions.includes(parent)) {
       return true
     }
   }
 
-  // Check if subject is exact match or wildcard
-  if (subject === "*" || subject === "admin") {
-    return true
+  return false
+}
+
+// Check if subject has permission for endpoint (legacy single-subject API)
+export function checkEndpointPermission(subject: string, endpoint: string): boolean {
+  // Convert single subject to permissions array for compatibility
+  return hasPermission([subject], endpoint)
+}
+
+// Validate token permissions with expiry check
+export function validateTokenPermissions(
+  token: { sub: string; permissions?: string[]; iat: number; exp?: number },
+  required: string
+): boolean {
+  // Check if token is expired
+  if (token.exp && token.exp < Math.floor(Date.now() / 1000)) {
+    return false
   }
 
-  return false
+  // If no permissions array, fall back to subject-based permission
+  if (!token.permissions) {
+    return hasPermission([token.sub], required)
+  }
+
+  return hasPermission(token.permissions, required)
 }
 
 // Request counting and rate limiting (using KV storage)
@@ -191,8 +214,8 @@ export async function authorizeEndpoint(
     // Build full endpoint path
     const fullEndpoint = subResource ? `${endpoint}:${subResource}` : endpoint
 
-    // Check permissions
-    if (!checkEndpointPermission(payload.sub, fullEndpoint)) {
+    // Check permissions using new hierarchical system
+    if (!validateTokenPermissions(payload, fullEndpoint)) {
       return {
         success: false,
         error: `Insufficient permissions for ${fullEndpoint}`
