@@ -15,13 +15,48 @@ Originally, Dave's site was a simple Cloudflare Worker. But why keep things simp
 
 ### 🔐 Enterprise-Grade Authentication
 
-- JWT tokens with hierarchical permissions (`api:metrics`, `ai:alt`, etc.)
-- Token introspection and validation endpoints
-- Rate limiting per token (because Dave doesn't trust anyone, including himself)
-- Token revocation support (for when life gets complicated)
-- CLI-based token management with D1 database storage that would make enterprise admins weep with joy
-- JSONC configuration parsing because Dave believes in good developer experience
-- Graceful fallback when Cloudflare credentials are missing (because sometimes you just want to work offline)
+JWT-based fortress protecting Dave's digital empire with dual authentication methods:
+
+- **Bearer Token Headers**: `Authorization: Bearer <jwt>` - For sophisticated API consumers
+- **URL Parameters**: `?token=<jwt>` - For browsers and commitment-phobic clients
+- **Hierarchical permissions** (`api:metrics`, `ai:alt`, etc.) with "Russian nesting dolls" approach
+- **Token introspection** and validation endpoints
+- **Rate limiting per token** (because Dave doesn't trust anyone, including himself)
+- **Token revocation** support with KV-based blacklist for immediate invalidation
+- **CLI-based token management** with D1 database storage that would make enterprise admins weep with joy
+
+#### 🔓 Public Endpoints (No JWT Required)
+- `/api/health`, `/api/ping`, `/api/_worker-info`, `/api/stats` - Core system endpoints
+- `/api/go/{slug}` and `/go/{slug}` - URL redirection service (gh, tw, li)
+
+#### 🔒 Protected Endpoints (JWT Required)
+- **`/api/auth`** - Token validation (any valid JWT)
+- **`/api/metrics`** - API metrics (`api:metrics`, `api`, `admin`, or `*`)
+- **`/api/ai/alt`** (GET/POST) - Alt-text generation (`ai:alt`, `ai`, `admin`, or `*`)
+- **`/api/tokens/{uuid}/*`** - Token management (`api:tokens`, `api`, `admin`, or `*`)
+- **`/api/routeros/reset`** - RouterOS admin (`routeros:admin`, `routeros`, `admin`, or `*`)
+- **`/api/analytics/*`** - Analytics dashboard (`api:analytics`, `api`, `admin`, or `*`)
+
+#### 🌐 Website Authentication
+- **`/analytics`** - Public login page with JWT validation
+- **`/analytics/{jwt}`** - Protected dashboard with embedded JWT authentication
+
+#### 🔧 Token Generation
+```bash
+# Analytics dashboard access
+bun jwt create --sub "api:analytics" --description "Dashboard access" --expiry "30d"
+
+# AI service access
+bun jwt create --sub "ai:alt" --description "Alt-text generation" --expiry "7d"
+
+# Full API access
+bun jwt create --sub "api" --description "Full API access" --expiry "1d"
+
+# Interactive mode
+bun jwt create --interactive
+```
+
+**Permission Hierarchy**: `api:metrics` → `api` → `admin` → `*` (each level inherits access to lower levels)
 
 ### 🤖 AI Integration (Now With Real AI Magic!)
 
@@ -533,7 +568,7 @@ Dave's implementation uses Cloudflare Analytics Engine for real-time event track
 Analytics Engine stores data in three types of fields:
 
 - **`blobs`**: String data (up to 10 fields per event)
-- **`doubles`**: Numeric data (up to 20 fields per event)  
+- **`doubles`**: Numeric data (up to 20 fields per event)
 - **`indexes`**: Optimized for querying (up to 5 fields per event)
 
 ### Event Schemas
@@ -683,6 +718,16 @@ The codebase demonstrates modern TypeScript patterns, proper error handling, com
 The latest addition of comprehensive JWT token management with D1 database storage proves that sometimes over-engineering is exactly the right amount of engineering. You can now manage tokens like a proper enterprise application, complete with search, revocation, and metadata storage that would make GitHub's token management system take notes.
 
 Remember: with great power comes great responsibility. Use these APIs wisely, back up your data religiously, initialize your databases properly, and may your tokens never expire unexpectedly (unless you want them to).
+
+## Build Warnings (That Are Not Worth Your Sanity)
+
+During the build process, you'll see some warnings about `this` keyword in the Cloudflare library that look scary but are completely harmless:
+
+```plaintext
+node_modules/cloudflare/core.mjs (1:30): The 'this' keyword is equivalent to 'undefined' at the top level of an ES module, and has been rewritten
+```
+
+These warnings come from the official Cloudflare SDK and are more trouble to fix than they're worth. The library works perfectly fine despite the warnings, and attempting to suppress them would require more effort than the heat death of the universe. Just ignore them like that weird noise your car makes that doesn't affect driving.
 
 ---
 

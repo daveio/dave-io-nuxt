@@ -7,6 +7,9 @@ export default defineConfig({
     globals: true,
     include: ["test/**/*.test.ts"],
     exclude: ["node_modules/**", ".trunk/**", ".nuxt/**", ".output/**", "coverage/**", "bin/**"],
+    fakeTimers: {
+      toFake: ["Date"]
+    },
     coverage: {
       reporter: ["text", "json", "html"],
       exclude: [

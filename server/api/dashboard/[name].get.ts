@@ -1,5 +1,4 @@
 import { getCloudflareEnv, getKVNamespace } from "~/server/utils/cloudflare"
-import { shouldAllowMockData } from "~/server/utils/environment"
 import { parseRSSFeed } from "~/server/utils/formatters"
 import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 
@@ -31,29 +30,9 @@ async function getDashboardItems(
       return { items: JSON.parse(cachedConfig), source: "kv" }
     }
 
-    // Special case for demo dashboard - provide mock data but clearly indicate it
-    if (name === "demo" && shouldAllowMockData()) {
-      console.warn("⚠️  Demo dashboard using mock data - no KV configuration found")
-      return {
-        items: [
-          {
-            title: "API Endpoints",
-            subtitle: "12 active endpoints (mock data)",
-            linkURL: "/api/docs"
-          },
-          {
-            title: "JWT Tokens",
-            subtitle: "3 active tokens (mock data)",
-            linkURL: "/api/auth"
-          },
-          {
-            title: "System Health",
-            subtitle: "All systems operational (mock data)",
-            linkURL: "/api/ping"
-          }
-        ],
-        source: "mock"
-      }
+    // No mock data allowed - if demo dashboard has no real configuration, return error
+    if (name === "demo") {
+      throw new Error("Demo dashboard requires real KV configuration - no mock data allowed")
     }
 
     throw new Error(`Dashboard configuration not found for: ${name}`)

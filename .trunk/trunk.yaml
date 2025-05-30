@@ -14,8 +14,8 @@ actions:
         - git_hooks:
             - pre-commit
   enabled:
-#    - lint
-#    - typecheck
+    #    - lint
+    #    - typecheck
     - trunk-announce
     - trunk-check-pre-push
     - trunk-fmt-pre-commit
@@ -25,13 +25,13 @@ cli:
 lint:
   # https://docs.trunk.io/check/configuration
   disabled:
+    - eslint
     - vale
     - stylelint
     - codespell
     - markdown-link-check
     - prettier
   enabled:
-    - eslint@9.27.0
     - hadolint@2.12.1-beta
     - shellcheck@0.10.0
     - shfmt@3.6.0
@@ -55,7 +55,7 @@ lint:
     - linters:
         - biome
       paths:
-        - .claude/settings.local.json
+        - "**/.claude/settings.local.json"
     - linters:
         - trunk-toolbox
       paths:
@@ -63,6 +63,8 @@ lint:
         - "**/*.png"
         - "**/*.ico"
         - "**/*.mdc"
+        - "**/*.md"
+        - "**/*.gif"
         - "**/nuxt.config.ts"
 plugins:
   # https://docs.trunk.io/plugins

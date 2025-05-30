@@ -41,8 +41,8 @@ class APITester {
       // Admin token (unlimited access)
       const adminToken = await createToken(
         {
-          sub: "admin",
-          description: "Test admin token",
+          sub: "test-admin@api-test.local",
+          description: "Test admin token with full permissions",
           expiresIn: "1h"
         },
         this.secret
@@ -85,6 +85,10 @@ class APITester {
       this.tokens.set("limited", limitedToken.token)
 
       console.log("✅ Generated tokens for: admin, metrics, ai, limited")
+      console.log("🔗 Token URLs for manual testing:")
+      console.log(`   Admin: ${this.baseUrl}/api/auth?token=${adminToken.token}`)
+      console.log(`   Metrics: ${this.baseUrl}/api/metrics?token=${metricsToken.token}`)
+      console.log(`   AI: ${this.baseUrl}/api/ai/alt?token=${aiToken.token}&url=https://example.com/image.jpg`)
     } catch (error) {
       console.error("❌ Failed to generate tokens:", error)
       throw error

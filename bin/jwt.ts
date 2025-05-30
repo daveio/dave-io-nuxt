@@ -324,6 +324,11 @@ program
 
       console.log("\n📋 Test with our API:")
       console.log(`bun run bin/api-test.ts --token "${token}"`)
+
+      console.log("\n🔧 Token Management:")
+      console.log(`bun jwt show ${metadata.uuid}`)
+      console.log(`bun jwt revoke ${metadata.uuid}`)
+      console.log(`bun jwt search --sub "${metadata.sub}"`)
     } catch (error) {
       console.error("❌ Error creating token:", error)
       process.exit(1)

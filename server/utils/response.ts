@@ -89,6 +89,7 @@ export function validateInput(
 
 export function sanitizeInput(input: unknown): string {
   let stringValue: string
+  const seen = new WeakSet()
 
   if (input === null) {
     stringValue = "null"
@@ -148,9 +149,6 @@ export function sanitizeInput(input: unknown): string {
 
   return sanitized
 }
-
-// Helper for circular reference detection
-const seen = new WeakSet()
 
 // KV-based rate limiting (requires KV storage)
 export async function checkRateLimit(
