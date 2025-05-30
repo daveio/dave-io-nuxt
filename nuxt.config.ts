@@ -71,5 +71,5 @@ export default defineNuxtConfig({
     "@nuxtjs/color-mode",
     "@pinia/nuxt",
     "nitro-cloudflare-dev"
-  ],
+  ]
 })
