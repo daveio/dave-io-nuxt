@@ -63,53 +63,18 @@ const _metricOptions = [
   { value: "unique_visitors", label: "Visitors" }
 ]
 
-// Generate mock time series data based on timeframe
+// Real time series data from Analytics Engine
 const chartData = computed(() => {
-  const { range } = props.metrics.timeframe
-  const now = new Date()
-  const intervals: Date[] = []
-  let intervalMs: number
-
-  switch (range) {
-    case "1h":
-      intervalMs = 5 * 60 * 1000 // 5 minutes
-      break
-    case "24h":
-      intervalMs = 60 * 60 * 1000 // 1 hour
-      break
-    case "7d":
-      intervalMs = 6 * 60 * 60 * 1000 // 6 hours
-      break
-    case "30d":
-      intervalMs = 24 * 60 * 60 * 1000 // 1 day
-      break
-    default:
-      intervalMs = 60 * 60 * 1000
-  }
-
-  const start = new Date(props.metrics.timeframe.start)
-  for (let time = start.getTime(); time <= now.getTime(); time += intervalMs) {
-    intervals.push(new Date(time))
-  }
-
-  const baseRequests = Math.floor(props.metrics.overview.totalRequests / intervals.length)
-  const successRatio = props.metrics.overview.successfulRequests / props.metrics.overview.totalRequests
-
-  return intervals.map((time, _index) => {
-    const variance = Math.random() * 0.4 + 0.8 // 80-120% variance
-    const totalReqs = Math.floor(baseRequests * variance)
-    const successfulReqs = Math.floor(totalReqs * successRatio)
-    const failedReqs = totalReqs - successfulReqs
-
-    return {
-      time: time.toISOString(),
-      label: formatTimeLabel(time, range),
-      total: totalReqs,
-      successful: successfulReqs,
-      failed: failedReqs,
-      responseTime: 100 + Math.random() * 200 // 100-300ms
-    }
-  })
+  // This component requires real time-series data from Analytics Engine
+  // The current implementation only provides aggregated totals, not time series
+  // To implement this properly, we need:
+  // 1. Analytics Engine queries with time-bucketed aggregation
+  // 2. Real event timestamps for time series visualization
+  //
+  // Rather than showing fake data, throw an error to indicate missing implementation
+  throw new Error(
+    "Time series chart requires Analytics Engine time-bucketed aggregation queries - no mock data allowed"
+  )
 })
 
 function formatTimeLabel(date: Date, range: string): string {

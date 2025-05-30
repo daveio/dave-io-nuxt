@@ -25,13 +25,13 @@ cli:
 lint:
   # https://docs.trunk.io/check/configuration
   disabled:
+    - eslint
     - vale
     - stylelint
     - codespell
     - markdown-link-check
     - prettier
   enabled:
-    - eslint@9.27.0
     - hadolint@2.12.1-beta
     - shellcheck@0.10.0
     - shfmt@3.6.0

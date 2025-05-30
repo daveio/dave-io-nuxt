@@ -1,4 +1,4 @@
-import { format, parseISO, subDays, subHours } from "date-fns"
+import { parseISO, subDays, subHours } from "date-fns"
 import type { H3Event } from "h3"
 import { groupBy, mean, sortBy, sum, take } from "lodash-es"
 import type {
@@ -12,6 +12,7 @@ import type {
   AuthEvent,
   KVMetrics,
   PingEvent,
+  RateLimitEvent,
   RedirectEvent,
   RouterOSEvent
 } from "~/types/analytics"
@@ -164,6 +165,22 @@ export function parseAnalyticsResults(results: AnalyticsEngineResult[]): Analyti
           }
         } as PingEvent
 
+      case "rate_limit":
+        return {
+          ...baseEvent,
+          type: "rate_limit",
+          data: {
+            action: result.blob2 as "throttled" | "blocked" | "warning",
+            endpoint: result.blob3 || "/",
+            tokenSubject: result.blob8 || undefined,
+            requestsInWindow: result.double1 || 0,
+            windowSizeMs: result.double2 || 60000,
+            maxRequests: result.double3 || 100,
+            remainingRequests: result.double4 || 0,
+            resetTime: result.blob9 || new Date().toISOString()
+          }
+        } as RateLimitEvent
+
       default:
         return {
           ...baseEvent,
@@ -178,6 +195,38 @@ export function parseAnalyticsResults(results: AnalyticsEngineResult[]): Analyti
         } as APIRequestEvent
     }
   })
+}
+
+/**
+ * Calculate rate limiting metrics from events
+ */
+function calculateRateLimitMetrics(eventsByType: Record<string, AnalyticsEvent[]>) {
+  const rateLimitEvents = (eventsByType.rate_limit as RateLimitEvent[]) || []
+
+  const throttledRequests = rateLimitEvents.filter(
+    (e) => e.data.action === "throttled" || e.data.action === "blocked"
+  ).length
+
+  const throttledBySubject = groupBy(
+    rateLimitEvents.filter((e) => e.data.action === "throttled" || e.data.action === "blocked"),
+    (e) => e.data.tokenSubject || "anonymous"
+  )
+
+  const throttledByToken = take(
+    sortBy(
+      Object.entries(throttledBySubject).map(([subject, events]) => ({
+        tokenSubject: subject,
+        throttledCount: events.length
+      })),
+      (e) => -e.throttledCount
+    ),
+    10
+  )
+
+  return {
+    throttledRequests,
+    throttledByToken
+  }
 }
 
 /**
@@ -319,8 +368,8 @@ export function aggregateAnalyticsMetrics(
     geographic,
     userAgents,
     rateLimiting: {
-      throttledRequests: 0, // TODO: Implement rate limiting tracking
-      throttledByToken: []
+      throttledRequests: calculateRateLimitMetrics(eventsByType).throttledRequests,
+      throttledByToken: calculateRateLimitMetrics(eventsByType).throttledByToken
     }
   }
 }
@@ -400,21 +449,20 @@ export async function queryAnalyticsEngine(
   const sqlQuery = buildAnalyticsQuery(params)
 
   try {
-    // NOTE: Analytics Engine in Workers runtime does not support direct SQL querying
+    // CONSTRAINT: Analytics Engine in Workers runtime does not support direct SQL querying
     // Analytics Engine only supports writing data points via writeDataPoint()
-    // Real analytics querying requires Cloudflare's GraphQL API with proper credentials
+    // Analytics querying requires Cloudflare's GraphQL API with proper credentials
 
-    // For now, we return empty array but log that we're writing events successfully
-    console.log("Analytics Engine is writing events but querying requires GraphQL API")
-    console.log("Generated query would be:", sqlQuery)
+    console.error("Analytics Engine querying not implemented: requires GraphQL API access")
+    console.error("Query attempted:", sqlQuery)
 
-    // Real implementation would use Cloudflare's GraphQL API:
-    // https://developers.cloudflare.com/analytics/graphql-api/
-
+    // Return empty array - this is a service limitation, not mock data
+    // See: https://developers.cloudflare.com/analytics/graphql-api/
     return []
   } catch (error) {
     console.error("Analytics Engine query preparation failed:", error)
-    return []
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    throw new Error(`Analytics Engine query failed: ${errorMessage}`)
   }
 }
 
@@ -530,6 +578,31 @@ export function writeAnalyticsEvent(analytics: AnalyticsEngineDataset, event: An
           ],
           doubles: [apiData.responseTimeMs, apiData.statusCode],
           indexes: ["api_request", apiData.endpoint, apiData.tokenSubject || "anonymous"]
+        })
+        break
+      }
+
+      case "rate_limit": {
+        const rateLimitData = event.data as RateLimitEvent["data"]
+        analytics.writeDataPoint({
+          blobs: [
+            "rate_limit",
+            rateLimitData.action,
+            rateLimitData.endpoint,
+            event.cloudflare.userAgent,
+            event.cloudflare.ip,
+            event.cloudflare.country,
+            event.cloudflare.ray,
+            rateLimitData.tokenSubject || "",
+            rateLimitData.resetTime
+          ],
+          doubles: [
+            rateLimitData.requestsInWindow,
+            rateLimitData.windowSizeMs,
+            rateLimitData.maxRequests,
+            rateLimitData.remainingRequests
+          ],
+          indexes: ["rate_limit", rateLimitData.action, rateLimitData.tokenSubject || "anonymous"]
         })
         break
       }

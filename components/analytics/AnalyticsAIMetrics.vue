@@ -118,8 +118,16 @@ const _processingSpeedLabel = computed(() => {
 })
 
 const _successRate = computed(() => {
-  // Assume high success rate for AI operations
-  return "99.2"
+  // Calculate real success rate from AI operations data
+  const totalOps = props.metrics.ai.totalOperations
+  if (totalOps === 0) {
+    return "0.0"
+  }
+  // If we don't have failure data, we should either:
+  // 1. Add failure tracking to the Analytics Engine events
+  // 2. Return an error indicating missing data
+  // For now, throw an error to indicate missing real data
+  throw new Error("AI success rate calculation requires failure/success tracking in Analytics Engine")
 })
 
 const performanceScore = computed(() => {

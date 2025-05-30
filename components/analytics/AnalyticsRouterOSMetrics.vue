@@ -156,13 +156,17 @@ const _efficiencyLabel = computed(() => {
   return "Poor"
 })
 
-// Mock additional metrics
+// Real metrics computed from actual data
 const _avgResponseTime = computed(() => {
-  return Math.floor(50 + Math.random() * 30) // 50-80ms
+  // This should be calculated from real Analytics Engine events
+  // For now, throw an error to indicate missing real data implementation
+  throw new Error("RouterOS average response time requires real Analytics Engine aggregation")
 })
 
 const _uptime = computed(() => {
-  return "99.9%" // Mock high uptime
+  // This should be calculated from real system monitoring data
+  // For now, throw an error to indicate missing real data implementation
+  throw new Error("RouterOS uptime requires real system monitoring integration")
 })
 
 // Utility functions

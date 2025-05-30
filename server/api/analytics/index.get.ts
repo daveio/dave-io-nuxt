@@ -12,6 +12,8 @@ import { createApiError, createApiResponse } from "~/server/utils/response"
 import type { AnalyticsMetrics, AnalyticsQueryParams, AnalyticsResponse } from "~/types/analytics"
 
 export default defineEventHandler(async (event) => {
+  const startTime = Date.now()
+
   try {
     // Require analytics permissions
     await requireAPIAuth(event, "analytics")
@@ -61,8 +63,7 @@ export default defineEventHandler(async (event) => {
     const kvMetrics = await getKVMetrics(kv)
 
     // Calculate time boundaries for the request
-    // biome-ignore lint/correctness/noUnusedVariables: Used in timeframe construction
-    const { start, end } = getTimeRangeBoundaries(params.timeRange, params.customStart, params.customEnd)
+    const { start: _start, end: _end } = getTimeRangeBoundaries(params.timeRange, params.customStart, params.customEnd)
 
     // Query real Analytics Engine data for detailed insights
     const engineResults = await queryAnalyticsEngine(event, params)
@@ -131,7 +132,7 @@ export default defineEventHandler(async (event) => {
         requestId: crypto.randomUUID(),
         timestamp: new Date().toISOString(),
         cached: false,
-        queryTime: Date.now() - (Date.now() - 50) // Mock query time
+        queryTime: Date.now() - startTime
       }
     }
 

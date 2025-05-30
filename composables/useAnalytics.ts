@@ -143,10 +143,10 @@ export function useAnalytics(jwtToken?: string) {
           if (data.metrics && metrics.value) {
             // Merge real-time updates with existing metrics
             if (data.metrics.overview) {
-              Object.assign(metrics.value.overview, data.metrics.overview)
+              metrics.value.overview = { ...metrics.value.overview, ...data.metrics.overview }
             }
             if (data.metrics.redirects) {
-              Object.assign(metrics.value.redirects, data.metrics.redirects)
+              metrics.value.redirects = { ...metrics.value.redirects, ...data.metrics.redirects }
             }
             lastUpdated.value = new Date()
           }

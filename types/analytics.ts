@@ -3,7 +3,7 @@ import type { CloudflareRequestInfo } from "~/server/utils/cloudflare"
 /**
  * Analytics Engine Event Types
  */
-export type AnalyticsEventType = "ping" | "redirect" | "auth" | "ai" | "routeros" | "api_request"
+export type AnalyticsEventType = "ping" | "redirect" | "auth" | "ai" | "routeros" | "api_request" | "rate_limit"
 
 /**
  * Time range options for analytics queries
@@ -144,6 +144,23 @@ export interface APIRequestEvent extends AnalyticsEvent {
     statusCode: number
     responseTimeMs: number
     tokenSubject?: string
+  }
+}
+
+/**
+ * Rate limiting analytics event
+ */
+export interface RateLimitEvent extends AnalyticsEvent {
+  type: "rate_limit"
+  data: {
+    action: "throttled" | "blocked" | "warning"
+    endpoint: string
+    tokenSubject?: string
+    requestsInWindow: number
+    windowSizeMs: number
+    maxRequests: number
+    remainingRequests: number
+    resetTime: string
   }
 }
 

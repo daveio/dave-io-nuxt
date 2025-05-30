@@ -1,4 +1,4 @@
-import { getHeader, sendRedirect, setHeader, setResponseStatus } from "h3"
+import { setHeader, setResponseStatus } from "h3"
 import {
   getAnalyticsBinding,
   getCloudflareEnv,
@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
         // Handle both formats: simple string or full object
         try {
           redirectData = JSON.parse(kvData)
-        } catch (_parseError) {
+        } catch {
           // If JSON parsing fails, treat as simple string URL
           redirectData = {
             slug: slug,

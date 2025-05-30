@@ -1,7 +1,6 @@
 import { z } from "zod"
 import {
   aggregateAnalyticsMetrics,
-  buildAnalyticsQuery,
   getAnalyticsCacheKey,
   parseAnalyticsResults,
   queryAnalyticsEngine
@@ -9,7 +8,7 @@ import {
 import { requireAPIAuth } from "~/server/utils/auth-helpers"
 import { getCloudflareEnv, getKVNamespace } from "~/server/utils/cloudflare"
 import { createApiError, createApiResponse } from "~/server/utils/response"
-import type { AnalyticsEvent, AnalyticsQueryParams, AnalyticsResponse } from "~/types/analytics"
+import type { AnalyticsResponse } from "~/types/analytics"
 
 // Validation schema for query parameters
 const AnalyticsQuerySchema = z.object({

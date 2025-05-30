@@ -10,8 +10,8 @@
           <p class="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">
             {{ formatNumber(metrics.overview.totalRequests) }}
           </p>
-          <p class="text-sm text-green-600 dark:text-green-400 mt-1">
-            +{{ formatNumber(metrics.overview.totalRequests - (metrics.overview.totalRequests - metrics.overview.successfulRequests - metrics.overview.failedRequests)) }} today
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Real-time total requests
           </p>
         </div>
         <div class="p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
