@@ -1,5 +1,5 @@
-import { generateRouterOSScript, handleResponseFormat } from "~/server/utils/formatters"
 import { getCloudflareRequestInfo } from "~/server/utils/cloudflare"
+import { generateRouterOSScript, handleResponseFormat } from "~/server/utils/formatters"
 import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 
 interface BGPPrefix {
@@ -183,7 +183,15 @@ export default defineEventHandler(async (event) => {
       const cfInfo = getCloudflareRequestInfo(event)
       if (env?.ANALYTICS) {
         env.ANALYTICS.writeDataPoint({
-          blobs: ["routeros", "putio", data.cacheHit ? "cache-hit" : "cache-miss", cfInfo.userAgent, cfInfo.ip, cfInfo.country, cfInfo.ray],
+          blobs: [
+            "routeros",
+            "putio",
+            data.cacheHit ? "cache-hit" : "cache-miss",
+            cfInfo.userAgent,
+            cfInfo.ip,
+            cfInfo.country,
+            cfInfo.ray
+          ],
           doubles: [data.ipv4Ranges.length, data.ipv6Ranges.length], // IPv4 and IPv6 range counts
           indexes: ["routeros", "putio"] // For querying RouterOS operations
         })

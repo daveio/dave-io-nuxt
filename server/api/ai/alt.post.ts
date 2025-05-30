@@ -107,7 +107,18 @@ export default defineEventHandler(async (event) => {
       const cfInfo = getCloudflareRequestInfo(event)
       if (env?.ANALYTICS) {
         env.ANALYTICS.writeDataPoint({
-          blobs: ["ai", "alt-text", "post", request.url || "uploaded-file", altText.substring(0, 100), auth.payload?.sub || "anonymous", cfInfo.userAgent, cfInfo.ip, cfInfo.country, cfInfo.ray],
+          blobs: [
+            "ai",
+            "alt-text",
+            "post",
+            request.url || "uploaded-file",
+            altText.substring(0, 100),
+            auth.payload?.sub || "anonymous",
+            cfInfo.userAgent,
+            cfInfo.ip,
+            cfInfo.country,
+            cfInfo.ray
+          ],
           doubles: [processingTime, imageData.length], // Processing time and image size
           indexes: ["ai", "alt-text", auth.payload?.sub || "anonymous"] // For querying AI operations
         })

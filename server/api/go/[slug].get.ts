@@ -1,5 +1,5 @@
 import { getHeader, sendRedirect } from "h3"
-import { getCloudflareEnv, getKVNamespace, getAnalyticsBinding } from "~/server/utils/cloudflare"
+import { getAnalyticsBinding, getCloudflareEnv, getKVNamespace } from "~/server/utils/cloudflare"
 import { createApiError, isApiError } from "~/server/utils/response"
 import { UrlRedirectSchema } from "~/server/utils/schemas"
 
@@ -69,15 +69,17 @@ export default defineEventHandler(async (event) => {
     try {
       // Store redirect data as JSON (exception for unknown object size)
       await kv.put(redirectKey, JSON.stringify(updatedRedirect))
-      
+
       // Also store click metrics in hierarchical KV keys for metrics endpoint
       await Promise.all([
         kv.put(`metrics:redirect:${slug}:clicks`, clickCount.toString()),
         // Update total redirect clicks
-        kv.get("metrics:redirect:total:clicks").then(async (totalStr) => {
-          const currentTotal = parseInt(totalStr || "0", 10)
-          await kv.put("metrics:redirect:total:clicks", (currentTotal + 1).toString())
-        })
+        kv
+          .get("metrics:redirect:total:clicks")
+          .then(async (totalStr) => {
+            const currentTotal = Number.parseInt(totalStr || "0", 10)
+            await kv.put("metrics:redirect:total:clicks", (currentTotal + 1).toString())
+          })
       ])
     } catch (error) {
       console.error("Failed to update redirect metrics in KV:", error)

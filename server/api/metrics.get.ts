@@ -52,11 +52,9 @@ async function getMetricsFromAnalytics(
       "metrics:24h:failed",
       "metrics:24h:redirects"
     ])
-    
+
     // Get redirect click metrics from KV
-    const [totalRedirectClicks = 0] = await batchKVGet(kv, [
-      "metrics:redirect:total:clicks"
-    ])
+    const [totalRedirectClicks = 0] = await batchKVGet(kv, ["metrics:redirect:total:clicks"])
 
     const metricsData = {
       total_requests: totalRequests,

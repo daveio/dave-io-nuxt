@@ -1,4 +1,4 @@
-import { getCloudflareRequestInfo, getCloudflareEnv, getAnalyticsBinding } from "~/server/utils/cloudflare"
+import { getAnalyticsBinding, getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
 import { createApiResponse } from "~/server/utils/response"
 
 export default defineEventHandler(async (event) => {
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
   try {
     const env = getCloudflareEnv(event)
     const analytics = getAnalyticsBinding(env)
-    
+
     analytics.writeDataPoint({
       blobs: ["ping", cfInfo.userAgent, cfInfo.ip, cfInfo.country, cfInfo.ray],
       doubles: [1], // Ping count

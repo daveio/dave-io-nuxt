@@ -1,5 +1,5 @@
 import { extractToken, getUserFromPayload, verifyJWT } from "~/server/utils/auth"
-import { getCloudflareRequestInfo, getCloudflareEnv, getAnalyticsBinding } from "~/server/utils/cloudflare"
+import { getAnalyticsBinding, getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
 import { createApiError, isApiError } from "~/server/utils/response"
 import { AuthSuccessResponseSchema } from "~/server/utils/schemas"
 
@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
       const env = getCloudflareEnv(event)
       const analytics = getAnalyticsBinding(env)
       const cfInfo = getCloudflareRequestInfo(event)
-      
+
       analytics.writeDataPoint({
         blobs: ["auth", "success", payload.sub, cfInfo.userAgent, cfInfo.ip, cfInfo.country, cfInfo.ray],
         doubles: [1], // Auth success count
@@ -73,7 +73,7 @@ export default defineEventHandler(async (event) => {
       const env = getCloudflareEnv(event)
       const analytics = getAnalyticsBinding(env)
       const cfInfo = getCloudflareRequestInfo(event)
-      
+
       analytics.writeDataPoint({
         blobs: ["auth", "failed", "unknown", cfInfo.userAgent, cfInfo.ip, cfInfo.country, cfInfo.ray],
         doubles: [1], // Auth failure count
