@@ -16,6 +16,6 @@
 
 <script setup lang="ts">
 defineProps<{
-  handleServiceClick: (service: any) => void;
+  handleServiceClick: (service: any) => void
 }>()
 </script>

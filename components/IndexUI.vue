@@ -7,11 +7,11 @@
 </template>
 
 <script setup lang="ts">
-import Hero from './Hero.vue'
-import TerminalWindow from './TerminalWindow.vue'
+import Hero from "./Hero.vue"
+import TerminalWindow from "./TerminalWindow.vue"
 // import ServiceButtons from './ServiceButtons.vue'
 
 defineProps<{
-  handleServiceClick: (service: any) => void;
+  handleServiceClick: (service: any) => void
 }>()
 </script>

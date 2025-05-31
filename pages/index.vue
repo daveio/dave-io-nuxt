@@ -7,8 +7,8 @@
 </template>
 
 <script setup lang="ts">
-import Background from '../components/Background.vue'
-import IndexUI from '../components/IndexUI.vue'
+import Background from "../components/Background.vue"
+import IndexUI from "../components/IndexUI.vue"
 // Set page title and meta
 useHead({
   title: "dave.io - Dave Williams",

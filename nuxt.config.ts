@@ -77,20 +77,16 @@ export default defineNuxtConfig({
   fonts: {
     defaults: {
       weights: [400],
-      styles: ['normal', 'italic'],
-      subsets: [
-        'latin-ext',
-        'latin',
-      ],
-
+      styles: ["normal", "italic"],
+      subsets: ["latin-ext", "latin"]
     },
     families: [
-      { name: 'Sixtyfour Convergence', provider: 'google' },
-      { name: 'Sono', provider: 'google' },
-      { name: 'Victor Mono', provider: 'google' }
+      { name: "Sixtyfour Convergence", provider: "google" },
+      { name: "Sono", provider: "google" },
+      { name: "Victor Mono", provider: "google" }
     ],
     assets: {
-      prefix: '/_fonts/'
+      prefix: "/_fonts/"
     }
   }
 })

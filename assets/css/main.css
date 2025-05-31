@@ -2,10 +2,20 @@
 @import '@nuxt/ui';
 
 @theme {
-  --font-mono: "Victor Mono", "monospace";
-  --font-subtitle: "Sono", "sans-serif";
-  --font-display: "Sixtyfour Convergence", "sans-serif";
-  --gradient-rainbow: linear-gradient(to right, #E87777 35%, #EAAA77 40%, #EACC77 45%, #EDED77 50%, #AAEAAA 55%, #77CCEA 60%, #CCAAEA 65%, #EAAAD4 70%);
+  --font-mono: 'Victor Mono', 'monospace';
+  --font-subtitle: 'Sono', 'sans-serif';
+  --font-display: 'Sixtyfour Convergence', 'sans-serif';
+  --gradient-rainbow: linear-gradient(
+    to right,
+    #e87777 35%,
+    #eaaa77 40%,
+    #eacc77 45%,
+    #eded77 50%,
+    #aaeaaa 55%,
+    #77ccea 60%,
+    #ccaaea 65%,
+    #eaaad4 70%
+  );
 }
 
 /* Custom utility classes */
