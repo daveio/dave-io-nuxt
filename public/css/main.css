@@ -23,3 +23,10 @@
 .bg-rainbow-gradient {
   background-image: var(--gradient-rainbow);
 }
+
+.link-url {
+  color: var(--color-blue-400);
+  &:hover {
+    color: var(--color-blue-200);
+  }
+}

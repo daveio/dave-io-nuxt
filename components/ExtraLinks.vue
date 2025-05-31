@@ -6,40 +6,50 @@
           <UIcon name="i-heroicons-document-text" class="font-bold mr-2 text-blue-400" />
           Check out my CV
         </span>
-        <a href="https://dave.io/go/cv" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('CV', 'https://dave.io/go/cv')">dave.io/go/cv</a>
+        <ULink to="https://dave.io/go/cv" target="_blank" class="link-url"
+          @click="handleLinkClick('CV', 'https://dave.io/go/cv')">
+          dave.io/go/cv
+        </ULink>
       </div>
       <div class="links-row">
         <span class="link-name">
           <UIcon name="i-heroicons-key" class="font-bold mr-2 text-yellow-400" />
           <span class="key-text">Grab my public key</span>
         </span>
-        <a href="https://dave.io/go/key" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('CV', 'https://dave.io/go/key')">dave.io/go/key</a>
+        <ULink to="https://dave.io/go/key" target="_blank" class="link-url"
+          @click="handleLinkClick('CV', 'https://dave.io/go/key')">
+          dave.io/go/key
+        </ULink>
       </div>
       <div class="links-row">
         <span class="link-name">
           <UIcon name="i-heroicons-list-bullet" class="font-bold mr-2 text-green-400" />
           Give me a TODO
         </span>
-        <a href="https://dave.io/go/todo" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('TODO', 'https://dave.io/go/todo')">dave.io/go/todo</a>
+        <ULink to="https://dave.io/go/todo" target="_blank" class="link-url"
+          @click="handleLinkClick('TODO', 'https://dave.io/go/todo')">
+          dave.io/go/todo
+        </ULink>
       </div>
       <div class="links-row">
         <span class="link-name">
           <UIcon name="i-heroicons-microphone" class="font-bold mr-2 text-purple-400" />
           Enjoy this talk
         </span>
-        <a href="https://dave.io/go/wat" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('Talk', 'https://dave.io/go/wat')">dave.io/go/wat</a>
+        <ULink to="https://dave.io/go/wat" target="_blank" class="link-url"
+          @click="handleLinkClick('Talk', 'https://dave.io/go/wat')">
+          dave.io/go/wat
+        </ULink>
       </div>
       <div class="links-row">
         <span class="link-name">
           <UIcon name="i-heroicons-book-open" class="font-bold mr-2 text-indigo-400" />
           Read this story
         </span>
-        <a href="https://dave.io/go/blit" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('Story', 'https://dave.io/go/blit')">dave.io/go/blit</a>
+        <ULink to="https://dave.io/go/blit" target="_blank" class="link-url"
+          @click="handleLinkClick('Story', 'https://dave.io/go/blit')">
+          dave.io/go/blit
+        </ULink>
       </div>
     </div>
   </div>

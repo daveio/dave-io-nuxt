@@ -6,9 +6,10 @@
           <UIcon name="i-mdi-light-gender-transgender" class="mr-2 text-blue-300" />
           Pronouns
         </span>
-        <a href="/gender" target="_blank" class="link-url"
-          @click="handleLinkClick('gender', 'https://dave.io/gender')">they/them <span
-            class="underline text-blue-300 hover:text-blue-400 ">(learn more)</span></a>
+        <ULink to="/gender" target="_blank" class="link-url"
+          @click="handleLinkClick('gender', 'https://dave.io/gender')">
+          they/them (learn more)
+        </ULink>
       </div>
     </div>
   </div>

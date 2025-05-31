@@ -1,17 +1,18 @@
 <template>
   <div class="curl-section mb-8">
-    <div
-      class="bg-black/50 border border-gray-700 rounded-lg overflow-hidden shadow-2xl p-4 font-mono text-white text-sm">
-      <div class="text-center">
+    <UCard class="bg-black/50 border-gray-700 shadow-2xl overflow-hidden">
+      <div class="text-center p-4 font-mono text-white text-sm">
         <div class="text-lg font-extrabold mb-4 rainbow-gradient-text">
           Want to see this animated?
         </div>
         <div class="text-gray-300">
-          <code class="bg-gray-800 px-2 py-1 rounded text-blue-300 cursor-pointer hover:bg-gray-700 transition-colors"
-            @click="copyCurlCommand" title="Click to copy to clipboard">curl https://dave.io | sh</code>
+          <UButton variant="ghost" size="sm" class="font-mono bg-gray-800 hover:bg-gray-700 cursor-pointer"
+            @click="copyCurlCommand" title="Click to copy to clipboard" icon="i-heroicons-clipboard">
+            curl https://dave.io | sh
+          </UButton>
         </div>
       </div>
-    </div>
+    </UCard>
   </div>
 </template>
 

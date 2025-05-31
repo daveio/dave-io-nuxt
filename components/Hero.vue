@@ -6,6 +6,9 @@
       </h1>
       <div class="mt-6 h-1 w-32 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto rounded-full"></div>
     </div>
-    <p class="font-subtitle pt-2 text-md sm:text-lg text-gray-300 font-light">because "just a website" is boring</p>
+    <UBadge color="neutral" variant="soft" size="lg"
+      class="font-subtitle text-md sm:text-lg font-light bg-transparent text-gray-300">
+      because "just a website" is boring
+    </UBadge>
   </div>
 </template>
