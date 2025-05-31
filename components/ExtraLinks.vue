@@ -7,7 +7,7 @@
           Check out my CV
         </span>
         <a href="https://dave.io/go/cv" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('CV', 'https://dave.io/go/cv')">https://dave.io/go/cv</a>
+          @click="handleLinkClick('CV', 'https://dave.io/go/cv')">dave.io/go/cv</a>
       </div>
       <div class="links-row">
         <span class="link-name">
@@ -15,7 +15,7 @@
           <span class="key-text">Grab my public key</span>
         </span>
         <a href="https://dave.io/go/key" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('CV', 'https://dave.io/go/key')">https://dave.io/go/key</a>
+          @click="handleLinkClick('CV', 'https://dave.io/go/key')">dave.io/go/key</a>
       </div>
       <div class="links-row">
         <span class="link-name">
@@ -23,7 +23,7 @@
           Give me a TODO
         </span>
         <a href="https://dave.io/go/todo" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('TODO', 'https://dave.io/go/todo')">https://dave.io/go/todo</a>
+          @click="handleLinkClick('TODO', 'https://dave.io/go/todo')">dave.io/go/todo</a>
       </div>
       <div class="links-row">
         <span class="link-name">
@@ -31,7 +31,7 @@
           Enjoy this talk
         </span>
         <a href="https://dave.io/go/wat" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('Talk', 'https://dave.io/go/wat')">https://dave.io/go/wat</a>
+          @click="handleLinkClick('Talk', 'https://dave.io/go/wat')">dave.io/go/wat</a>
       </div>
       <div class="links-row">
         <span class="link-name">
@@ -39,7 +39,7 @@
           Read this story
         </span>
         <a href="https://dave.io/go/blit" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('Story', 'https://dave.io/go/blit')">https://dave.io/go/blit</a>
+          @click="handleLinkClick('Story', 'https://dave.io/go/blit')">dave.io/go/blit</a>
       </div>
     </div>
   </div>

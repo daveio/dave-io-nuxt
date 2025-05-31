@@ -2,21 +2,13 @@
   <div class="mb-4">
     <div class="social-links-table">
       <div class="links-row">
-        <span class="link-name text-blue-300 font-bold">
-          <UIcon name="i-heroicons-globe-alt" class="mr-2 text-blue-300" />
-          Web
-        </span>
-        <a href="https://dave.io" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('Web', 'https://dave.io')">https://dave.io</a>
-      </div>
-      <div class="links-row">
         <span class="link-name">
           <UIcon name="i-simple-icons-bluesky" class="mr-2 text-sky-400 font-bold" />
           Bluesky
         </span>
         <a href="https://dave.io/go/bluesky" target="_blank"
           class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('Bluesky', 'https://dave.io/go/bluesky')">https://dave.io/go/bluesky</a>
+          @click="handleLinkClick('Bluesky', 'https://dave.io/go/bluesky')">dave.io/go/bluesky</a>
       </div>
       <div class="links-row">
         <span class="link-name">
@@ -25,7 +17,7 @@
         </span>
         <a href="https://dave.io/go/dreamwidth" target="_blank"
           class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('Dreamwidth', 'https://dave.io/go/dreamwidth')">https://dave.io/go/dreamwidth</a>
+          @click="handleLinkClick('Dreamwidth', 'https://dave.io/go/dreamwidth')">dave.io/go/dreamwidth</a>
       </div>
       <div class="links-row">
         <span class="link-name">
@@ -34,7 +26,7 @@
         </span>
         <a href="https://dave.io/go/facebook" target="_blank"
           class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('Facebook', 'https://dave.io/go/facebook')">https://dave.io/go/facebook</a>
+          @click="handleLinkClick('Facebook', 'https://dave.io/go/facebook')">dave.io/go/facebook</a>
       </div>
       <div class="links-row">
         <span class="link-name">
@@ -42,7 +34,7 @@
           GitHub
         </span>
         <a href="https://dave.io/go/github" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('GitHub', 'https://dave.io/go/github')">https://dave.io/go/github</a>
+          @click="handleLinkClick('GitHub', 'https://dave.io/go/github')">dave.io/go/github</a>
       </div>
       <div class="links-row">
         <span class="link-name">
@@ -51,7 +43,7 @@
         </span>
         <a href="https://dave.io/go/instagram" target="_blank"
           class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('Instagram', 'https://dave.io/go/instagram')">https://dave.io/go/instagram</a>
+          @click="handleLinkClick('Instagram', 'https://dave.io/go/instagram')">dave.io/go/instagram</a>
       </div>
       <div class="links-row">
         <span class="link-name">
@@ -60,7 +52,7 @@
         </span>
         <a href="https://dave.io/go/linkedin" target="_blank"
           class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('LinkedIn', 'https://dave.io/go/linkedin')">https://dave.io/go/linkedin</a>
+          @click="handleLinkClick('LinkedIn', 'https://dave.io/go/linkedin')">dave.io/go/linkedin</a>
       </div>
       <div class="links-row">
         <span class="link-name">
@@ -69,7 +61,7 @@
         </span>
         <a href="https://dave.io/go/mastodon" target="_blank"
           class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('Mastodon', 'https://dave.io/go/mastodon')">https://dave.io/go/mastodon</a>
+          @click="handleLinkClick('Mastodon', 'https://dave.io/go/mastodon')">dave.io/go/mastodon</a>
       </div>
       <div class="links-row">
         <span class="link-name">
@@ -78,7 +70,7 @@
         </span>
         <a href="https://dave.io/go/pillowfort" target="_blank"
           class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('Pillowfort', 'https://dave.io/go/pillowfort')">https://dave.io/go/pillowfort</a>
+          @click="handleLinkClick('Pillowfort', 'https://dave.io/go/pillowfort')">dave.io/go/pillowfort</a>
       </div>
       <div class="links-row">
         <span class="link-name">
@@ -87,7 +79,7 @@
         </span>
         <a href="https://dave.io/go/threads" target="_blank"
           class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('Threads', 'https://dave.io/go/threads')">https://dave.io/go/threads</a>
+          @click="handleLinkClick('Threads', 'https://dave.io/go/threads')">dave.io/go/threads</a>
       </div>
       <div class="links-row">
         <span class="link-name">
@@ -95,7 +87,7 @@
           Tumblr
         </span>
         <a href="https://dave.io/go/tumblr" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('Tumblr', 'https://dave.io/go/tumblr')">https://dave.io/go/tumblr</a>
+          @click="handleLinkClick('Tumblr', 'https://dave.io/go/tumblr')">dave.io/go/tumblr</a>
       </div>
       <div class="links-row">
         <span class="link-name">
@@ -104,7 +96,7 @@
         </span>
         <a href="https://dave.io/go/youtube" target="_blank"
           class="underline text-blue-300 hover:text-blue-400 link-url"
-          @click="handleLinkClick('YouTube', 'https://dave.io/go/youtube')">https://dave.io/go/youtube</a>
+          @click="handleLinkClick('YouTube', 'https://dave.io/go/youtube')">dave.io/go/youtube</a>
       </div>
       <div class="links-row">
         <span class="link-name">

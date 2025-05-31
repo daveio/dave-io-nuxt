@@ -17,7 +17,8 @@
 
       <!-- Terminal content -->
       <div class="terminal-content font-mono text-white p-4 text-sm" ref="terminalContent">
-        <PersonalInfo />
+        <Subtitle />
+        <ProfileInfo />
         <SocialLinks />
         <ExtraLinks />
       </div>
@@ -27,8 +28,9 @@
 
 <script setup lang="ts">
 import ExtraLinks from "./ExtraLinks.vue"
-import PersonalInfo from "./PersonalInfo.vue"
+import ProfileInfo from "./ProfileInfo.vue"
 import SocialLinks from "./SocialLinks.vue"
+import Subtitle from "./Subtitle.vue"
 </script>
 
 <style scoped>

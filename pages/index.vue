@@ -20,9 +20,6 @@ useHead({
   ]
 })
 
-// Force dark color mode for this page
-useColorMode().preference = "dark"
-
 // Page logging
 const { logPageVisit, logInteraction } = usePageLogging()
 

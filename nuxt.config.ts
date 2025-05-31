@@ -63,16 +63,20 @@ export default defineNuxtConfig({
   },
   modules: [
     "@nuxt/ui",
+    "@nuxtjs/tailwindcss",
     "@nuxt/fonts",
     "@nuxt/icon",
     "@nuxt/image",
     "@nuxt/scripts",
     "@nuxt/test-utils",
-    "@nuxtjs/tailwindcss",
-    "@nuxtjs/color-mode",
     "@pinia/nuxt",
     "nitro-cloudflare-dev"
   ],
+  colorMode: {
+    preference: "dark",
+    fallback: "dark",
+    storageKey: "nuxt-color-mode"
+  },
   css: ["~/public/css/main.css"],
   fonts: {
     defaults: {

@@ -8,7 +8,9 @@ export function usePageLogging() {
    * Format: [PAGE] route | referrer | UA | extras
    */
   const logPageVisit = (route: string, extras?: Record<string, unknown>) => {
-    if (typeof window === "undefined") { return } // Only run on client side
+    if (typeof window === "undefined") {
+      return
+    } // Only run on client side
 
     const referrer = window.document.referrer || "direct"
     const userAgent =
@@ -27,7 +29,9 @@ export function usePageLogging() {
    * Format: [INTERACTION] action | element | extras
    */
   const logInteraction = (action: string, element: string, extras?: Record<string, unknown>) => {
-    if (!import.meta.client) { return } // Only run on client side
+    if (!import.meta.client) {
+      return
+    } // Only run on client side
 
     const extrasStr = extras
       ? ` | ${Object.entries(extras)
@@ -48,7 +52,9 @@ export function usePageLogging() {
     method: "push" | "replace" | "external" = "push",
     extras?: Record<string, unknown>
   ) => {
-    if (!import.meta.client) { return } // Only run on client side
+    if (!import.meta.client) {
+      return
+    } // Only run on client side
 
     const extrasStr = extras
       ? ` | ${Object.entries(extras)
