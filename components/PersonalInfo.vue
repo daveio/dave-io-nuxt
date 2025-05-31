@@ -7,10 +7,10 @@
     </div>
     <div
       class="text-center text-xl font-extrabold rainbow-gradient-text mb-4 flex items-center justify-center gap-2 pt-4">
-      <span>🚀</span>
+      <UIcon name="i-heroicons-rocket-launch" class="text-orange-400" />
       <span class="tagline-text">Weapons-grade DevOps engineer,
         developer, and tinkerer</span>
-      <span>🚀</span>
+      <UIcon name="i-heroicons-rocket-launch" class="text-orange-400" />
     </div>
   </div>
 </template>
