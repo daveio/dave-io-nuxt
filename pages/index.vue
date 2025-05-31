@@ -1,5 +1,6 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col justify-center py-12 px-4 relative overflow-hidden">
+  <div
+    class="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col justify-center py-12 px-4 relative overflow-hidden">
     <!-- Background elements -->
     <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(120,119,198,0.3),transparent_50%)]"></div>
     <div class="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(255,119,198,0.3),transparent_50%)]"></div>
@@ -9,13 +10,13 @@
       <!-- Hero section -->
       <div class="text-center mb-8">
         <div class="mb-4">
-          <h1 class="text-5xl font-bold bg-gradient-to-r from-white via-blue-100 to-purple-200 bg-clip-text text-transparent mb-2">
-            next.dave.io
+          <h1
+            class="text-5xl font-bold bg-gradient-to-r from-white via-blue-100 to-purple-200 bg-clip-text text-transparent mb-2 font-family-convergence">
+            dave.io
           </h1>
-          <div class="h-1 w-32 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto rounded-full"></div>
+          <div class="mt-6 h-1 w-32 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto rounded-full"></div>
         </div>
-        <p class="text-xl text-gray-300 font-light">API Platform & URL Redirector</p>
-        <p class="text-sm text-gray-400 mt-2">Enterprise-grade REST services with style</p>
+        <p class="pt-2 text-xl text-gray-300 font-light">because "just a website" is boring</p>
       </div>
 
       <!-- Terminal Window -->
@@ -38,12 +39,12 @@
           <template #leading>
             <UIcon name="i-heroicons-link" class="group-hover:rotate-12 transition-transform duration-200" />
           </template>
-          URL Redirector
-          <template #trailing>
+URL Redirector
+<template #trailing>
             <UIcon name="i-heroicons-arrow-right" class="group-hover:translate-x-1 transition-transform duration-200" />
           </template>
-        </UButton>
-      </div> -->
+</UButton>
+</div> -->
 
       <!-- Status indicator -->
       <div class="flex items-center justify-center gap-2 mt-6">
@@ -59,27 +60,11 @@
 <script setup>
 // Set page title and meta
 useHead({
-  title: "next.dave.io - API Platform & URL Redirector",
+  title: "dave.io - Dave Williams",
   meta: [
     {
       name: "description",
-      content: "Enterprise-grade REST API platform with authentication, URL redirection, and AI services."
-    }
-  ],
-  link: [
-    {
-      rel: 'stylesheet',
-      href: 'https://cdn.jsdelivr.net/npm/xterm@5.1.0/css/xterm.min.css'
-    }
-  ],
-  script: [
-    {
-      src: 'https://cdn.jsdelivr.net/npm/xterm@5.1.0/lib/xterm.min.js',
-      defer: true
-    },
-    {
-      src: 'https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.min.js',
-      defer: true
+      content: "Personal site of Dave Williams"
     }
   ]
 })
@@ -93,9 +78,9 @@ const { logPageVisit, logInteraction } = usePageLogging()
 onMounted(() => {
   // Log page visit
   logPageVisit("/", {
-    title: "Homepage",
+    title: "home",
     colorMode: "dark",
-    services: ["redirector", "api"]
+    services: ["web"]
   })
 })
 
@@ -104,3 +89,11 @@ const handleServiceClick = (service) => {
   logInteraction("click", "service-button", { service })
 }
 </script>
+
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Sixtyfour+Convergence&display=swap');
+
+.font-family-convergence {
+  font-family: 'Sixtyfour Convergence', monospace;
+}
+</style>
