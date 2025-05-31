@@ -102,7 +102,7 @@ sequenceDiagram
 
 ### Phase 1: Parallel Implementation (Week 1-2)
 
-**1.1 Zero Trust Organization Setup**
+#### 1.1 Zero Trust Organization Setup
 ```bash
 # Terraform configuration
 resource "cloudflare_zero_trust_organization" "dave_io" {
@@ -112,7 +112,7 @@ resource "cloudflare_zero_trust_organization" "dave_io" {
 }
 ```
 
-**1.2 Identity Provider Integration**
+#### 1.2 Identity Provider Integration
 - Configure primary IdP (Google Workspace recommended for personal projects)
 - Set up service token authentication for API clients
 - Configure backup authentication methods
@@ -269,7 +269,7 @@ Start with low-risk endpoints:
 4. `/api/ai/*` - AI endpoints
 5. `/api/tokens/*` - Token management (migrate last)
 
-**3.2 Feature Flag Implementation**
+#### 3.2 Feature Flag Implementation
 ```typescript
 // Feature flag for auth system
 const useCloudflareAuth = process.env.CF_USE_ZERO_TRUST === 'true'
@@ -284,7 +284,7 @@ export async function authorizeEndpoint(endpoint: string) {
 }
 ```
 
-**3.3 Testing & Validation**
+#### 3.3 Testing & Validation
 - Parallel testing with both auth systems
 - Load testing JWT verification performance
 - Security audit of Access configuration
@@ -292,7 +292,7 @@ export async function authorizeEndpoint(endpoint: string) {
 
 ### Phase 4: Legacy System Deprecation (Week 4-5)
 
-**4.1 Migration Completion Checklist**
+#### 4.1 Migration Completion Checklist
 - [ ] All endpoints migrated to Cloudflare Access
 - [ ] Service tokens created for automation
 - [ ] Access policies tested and validated
@@ -300,7 +300,7 @@ export async function authorizeEndpoint(endpoint: string) {
 - [ ] Documentation completely updated
 - [ ] Rollback plan tested
 
-**4.2 Legacy System Removal**
+#### 4.2 Legacy System Removal
 - Remove custom JWT verification code
 - Delete `bin/jwt.ts` CLI tool
 - Clean up KV-based token storage
@@ -377,12 +377,12 @@ export function logSecurityEvent(event: H3Event, action: string, payload: Cloudf
 
 ### Risk Mitigation
 
-**High Risk: Service Disruption**
+#### High Risk: Service Disruption
 - *Mitigation:* Feature flags for instant rollback
 - *Testing:* Comprehensive staging environment validation  
 - *Monitoring:* Real-time auth success/failure metrics
 
-**Medium Risk: Permission Model Complexity**
+#### Medium Risk: Permission Model Complexity
 - *Mitigation:* Start with simple 1:1 mapping, evolve gradually
 - *Documentation:* Clear permission mapping documentation
 - *Testing:* Automated permission testing suite
