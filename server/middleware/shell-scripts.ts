@@ -4,32 +4,32 @@ import { getHeader, setHeader } from "h3"
 const helloScript = `#!/bin/sh
 
 run_bun() {
-	echo "🐰 Running with bun."
+	printf '%s\n' "🐰 Running with bun."
 	exec bun x dave.io
 }
 
 run_deno() {
-	echo "🦕 Running with deno."
-	exec deno run -A npm:dave.io </dev/null
+	printf '%s\n' "🦕 Running with deno."
+	exec deno run -A npm:dave.io < /dev/null
 }
 
 run_pnpm() {
-	echo "📦 Running with pnpm."
+	printf '%s\n' "📦 Running with pnpm."
 	exec pnpm dlx dave.io
 }
 
 run_npx() {
-	echo "💻 Running with npx."
+	printf '%s\n' "💻 Running with npx."
 	exec npx dave.io
 }
 
 run_docker() {
-	echo "🐳 Running with Docker."
+	printf '%s\n' "🐳 Running with Docker."
 	exec docker run --rm -t -e TERM=xterm-256color ghcr.io/daveio/npm:latest
 }
 
 run_fallback() {
-	echo "🚫 No runtime found (tried bun, deno, pnpm, npx, docker)."
+	printf '%s\n' "🚫 No runtime found (tried bun, deno, pnpm, npx, docker)."
 	cat <<'EOF'
 
           ╔═══════════════════════════════════════╗
@@ -62,15 +62,15 @@ run_fallback() {
 EOF
 }
 
-if command -v bun >/dev/null 2>&1; then
+if command -v bun > /dev/null 2>&1; then
 	run_bun
-elif command -v deno >/dev/null 2>&1; then
+elif command -v deno > /dev/null 2>&1; then
 	run_deno
-elif command -v pnpm >/dev/null 2>&1; then
+elif command -v pnpm > /dev/null 2>&1; then
 	run_pnpm
-elif command -v npx >/dev/null 2>&1; then
+elif command -v npx > /dev/null 2>&1; then
 	run_npx
-elif command -v docker >/dev/null 2>&1; then
+elif command -v docker > /dev/null 2>&1; then
 	run_docker
 else
 	run_fallback
