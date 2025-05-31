@@ -8,10 +8,11 @@ export function usePageLogging() {
    * Format: [PAGE] route | referrer | UA | extras
    */
   const logPageVisit = (route: string, extras?: Record<string, unknown>) => {
-    if (!process.client) return // Only run on client side
+    if (typeof window === "undefined") return // Only run on client side
 
-    const referrer = document.referrer || "direct"
-    const userAgent = navigator.userAgent.substring(0, 50) + (navigator.userAgent.length > 50 ? "..." : "")
+    const referrer = window.document.referrer || "direct"
+    const userAgent =
+      window.navigator.userAgent.substring(0, 50) + (window.navigator.userAgent.length > 50 ? "..." : "")
     const extrasStr = extras
       ? ` | ${Object.entries(extras)
           .map(([k, v]) => `${k}: ${v}`)

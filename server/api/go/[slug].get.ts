@@ -15,11 +15,11 @@ interface RedirectData {
 }
 
 export default defineEventHandler(async (event) => {
+  const slug = getRouterParam(event, "slug")
+
   try {
     const env = getCloudflareEnv(event)
     const kv = getKVNamespace(env)
-
-    const slug = getRouterParam(event, "slug")
 
     if (!slug) {
       throw createApiError(400, "Slug parameter is required")

@@ -155,7 +155,7 @@ export interface APIRequestEvent extends AnalyticsEvent {
 export interface RateLimitEvent extends AnalyticsEvent {
   type: "rate_limit"
   data: {
-    action: "throttled" | "blocked" | "warning"
+    action: "allowed" | "throttled" | "blocked" | "warning"
     endpoint: string
     tokenSubject?: string
     requestsInWindow: number
@@ -230,6 +230,7 @@ export interface AnalyticsMetrics {
       throttledCount: number
     }>
   }
+  timeSeries?: TimeSeriesCollection
 }
 
 /**
@@ -269,6 +270,42 @@ export interface AnalyticsQueryParams {
   metrics?: string[]
   limit?: number
   offset?: number
+}
+
+/**
+ * Time series data point
+ */
+export interface TimeSeriesData {
+  timestamp: string
+  value: number
+  label?: string
+  successfulRequests?: number
+  failedRequests?: number
+}
+
+/**
+ * Complete time series collection
+ */
+export interface TimeSeriesCollection {
+  requests: TimeSeriesData[]
+  redirects: TimeSeriesData[]
+  auth: TimeSeriesData[]
+  ai: TimeSeriesData[]
+  responseTime: TimeSeriesData[]
+  errors: TimeSeriesData[]
+  rateLimits: TimeSeriesData[]
+  uniqueVisitors: TimeSeriesData[]
+}
+
+/**
+ * Real-time analytics update
+ */
+export interface AnalyticsRealtimeUpdate {
+  type?: "metric_update" | "new_event" | "system_status"
+  timestamp: string
+  data?: Record<string, unknown>
+  event?: AnalyticsEvent | null
+  metrics?: Partial<AnalyticsMetrics>
 }
 
 /**

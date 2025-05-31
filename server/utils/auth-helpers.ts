@@ -1,7 +1,7 @@
 import type { H3Event } from "h3"
 import { createAuthKVCounters, createRateLimitKVCounters, writeAnalytics } from "./analytics"
 import { type AuthResult, authorizeEndpoint } from "./auth"
-import { getCloudflareEnv, getCloudflareRequestInfo } from "./cloudflare"
+import { type CloudflareRequestInfo, getCloudflareEnv, getCloudflareRequestInfo } from "./cloudflare"
 import { createApiError } from "./response"
 
 /**
@@ -74,7 +74,7 @@ export async function checkAIRateLimit(
   analytics?: AnalyticsEngineDataset,
   maxRequests = 100,
   windowMs = 60 * 60 * 1000, // 1 hour
-  cfInfo?: { userAgent: string; ip: string; country: string; ray: string }
+  cfInfo?: CloudflareRequestInfo
 ): Promise<{ allowed: boolean; remaining: number; resetTime: Date }> {
   const now = Date.now()
   const windowStart = Math.floor(now / windowMs) * windowMs

@@ -852,7 +852,7 @@ export function createRedirectKVCounters(
 ): KVCounterEntry[] {
   const slugNormalized = slug.replace(/[^a-z0-9]/g, "-")
   const domainMatch = destinationUrl.match(/^https?:\/\/([^\/]+)/)
-  const domain = domainMatch ? domainMatch[1].replace(/[^a-z0-9]/g, "-") : "unknown"
+  const domain = domainMatch?.[1]?.replace(/[^a-z0-9]/g, "-") || "unknown"
 
   const baseCounters: KVCounterEntry[] = [
     { key: "redirects:total", increment: clickCount },
@@ -1300,7 +1300,7 @@ export function buildTimeSeriesQuery(params: AnalyticsQueryParams): string {
 export async function queryTimeSeriesData(
   _event: H3Event,
   params: AnalyticsQueryParams
-): Promise<import("~/types/analytics").TimeSeriesData> {
+): Promise<import("~/types/analytics").TimeSeriesCollection> {
   const accountId = getEnvironmentVariable("CLOUDFLARE_ACCOUNT_ID", true)
 
   if (!accountId) {
@@ -1370,8 +1370,8 @@ function transformTimeSeriesResponse(
   // biome-ignore lint/suspicious/noExplicitAny: SQL response structure is dynamic from Cloudflare API
   data: any[],
   params: AnalyticsQueryParams
-): import("~/types/analytics").TimeSeriesData {
-  const result: import("~/types/analytics").TimeSeriesData = {
+): import("~/types/analytics").TimeSeriesCollection {
+  const result: import("~/types/analytics").TimeSeriesCollection = {
     requests: [],
     redirects: [],
     auth: [],

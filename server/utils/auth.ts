@@ -17,6 +17,8 @@ export interface AuthResult {
   payload?: JWTTokenPayload
   error?: string
   requestCount?: number
+  sub?: string
+  tokenSubject?: string
 }
 
 // Extract JWT token from request (Authorization header or query parameter)
@@ -236,7 +238,9 @@ export async function authorizeEndpoint(
     return {
       success: true,
       payload,
-      requestCount: payload.maxRequests ? 1 : undefined
+      requestCount: payload.maxRequests ? 1 : undefined,
+      sub: payload.sub,
+      tokenSubject: payload.sub
     }
   }
 }

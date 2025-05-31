@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
         }
       }
 
-      const kvCounters = createAuthKVCounters(true, responseTime, payload.sub, cfInfo, [
+      const kvCounters = createAuthKVCounters("auth", true, payload.sub, cfInfo, [
         { key: "auth:token-verifications:total" },
         { key: "auth:token-verifications:success" },
         { key: `auth:users:active:${payload.sub}` },
@@ -119,7 +119,7 @@ export default defineEventHandler(async (event) => {
         }
       }
 
-      const kvCounters = createAuthKVCounters(false, responseTime, authToken || undefined, cfInfo, [
+      const kvCounters = createAuthKVCounters("auth", false, authToken || undefined, cfInfo, [
         { key: "auth:token-verifications:total" },
         { key: "auth:token-verifications:failed" },
         { key: "auth:errors:verification-failed" }
