@@ -1,16 +1,14 @@
 <template>
   <div class="curl-section mb-8">
-    <div class="bg-black border border-gray-700 rounded-lg overflow-hidden shadow-2xl p-4 font-mono text-white text-sm">
+    <div
+      class="bg-black/50 border border-gray-700 rounded-lg overflow-hidden shadow-2xl p-4 font-mono text-white text-sm">
       <div class="text-center">
         <div class="text-lg font-extrabold mb-4 rainbow-gradient-text">
           Want to see this animated?
         </div>
         <div class="text-gray-300">
-          <code 
-            class="bg-gray-800 px-2 py-1 rounded text-blue-300 cursor-pointer hover:bg-gray-700 transition-colors"
-            @click="copyCurlCommand"
-            title="Click to copy to clipboard"
-          >curl https://dave.io | sh</code>
+          <code class="bg-gray-800 px-2 py-1 rounded text-blue-300 cursor-pointer hover:bg-gray-700 transition-colors"
+            @click="copyCurlCommand" title="Click to copy to clipboard">curl https://dave.io | sh</code>
         </div>
       </div>
     </div>
@@ -45,5 +43,4 @@ const copyCurlCommand = async () => {
 .curl-section {
   margin-top: 10px;
 }
-
 </style>

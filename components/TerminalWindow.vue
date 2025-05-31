@@ -1,6 +1,7 @@
 <template>
   <div>
-    <div class="pb-6 terminal-container w-full bg-black border border-gray-700 rounded-lg overflow-hidden shadow-2xl"
+    <div
+      class="pb-6 terminal-container w-full bg-black/50 border border-gray-700 rounded-lg overflow-hidden shadow-2xl backdrop-blur-sm"
       ref="terminalContainer">
 
       <!-- Terminal header -->
@@ -10,7 +11,8 @@
           <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
           <div class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
         </div>
-        <div class="text-center flex-1 text-sm text-gray-400 font-mono">dave.io :: fish :: 13x37</div>
+        <div class="text-center flex-1 text-sm text-gray-400 font-mono">dave.io :: <a
+            href="https://github.com/fish-shell/fish-shell">fish</a> :: 13×37</div>
       </div>
 
       <!-- Terminal content -->
