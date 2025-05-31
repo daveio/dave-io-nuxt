@@ -68,6 +68,7 @@ lint:
         - CLAUDE.md
         - components/ExtraLinks.vue
         - nuxt.config.ts
+        - server/middleware/shell-scripts.ts
 plugins:
   # https://docs.trunk.io/plugins
   sources:
