@@ -73,5 +73,24 @@ export default defineNuxtConfig({
     "@pinia/nuxt",
     "nitro-cloudflare-dev"
   ],
-  css: ["~/assets/css/main.css"]
+  css: ["~/assets/css/main.css"],
+  fonts: {
+    defaults: {
+      weights: [400],
+      styles: ['normal', 'italic'],
+      subsets: [
+        'latin-ext',
+        'latin',
+      ],
+
+    },
+    families: [
+      { name: 'Sixtyfour Convergence', provider: 'google' },
+      { name: 'Sono', provider: 'google' },
+      { name: 'Victor Mono', provider: 'google' }
+    ],
+    assets: {
+      prefix: '/_fonts/'
+    }
+  }
 })

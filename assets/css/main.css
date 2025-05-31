@@ -1,2 +1,14 @@
 @import 'tailwindcss';
 @import '@nuxt/ui';
+
+@theme {
+  --font-mono: "Victor Mono", "monospace";
+  --font-subtitle: "Sono", "sans-serif";
+  --font-display: "Sixtyfour Convergence", "sans-serif";
+  --gradient-rainbow: linear-gradient(to right, #E87777 35%, #EAAA77 40%, #EACC77 45%, #EDED77 50%, #AAEAAA 55%, #77CCEA 60%, #CCAAEA 65%, #EAAAD4 70%);
+}
+
+/* Custom utility classes */
+.bg-rainbow-gradient {
+  background-image: var(--gradient-rainbow);
+}
