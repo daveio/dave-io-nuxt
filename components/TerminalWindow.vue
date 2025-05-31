@@ -23,13 +23,13 @@
           <div
             class="text-center text-xl font-extrabold pastel-gradient-text mb-4 flex items-center justify-center gap-2 pt-4">
             <span>🚀</span>
-            <span>Weapons-grade <span class="text-yellow-400">DevOps</span> engineer,
-              <span class="text-green-400">developer</span>, and tinkerer</span>
+            <span class="tagline-text">Weapons-grade DevOps engineer,
+              developer, and tinkerer</span>
             <span>🚀</span>
           </div>
         </div>
         <div class="mb-4">
-          <div class="links-table main-links-table">
+          <div class="social-links-table">
             <div class="links-row">
               <span class="link-name text-blue-300 font-bold"><span class="mr-2">🌐</span> Web</span>
               <a href="https://dave.io" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
@@ -139,12 +139,12 @@
                 <span class="font-bold mr-2 text-gray-400">☠️</span>
                 Twitter
               </span>
-              <span class="text-gray-500 link-url twitter-message">We don't use Twitter any more.</span>
+              <span class="text-gray-500 link-url">We don't use Twitter any more.</span>
             </div>
           </div>
         </div>
         <div class="mt-8">
-          <div class="links-table extra-links-table">
+          <div class="extra-links-table">
             <div class="links-row">
               <span class="link-name">
                 <span class="font-bold mr-2">💼</span>
@@ -157,11 +157,11 @@
             <div class="links-row">
               <span class="link-name">
                 <span class="font-bold mr-2">🔑</span>
-                Grab my public key
+                <span class="key-text">Grab my public key</span>
               </span>
               <a href="https://dave.io/go/key" target="_blank"
                 class="underline text-blue-300 hover:text-blue-400 link-url"
-                @click="handleLinkClick('key', 'https://dave.io/go/key')">https://dave.io/go/key</a>
+                @click="handleLinkClick('CV', 'https://dave.io/go/key')">https://dave.io/go/key</a>
             </div>
             <div class="links-row">
               <span class="link-name">
@@ -211,12 +211,10 @@ const handleLinkClick = (service: string, url: string) => {
 .terminal-container {
   max-height: 90vh;
   overflow-y: auto;
-  width: 100%;
 }
 
 .terminal-content {
   overflow: visible;
-  width: 100%;
 }
 
 .gradient-border-box {
@@ -247,9 +245,15 @@ const handleLinkClick = (service: string, url: string) => {
   background-clip: text;
 }
 
+.social-links-table {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
 
-
-.links-table {
+.extra-links-table {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.5rem 1rem;
@@ -272,9 +276,6 @@ const handleLinkClick = (service: string, url: string) => {
 
 .link-url {
   word-break: break-all;
-  display: inline-block;
-  /* Better control of URL display */
-  max-width: 100%;
 }
 
 @media (max-width: 700px) {
@@ -282,104 +283,87 @@ const handleLinkClick = (service: string, url: string) => {
     min-height: auto;
     max-height: none;
     border-radius: 0.75rem;
-    width: 100%;
   }
 
   .terminal-content {
     padding: 1rem 0.5rem;
-    /* Increased horizontal padding for better spacing */
-    width: 100%;
-    box-sizing: border-box;
-    /* Ensures padding is included in width */
-  }
-
-  /* Optimize the spacing of emoji icons on mobile */
-  .link-name span.mr-2 {
-    margin-right: 0 !important;
-    /* Minimize emoji spacing on mobile */
-    font-size: 0.8rem;
-    /* Slightly smaller emojis */
-  }
-
-  /* Optimize font size for mobile */
-  .pastel-gradient-text {
-    font-size: 0.85rem;
-    line-height: 1.3;
-  }
-
-  /* Mobile text adjustments */
-  .text-center.text-xl span.text-green-400 {
-    display: none;
-  }
-
-  /* Hide rockets on mobile */
-  .text-center.text-xl span:first-child,
-  .text-center.text-xl span:last-child {
-    display: none;
   }
 
   .gradient-border-box {
-    width: 94vw;
-    /* Slightly less width to ensure margins on both sides */
+    width: 98vw;
     min-width: 0;
-    max-width: calc(100% - 1rem);
-    /* Ensure it doesn't overflow container */
+    max-width: 100%;
     height: 60px;
     font-size: 1rem;
-    margin: 0 auto;
-    /* Center the box */
   }
 
-  /* Base table settings */
-  .links-table {
+  .social-links-table {
+    grid-template-columns: 0.6fr 1.3fr;
+    font-size: 0.95em;
     max-width: 100%;
-    width: 100%;
-    gap: 0.3rem 0.3rem;
-    margin: 0;
-    padding-right: 0.2rem;
-    padding-left: 0.2rem;
-  }
-
-  /* Different column ratios */
-  .main-links-table {
-    grid-template-columns: 0.45fr 1.55fr;
+    gap: 0.5rem 1rem;
   }
 
   .extra-links-table {
-    grid-template-columns: 0.65fr 1.35fr;
+    grid-template-columns: 0.9fr 1.1fr;
+    font-size: 0.95em;
+    max-width: 100%;
+    gap: 0.5rem 1rem;
   }
 
-  /* Fix Twitter message display to just show "Nope." on mobile */
-  .twitter-message {
-    font-size: 0;
-    display: block;
-  }
-
-  .twitter-message::before {
-    content: "Nope.";
-    font-size: 0.8rem;
-    white-space: nowrap;
-  }
-
-  .link-name {
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    padding-right: 0.3rem;
-    /* Less padding to save space */
-    font-size: 0.8rem;
-    /* Smaller font size to fit better */
-  }
-
+  .link-name,
   .link-url {
     min-width: 0;
-    max-width: 100%;
     word-break: break-all;
+  }
+
+  /* Mobile text replacements using pseudoelements */
+  .tagline-text {
+    font-size: 0;
+    line-height: 0;
+  }
+
+  .tagline-text::after {
+    content: "Weapons-grade engineer and tinkerer";
     font-size: 0.8rem;
-    /* Smaller font size to prevent wrapping */
-    display: block;
-    /* Ensure it uses full width available */
+    line-height: 1.5rem;
+    font-weight: 800;
+    background: linear-gradient(90deg, #f87171, #fbbf24, #34d399, #60a5fa, #a78bfa, #f472b6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .key-text {
+    font-size: 0;
+    line-height: 0;
+  }
+
+  .key-text::after {
+    content: "My public key";
+    font-size: 13.3px;
+    line-height: normal;
+  }
+}
+
+/* Desktop text (show original) */
+@media (min-width: 701px) {
+  .tagline-text {
+    font-size: inherit;
+    line-height: inherit;
+  }
+
+  .tagline-text::after {
+    display: none;
+  }
+
+  .key-text {
+    font-size: inherit;
+    line-height: inherit;
+  }
+
+  .key-text::after {
+    display: none;
   }
 }
 </style>

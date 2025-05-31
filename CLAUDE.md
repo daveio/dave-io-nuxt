@@ -1,5 +1,13 @@
 # CLAUDE.md - AI Agent Instructions
 
+## ⚠️ CRITICAL DEVELOPMENT RULE: COMMIT AFTER CHANGES
+
+**COMMIT AFTER EVERY SIGNIFICANT BLOCK OF WORK**.
+
+Use `git add -A . && oco --fgm --yes` to commit changes after completing a feature, fixing a bug, or making significant updates. This ensures that all work is tracked and recoverable. This command will automatically generate you a commit message based on the changes made, so you don't have to worry about writing it yourself.
+
+If `git add -A . && oco --fgm --yes` fails, run `git add -A . && git commit -am "[commit_message]"` to manually commit your changes. Replace `[commit_message]` with a descriptive message about the changes made. Keep to a single line. Include a single emoji at the start of the message to indicate the type of change (e.g., 🐛 for bug fixes, ✨ for new features, 🔧 for improvements).
+
 ## ⚠️ CRITICAL DEVELOPMENT RULE: ABSOLUTELY NO MOCK DATA
 
 **ZERO TOLERANCE FOR MOCK DATA, SIMULATIONS, OR FAKE RESPONSES**. Use ONLY real `env.ANALYTICS.sql()`, `env.AI.run()`, `env.DATA.get/put()` calls. Mocks or simulations are allowable in tests.
@@ -126,7 +134,8 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 **Env**: `API_JWT_SECRET`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
 **Bindings**: KV (DATA), D1 (DB), AI, Analytics Engine (ANALYTICS)
 **Optional**: `NUXT_PUBLIC_API_BASE_URL=/api`
-**Dev Options**: 
+**Dev Options**:
+
 - `API_DEV_DISABLE_RATE_LIMITS=1` - Disable rate limiting
 - `API_DEV_USE_DANGEROUS_GLOBAL_KEY=1` - Use legacy API key authentication (requires `CLOUDFLARE_API_KEY` + `CLOUDFLARE_EMAIL`)
 
@@ -178,6 +187,7 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 **Verification**: Test `/api/health` and run `bun run test:api --url production-url`
 
 **Environment Deployment Safety**:
+
 - Only deploys production-safe variables from `.env`
 - Validates required: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `API_JWT_SECRET`
 - Excludes all `API_DEV_*` variables and legacy `CLOUDFLARE_API_KEY`/`CLOUDFLARE_EMAIL`
