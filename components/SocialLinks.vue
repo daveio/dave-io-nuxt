@@ -41,8 +41,7 @@
           <UIcon name="i-simple-icons-github" class="mr-2 text-gray-300 font-bold" />
           GitHub
         </span>
-        <a href="https://dave.io/go/github" target="_blank"
-          class="underline text-blue-300 hover:text-blue-400 link-url"
+        <a href="https://dave.io/go/github" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
           @click="handleLinkClick('GitHub', 'https://dave.io/go/github')">https://dave.io/go/github</a>
       </div>
       <div class="links-row">
@@ -95,8 +94,7 @@
           <UIcon name="i-simple-icons-tumblr" class="mr-2 text-blue-400 font-bold" />
           Tumblr
         </span>
-        <a href="https://dave.io/go/tumblr" target="_blank"
-          class="underline text-blue-300 hover:text-blue-400 link-url"
+        <a href="https://dave.io/go/tumblr" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
           @click="handleLinkClick('Tumblr', 'https://dave.io/go/tumblr')">https://dave.io/go/tumblr</a>
       </div>
       <div class="links-row">
@@ -156,7 +154,7 @@ const handleLinkClick = (service: string, url: string) => {
   word-break: break-all;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
   .social-links-table {
     grid-template-columns: 0.6fr 1.3fr;
     font-size: 0.95em;

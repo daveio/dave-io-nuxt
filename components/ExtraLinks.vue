@@ -6,8 +6,7 @@
           <UIcon name="i-heroicons-document-text" class="font-bold mr-2 text-blue-400" />
           Check out my CV
         </span>
-        <a href="https://dave.io/go/cv" target="_blank"
-          class="underline text-blue-300 hover:text-blue-400 link-url"
+        <a href="https://dave.io/go/cv" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
           @click="handleLinkClick('CV', 'https://dave.io/go/cv')">https://dave.io/go/cv</a>
       </div>
       <div class="links-row">
@@ -15,8 +14,7 @@
           <UIcon name="i-heroicons-key" class="font-bold mr-2 text-yellow-400" />
           <span class="key-text">Grab my public key</span>
         </span>
-        <a href="https://dave.io/go/key" target="_blank"
-          class="underline text-blue-300 hover:text-blue-400 link-url"
+        <a href="https://dave.io/go/key" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
           @click="handleLinkClick('CV', 'https://dave.io/go/key')">https://dave.io/go/key</a>
       </div>
       <div class="links-row">
@@ -24,8 +22,7 @@
           <UIcon name="i-heroicons-list-bullet" class="font-bold mr-2 text-green-400" />
           Give me a TODO
         </span>
-        <a href="https://dave.io/go/todo" target="_blank"
-          class="underline text-blue-300 hover:text-blue-400 link-url"
+        <a href="https://dave.io/go/todo" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
           @click="handleLinkClick('TODO', 'https://dave.io/go/todo')">https://dave.io/go/todo</a>
       </div>
       <div class="links-row">
@@ -33,8 +30,7 @@
           <UIcon name="i-heroicons-microphone" class="font-bold mr-2 text-purple-400" />
           Enjoy this talk
         </span>
-        <a href="https://dave.io/go/wat" target="_blank"
-          class="underline text-blue-300 hover:text-blue-400 link-url"
+        <a href="https://dave.io/go/wat" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
           @click="handleLinkClick('Talk', 'https://dave.io/go/wat')">https://dave.io/go/wat</a>
       </div>
       <div class="links-row">
@@ -42,8 +38,7 @@
           <UIcon name="i-heroicons-book-open" class="font-bold mr-2 text-indigo-400" />
           Read this story
         </span>
-        <a href="https://dave.io/go/blit" target="_blank"
-          class="underline text-blue-300 hover:text-blue-400 link-url"
+        <a href="https://dave.io/go/blit" target="_blank" class="underline text-blue-300 hover:text-blue-400 link-url"
           @click="handleLinkClick('Story', 'https://dave.io/go/blit')">https://dave.io/go/blit</a>
       </div>
     </div>
@@ -87,7 +82,7 @@ const handleLinkClick = (service: string, url: string) => {
   word-break: break-all;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
   .extra-links-table {
     grid-template-columns: 0.9fr 1.1fr;
     font-size: 0.95em;
@@ -114,7 +109,7 @@ const handleLinkClick = (service: string, url: string) => {
 }
 
 /* Desktop text (show original) */
-@media (min-width: 701px) {
+@media (min-width: 801px) {
   .key-text {
     font-size: inherit;
     line-height: inherit;

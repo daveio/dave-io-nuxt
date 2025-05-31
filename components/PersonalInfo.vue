@@ -38,7 +38,7 @@
 }
 
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
   .gradient-border-box {
     width: 98vw;
     min-width: 0;
@@ -66,7 +66,7 @@
 }
 
 /* Desktop text (show original) */
-@media (min-width: 701px) {
+@media (min-width: 801px) {
   .tagline-text {
     font-size: inherit;
     line-height: inherit;
