@@ -161,7 +161,7 @@
               </span>
               <a href="https://dave.io/go/key" target="_blank"
                 class="underline text-blue-300 hover:text-blue-400 link-url"
-                @click="handleLinkClick('CV', 'https://dave.io/go/key')">https://dave.io/go/key</a>
+                @click="handleLinkClick('key', 'https://dave.io/go/key')">https://dave.io/go/key</a>
             </div>
             <div class="links-row">
               <span class="link-name">
