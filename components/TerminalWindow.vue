@@ -161,7 +161,7 @@
               </span>
               <a href="https://dave.io/go/key" target="_blank"
                 class="underline text-blue-300 hover:text-blue-400 link-url"
-                @click="handleLinkClick('CV', 'https://dave.io/go/key')">https://dave.io/go/key</a>
+                @click="handleLinkClick('Key', 'https://dave.io/go/key')">https://dave.io/go/key</a>
             </div>
             <div class="links-row">
               <span class="link-name">
@@ -290,16 +290,45 @@ const handleLinkClick = (service: string, url: string) => {
   }
 
   .links-table {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     font-size: 0.95em;
     max-width: 100%;
-    gap: 0.5rem 1rem;
+    gap: 0.75rem;
   }
 
-  .link-name,
+  .link-name {
+    min-width: 0;
+    text-align: left;
+    padding-right: 0;
+    justify-content: flex-start;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .link-url {
     min-width: 0;
     word-break: break-all;
+    font-size: 0.85rem;
+    display: block;
+    width: 100%;
+    padding-left: 1.5rem;
+  }
+}
+
+/* Add a middle breakpoint for medium-sized screens */
+@media (min-width: 701px) and (max-width: 1000px) {
+  .links-table {
+    gap: 0.75rem 0.5rem;
+    font-size: 0.9em;
+  }
+
+  .link-url {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    hyphens: auto;
   }
 }
 </style>
