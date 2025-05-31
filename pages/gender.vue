@@ -14,7 +14,10 @@
         </p>
       </div>
 
-      <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-8 mb-8 border border-gray-700">
+      <UAlert icon="i-mdi-information-outline" color="warning" variant="soft" title="Placeholder Content"
+        description="This is a placeholder. It's here for layout and navigation testing purposes." class="mb-8" />
+
+      <UCard class="mb-8">
         <div class="space-y-6">
           <div>
             <h2 class="text-2xl font-bold text-blue-300 mb-3">My Pronouns</h2>
@@ -51,15 +54,12 @@
             </p>
           </div>
         </div>
-      </div>
+      </UCard>
 
       <div class="text-center">
-        <NuxtLink to="/"
-          class="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors duration-200"
-          @click="handleBackClick">
-          <UIcon name="i-mdi-arrow-left" class="mr-2" />
+        <UButton to="/" color="primary" size="lg" icon="i-mdi-arrow-left" @click="handleBackClick">
           Back to Home
-        </NuxtLink>
+        </UButton>
       </div>
     </div>
   </div>
