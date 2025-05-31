@@ -41,7 +41,7 @@ import SocialLinks from "./SocialLinks.vue"
   overflow: visible;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
   .terminal-container {
     min-height: auto;
     max-height: none;
