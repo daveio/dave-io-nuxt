@@ -1,0 +1,340 @@
+<template>
+  <ClientOnly>
+    <div
+      class="pb-6 terminal-container w-full bg-black border border-gray-700 rounded-lg overflow-hidden shadow-2xl"
+      ref="terminalContainer"
+    >
+      <!-- Terminal header -->
+      <div class="terminal-header flex items-center justify-start px-4 py-2 bg-gray-800 border-b border-gray-700">
+        <div class="flex space-x-2">
+          <div class="w-3 h-3 rounded-full bg-red-500"></div>
+          <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+          <div class="w-3 h-3 rounded-full bg-green-500"></div>
+        </div>
+        <div class="text-center flex-1 text-sm text-gray-400 font-mono">dave.io — fish — 13x37</div>
+      </div>
+
+      <!-- Terminal content -->
+      <div class="terminal-content font-mono text-white p-4 text-sm" ref="terminalContent">
+        <div class="pt-4 mb-4 flex flex-col items-center">
+          <div class="gradient-border-box mb-4">
+            <div class="box-content flex items-center justify-center h-full w-full">
+              <span class="font-bold text-lg text-white">Dave Williams</span>
+            </div>
+          </div>
+          <div
+            class="text-center text-xl font-extrabold pastel-gradient-text mb-4 flex items-center justify-center gap-2 pt-4"
+          >
+            <span>🚀</span>
+            <span
+              >Weapons-grade <span class="text-yellow-400">DevOps</span> engineer,
+              <span class="text-green-400">developer</span>, and tinkerer</span
+            >
+            <span>🚀</span>
+          </div>
+        </div>
+        <div class="mb-4">
+          <div class="links-table">
+            <div class="links-row">
+              <span class="link-name text-blue-300 font-bold"><span class="mr-2">🌐</span> Web</span>
+              <a
+                href="https://dave.io"
+                target="_blank"
+                class="underline text-blue-300 hover:text-blue-400 link-url"
+                >https://dave.io</a
+              >
+            </div>
+            <div class="links-row">
+              <span class="link-name">
+                <span class="font-bold mr-2 text-yellow-400">🦋</span>
+                Bluesky
+              </span>
+              <a
+                href="https://dave.io/go/bluesky"
+                target="_blank"
+                class="underline text-blue-300 hover:text-blue-400 link-url"
+                >https://dave.io/go/bluesky</a
+              >
+            </div>
+            <div class="links-row">
+              <span class="link-name">
+                <span class="font-bold mr-2 text-green-400">📓</span>
+                Dreamwidth
+              </span>
+              <a
+                href="https://dave.io/go/dreamwidth"
+                target="_blank"
+                class="underline text-blue-300 hover:text-blue-400 link-url"
+                >https://dave.io/go/dreamwidth</a
+              >
+            </div>
+            <div class="links-row">
+              <span class="link-name">
+                <span class="font-bold mr-2 text-blue-400">📘</span>
+                Facebook
+              </span>
+              <a
+                href="https://dave.io/go/facebook"
+                target="_blank"
+                class="underline text-blue-300 hover:text-blue-400 link-url"
+                >https://dave.io/go/facebook</a
+              >
+            </div>
+            <div class="links-row">
+              <span class="link-name">
+                <span class="font-bold mr-2 text-magenta-400">🐙</span>
+                GitHub
+              </span>
+              <a
+                href="https://dave.io/go/github"
+                target="_blank"
+                class="underline text-blue-300 hover:text-blue-400 link-url"
+                >https://dave.io/go/github</a
+              >
+            </div>
+            <div class="links-row">
+              <span class="link-name">
+                <span class="font-bold mr-2 text-red-400">📷</span>
+                Instagram
+              </span>
+              <a
+                href="https://dave.io/go/instagram"
+                target="_blank"
+                class="underline text-blue-300 hover:text-blue-400 link-url"
+                >https://dave.io/go/instagram</a
+              >
+            </div>
+            <div class="links-row">
+              <span class="link-name">
+                <span class="font-bold mr-2 text-yellow-400">🔗</span>
+                LinkedIn
+              </span>
+              <a
+                href="https://dave.io/go/linkedin"
+                target="_blank"
+                class="underline text-blue-300 hover:text-blue-400 link-url"
+                >https://dave.io/go/linkedin</a
+              >
+            </div>
+            <div class="links-row">
+              <span class="link-name">
+                <span class="font-bold mr-2 text-green-400">🐘</span>
+                Mastodon
+              </span>
+              <a
+                href="https://dave.io/go/mastodon"
+                target="_blank"
+                class="underline text-blue-300 hover:text-blue-400 link-url"
+                >https://dave.io/go/mastodon</a
+              >
+            </div>
+            <div class="links-row">
+              <span class="link-name">
+                <span class="font-bold mr-2 text-blue-400">🔮</span>
+                Pillowfort
+              </span>
+              <a
+                href="https://dave.io/go/pillowfort"
+                target="_blank"
+                class="underline text-blue-300 hover:text-blue-400 link-url"
+                >https://dave.io/go/pillowfort</a
+              >
+            </div>
+            <div class="links-row">
+              <span class="link-name">
+                <span class="font-bold mr-2 text-magenta-400">🧵</span>
+                Threads
+              </span>
+              <a
+                href="https://dave.io/go/threads"
+                target="_blank"
+                class="underline text-blue-300 hover:text-blue-400 link-url"
+                >https://dave.io/go/threads</a
+              >
+            </div>
+            <div class="links-row">
+              <span class="link-name">
+                <span class="font-bold mr-2 text-red-400">📱</span>
+                Tumblr
+              </span>
+              <a
+                href="https://dave.io/go/tumblr"
+                target="_blank"
+                class="underline text-blue-300 hover:text-blue-400 link-url"
+                >https://dave.io/go/tumblr</a
+              >
+            </div>
+            <div class="links-row">
+              <span class="link-name">
+                <span class="font-bold mr-2 text-yellow-400">🎥</span>
+                YouTube
+              </span>
+              <a
+                href="https://dave.io/go/youtube"
+                target="_blank"
+                class="underline text-blue-300 hover:text-blue-400 link-url"
+                >https://dave.io/go/youtube</a
+              >
+            </div>
+            <div class="links-row">
+              <span class="link-name">
+                <span class="font-bold mr-2 text-gray-400">☠️</span>
+                Twitter
+              </span>
+              <span class="text-gray-500 link-url">We don't use Twitter any more.</span>
+            </div>
+          </div>
+        </div>
+        <div class="mt-8">
+          <div class="links-table">
+            <div class="links-row">
+              <span class="link-name">
+                <span class="font-bold mr-2">💼</span>
+                Check out my CV
+              </span>
+              <a
+                href="https://dave.io/go/cv"
+                target="_blank"
+                class="underline text-blue-300 hover:text-blue-400 link-url"
+                >https://dave.io/go/cv</a
+              >
+            </div>
+            <div class="links-row">
+              <span class="link-name">
+                <span class="font-bold mr-2">🧩</span>
+                Give me a TODO
+              </span>
+              <a
+                href="https://dave.io/go/todo"
+                target="_blank"
+                class="underline text-blue-300 hover:text-blue-400 link-url"
+                >https://dave.io/go/todo</a
+              >
+            </div>
+            <div class="links-row">
+              <span class="link-name">
+                <span class="font-bold mr-2">🎤</span>
+                Enjoy this talk
+              </span>
+              <a
+                href="https://dave.io/go/wat"
+                target="_blank"
+                class="underline text-blue-300 hover:text-blue-400 link-url"
+                >https://dave.io/go/wat</a
+              >
+            </div>
+            <div class="links-row">
+              <span class="link-name">
+                <span class="font-bold mr-2">🦜</span>
+                Read this story
+              </span>
+              <a
+                href="https://dave.io/go/blit"
+                target="_blank"
+                class="underline text-blue-300 hover:text-blue-400 link-url"
+                >https://dave.io/go/blit</a
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ClientOnly>
+</template>
+
+<style scoped>
+.terminal-container {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.terminal-content {
+  overflow: visible;
+}
+
+.gradient-border-box {
+  border-radius: 12px;
+  padding: 2px;
+  background: linear-gradient(90deg, #a78bfa, #60a5fa, #34d399, #fbbf24, #f87171, #f472b6);
+  width: 420px;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.box-content {
+  background: #111;
+  border-radius: 10px;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pastel-gradient-text {
+  background: linear-gradient(90deg, #f87171, #fbbf24, #34d399, #60a5fa, #a78bfa, #f472b6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.links-table {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.links-row {
+  display: contents;
+}
+
+.link-name {
+  font-weight: 500;
+  text-align: right;
+  padding-right: 5px;
+  display: inline-flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.link-url {
+  word-break: break-all;
+}
+
+@media (max-width: 700px) {
+  .terminal-container {
+    min-height: auto;
+    max-height: none;
+    border-radius: 0.75rem;
+  }
+
+  .terminal-content {
+    padding: 1rem 0.5rem;
+  }
+
+  .gradient-border-box {
+    width: 98vw;
+    min-width: 0;
+    max-width: 100%;
+    height: 60px;
+    font-size: 1rem;
+  }
+
+  .links-table {
+    grid-template-columns: 1fr 1fr;
+    font-size: 0.95em;
+    max-width: 100%;
+    gap: 0.5rem 1rem;
+  }
+
+  .link-name,
+  .link-url {
+    min-width: 0;
+    word-break: break-all;
+  }
+}
+</style>

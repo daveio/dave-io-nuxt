@@ -66,6 +66,7 @@ lint:
         - "**/*.md"
         - "**/*.gif"
         - "**/nuxt.config.ts"
+        - "**/components/TerminalWindow.vue"
 plugins:
   # https://docs.trunk.io/plugins
   sources:
