@@ -24,9 +24,9 @@
 </template>
 
 <script setup lang="ts">
+import ExtraLinks from "./ExtraLinks.vue"
 import PersonalInfo from "./PersonalInfo.vue"
 import SocialLinks from "./SocialLinks.vue"
-import ExtraLinks from "./ExtraLinks.vue"
 </script>
 
 <style scoped>

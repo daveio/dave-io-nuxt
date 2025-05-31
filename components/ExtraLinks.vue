@@ -55,6 +55,7 @@
 const { logInteraction } = usePageLogging()
 
 // Track link clicks
+// biome-ignore lint/correctness/noUnusedVariables: Used in template
 const handleLinkClick = (service: string, url: string) => {
   logInteraction("click", "terminal-link", { service, url })
 }

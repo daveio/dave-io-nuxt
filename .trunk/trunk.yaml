@@ -25,48 +25,49 @@ cli:
 lint:
   # https://docs.trunk.io/check/configuration
   disabled:
-    - eslint
-    - vale
-    - stylelint
     - codespell
+    - eslint
     - markdown-link-check
     - prettier
+    - stylelint
+    - vale
   enabled:
+    - actionlint@1.7.7
+    - biome@1.9.4
+    - checkov@3.2.435
+    - dustilock@1.2.0
+    - git-diff-check
+    - gitleaks@8.26.0
     - hadolint@2.12.1-beta
+    - markdownlint@0.45.0
+    - osv-scanner@2.0.2
+    - oxipng@9.1.5
+    - semgrep@1.123.0
     - shellcheck@0.10.0
     - shfmt@3.6.0
-    - svgo@3.3.2
-    - oxipng@9.1.5
     - sourcery@1.37.0
-    - semgrep@1.123.0
-    - biome@1.9.4
-    - dustilock@1.2.0
-    - gitleaks@8.26.0
-    - osv-scanner@2.0.2
+    - svgo@3.3.2
     - taplo@0.9.3
-    - trunk-toolbox@0.5.4
-    - actionlint@1.7.7
-    - checkov@3.2.435
-    - git-diff-check
-    - markdownlint@0.45.0
     - trufflehog@3.88.35
+    - trunk-toolbox@0.5.4
     - yamllint@1.37.1
   ignore:
     - linters:
         - biome
       paths:
-        - "**/.claude/settings.local.json"
+        - '**/.claude/settings.local.json'
     - linters:
         - trunk-toolbox
       paths:
-        - "**/*.jpg"
-        - "**/*.png"
-        - "**/*.ico"
-        - "**/*.mdc"
-        - "**/*.md"
-        - "**/*.gif"
-        - "**/nuxt.config.ts"
-        - "**/components/TerminalWindow.vue"
+        - .cursor/rules/bash.mdc
+        - .github/copilot-instructions.md
+        - '**/*.gif'
+        - '**/*.ico'
+        - '**/*.jpg'
+        - '**/*.png'
+        - CLAUDE.md
+        - components/ExtraLinks.vue
+        - nuxt.config.ts
 plugins:
   # https://docs.trunk.io/plugins
   sources:

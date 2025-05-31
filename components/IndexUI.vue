@@ -7,12 +7,12 @@
 </template>
 
 <script setup lang="ts">
+import CurlCommand from "./CurlCommand.vue"
 import Hero from "./Hero.vue"
 import TerminalWindow from "./TerminalWindow.vue"
-import CurlCommand from "./CurlCommand.vue"
 
 defineProps<{
-  handleServiceClick: (service: any) => void
+  handleServiceClick: (service: string) => void
 }>()
 
 // Animation removed per user request

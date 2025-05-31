@@ -36,6 +36,7 @@ onMounted(() => {
 })
 
 // Log button interactions
+// biome-ignore lint/correctness/noUnusedVariables: Passed as prop to IndexUI but not currently used
 const handleServiceClick = (service: string) => {
   logInteraction("click", "service-button", { service })
 }
