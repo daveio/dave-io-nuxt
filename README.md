@@ -43,18 +43,11 @@ JWT-based fortress protecting my digital empire with dual authentication methods
 - **`/api/ai/alt`** (GET/POST) - Alt-text generation (`ai:alt`, `ai`, `admin`, or `*`)
 - **`/api/tokens/{uuid}/*`** - Token management (`api:tokens`, `api`, `admin`, or `*`)
 - **`/api/routeros/reset`** - RouterOS admin (`routeros:admin`, `routeros`, `admin`, or `*`)
-- **`/api/analytics/*`** - Analytics dashboard (`api:analytics`, `api`, `admin`, or `*`)
-
-#### 🌐 Website Authentication
-
-- **`/analytics`** - Public login page with JWT validation
-- **`/analytics/{jwt}`** - Protected dashboard with embedded JWT authentication
-
 #### 🔧 Token Generation
 
 ```bash
-# Analytics dashboard access
-bun jwt create --sub "api:analytics" --description "Dashboard access" --expiry "30d"
+# Metrics dashboard access  
+bun jwt create --sub "api:metrics" --description "Metrics access" --expiry "30d"
 
 # AI service access
 bun jwt create --sub "ai:alt" --description "Alt-text generation" --expiry "7d"
@@ -77,22 +70,22 @@ bun jwt create --interactive
 - File size validation and proper error handling (up to 10MB images)
 - Consistent authentication and response formatting across both GET and POST endpoints
 
-### 📊 Metrics & Analytics Which Would Make Google Jealous
+### 📊 KV Metrics Which Would Make Google Jealous
 
 - Comprehensive API metrics in JSON, YAML, or Prometheus formats
 - Request/response statistics with Cloudflare metadata
 - Perfect for when you want to obsess over your site's performance
 - KV-cached metrics with automatic invalidation
-- **Dual Storage Architecture**: Analytics Engine for detailed event data, KV storage for queryable metrics
+- **KV Storage Architecture**: Fast metrics using hierarchical key-value storage
 - **Hierarchical KV Keys**: Simple data with kebab-cased keys like `metrics:redirect:gh:clicks`
-- **Real-time Analytics**: Every request, redirect, AI operation, and system event tracked
+- **Real-time KV Metrics**: Every request, redirect, AI operation, and system event tracked
 
 ### 🔗 URL Shortening & Redirects
 
 - `/go/gh` → GitHub profile (which saves you from typing)
 - `/go/tw` → Twitter/X (when I remember social media exists)
 - `/go/li` → LinkedIn (for professional pretenses)
-- Click tracking with Analytics Engine integration
+- Click tracking with KV metrics integration
 
 ### 🛠️ RouterOS Integration (Because I love Networking)
 
@@ -191,7 +184,7 @@ curl http://localhost:3000/api/health
 
 #### `GET /api/ping`
 
-Simple ping endpoint that logs analytics and shows off Cloudflare headers like a peacock.
+Simple ping endpoint that logs KV metrics and shows off Cloudflare headers like a peacock.
 
 ```bash
 curl http://localhost:3000/api/ping
@@ -485,7 +478,6 @@ bun run build
 # Create Cloudflare resources
 wrangler kv:namespace create DATA
 wrangler d1 create NEXT_API_AUTH_METADATA
-wrangler analytics put NEXT_DAVE_IO_ANALYTICS
 
 # Update wrangler.jsonc with the resource IDs
 # (Copy the IDs from the output above - the JWT tool will read them automatically)
@@ -591,130 +583,84 @@ Found a bug? Want to add a feature? I welcome contributions, but be warned: I ha
 6. Submit a pull request with a description that makes me smile
 7. Prepare for code review feedback (I'm thorough)
 
-## Analytics Engine Schema (The Data Nerd's Paradise)
+## KV Metrics Schema (The Data Nerd's Paradise)
 
-My implementation uses Cloudflare Analytics Engine for real-time event tracking with a standardized schema that would make data scientists weep with joy.
+My implementation uses Cloudflare KV storage for fast, hierarchical metrics tracking that would make data scientists weep with joy.
 
-### Data Structure
+### KV Storage Architecture
 
-Analytics Engine stores data in three types of fields:
-
-- **`blobs`**: String data (up to 10 fields per event)
-- **`doubles`**: Numeric data (up to 20 fields per event)
-- **`indexes`**: Optimized for querying (up to 5 fields per event)
-
-### Event Schemas
-
-#### Redirect Events
-
-```javascript
-{
-  blobs: ["redirect", slug, destinationUrl, userAgent, ipAddress, country, cloudflareRay],
-  doubles: [1], // Click count
-  indexes: ["redirect", slug] // For querying all redirects or specific slug
-}
-```
-
-#### Authentication Events
-
-```javascript
-// Success
-{
-  blobs: ["auth", "success", tokenSubject, userAgent, ipAddress, country, cloudflareRay],
-  doubles: [1], // Auth count
-  indexes: ["auth", tokenSubject]
-}
-
-// Failure
-{
-  blobs: ["auth", "failed", "unknown", userAgent, ipAddress, country, cloudflareRay],
-  doubles: [1], // Failed auth count
-  indexes: ["auth", "failed"]
-}
-```
-
-#### AI Operations
-
-```javascript
-{
-  blobs: ["ai", "alt-text", method, imageSource, generatedText, userId, userAgent, ipAddress, country, cloudflareRay],
-  doubles: [processingTimeMs, imageSizeBytes], // Performance metrics
-  indexes: ["ai", "alt-text", userId] // For querying AI usage
-}
-```
-
-#### Ping Events
-
-```javascript
-{
-  blobs: ["ping", userAgent, ipAddress, country, cloudflareRay],
-  doubles: [1], // Ping count
-  indexes: ["ping"] // For health monitoring
-}
-```
-
-#### RouterOS Operations
-
-```javascript
-{
-  blobs: ["routeros", "putio", cacheStatus, userAgent, ipAddress, country, cloudflareRay],
-  doubles: [ipv4Count, ipv6Count], // Range counts
-  indexes: ["routeros", "putio"] // For infrastructure monitoring
-}
-```
-
-### KV Storage Patterns (The Other Half)
-
-While Analytics Engine handles event streams, KV stores queryable metrics using hierarchical keys:
+All metrics are stored in KV using a hierarchical key structure for fast retrieval and easy aggregation:
 
 ```bash
-# Metrics for the /api/metrics endpoint
-metrics:requests:total              # "12345"
-metrics:requests:successful         # "12000"
-metrics:requests:failed            # "345"
-metrics:redirect:total:clicks      # "5678"
-metrics:redirect:gh:clicks         # "1234"
-metrics:redirect:tw:clicks         # "567"
+# Core API metrics for the /api/metrics endpoint
+metrics:requests:total              # "12345" - Total API requests
+metrics:requests:successful         # "12000" - Successful responses  
+metrics:requests:failed            # "345"   - Failed responses
+metrics:requests:rate_limited      # "100"   - Rate limited requests
 
-# 24-hour rolling metrics
-metrics:24h:total                  # "2345"
-metrics:24h:successful             # "2300"
-metrics:24h:failed                 # "45"
-metrics:24h:redirects              # "123"
+# Redirect tracking
+metrics:redirect:total:clicks      # "5678"  - Total redirect clicks
+metrics:redirect:gh:clicks         # "1234"  - GitHub redirect clicks
+metrics:redirect:tw:clicks         # "567"   - Twitter redirect clicks
+metrics:redirect:li:clicks         # "890"   - LinkedIn redirect clicks
+
+# 24-hour rolling metrics (auto-expire)
+metrics:24h:total                  # "2345"  - Last 24h requests
+metrics:24h:successful             # "2300"  - Last 24h success
+metrics:24h:failed                 # "45"    - Last 24h failures
+metrics:24h:redirects              # "123"   - Last 24h redirects
+
+# Authentication metrics
+metrics:auth:total                 # "8901"  - Total auth attempts
+metrics:auth:successful            # "8700"  - Successful auths
+metrics:auth:failed                # "201"   - Failed auths
+
+# AI operation metrics
+metrics:ai:alt:total               # "456"   - Total alt-text requests
+metrics:ai:alt:successful          # "450"   - Successful generations
+metrics:ai:alt:failed              # "6"     - Failed generations
 
 # RouterOS cache metrics
-metrics:routeros:cache-hits        # "89"
-metrics:routeros:cache-misses      # "12"
+metrics:routeros:cache-hits        # "89"    - Cache hits
+metrics:routeros:cache-misses      # "12"    - Cache misses
+metrics:routeros:refresh-count     # "5"     - Manual refreshes
 ```
 
-### Querying Analytics Engine
+### Counter Functions
 
-When Cloudflare returns Analytics Engine data, fields are named `blob1`, `blob2`, etc. based on array position:
+Standardized helper functions maintain consistency across the codebase:
 
 ```typescript
-// For redirect event: ["redirect", "gh", "https://github.com/daveio", ...]
-interface AnalyticsResult {
-  blob1: "redirect"     // Event type
-  blob2: "gh"          // Slug
-  blob3: string        // Destination URL
-  blob4: string        // User agent
-  blob5: string        // IP address
-  blob6: string        // Country
-  blob7: string        // Cloudflare Ray ID
-  double1: number      // Click count (always 1 per event)
-  index1: "redirect"   // Primary index
-  index2: string       // Slug index
-}
+// API request counters
+const kvCounters = createAPIRequestKVCounters(endpoint, method, statusCode, cfInfo, [
+  { key: "custom:metric:key", value: 123 },
+  { key: "custom:increment:counter", increment: 1 }
+])
+
+// Authentication event counters  
+const authCounters = createAuthKVCounters(endpoint, success, tokenSubject, cfInfo, [
+  { key: "auth:custom:metric" }
+])
+
+// Redirect click counters
+const redirectCounters = createRedirectKVCounters(slug, url, clicks, cfInfo, [
+  { key: `redirect:${slug}:daily:${date}` }
+])
+
+// Rate limiting counters
+const rateLimitCounters = createRateLimitKVCounters(action, endpoint, user, count, cfInfo)
 ```
 
-### Why This Architecture?
+### Why KV-Only Architecture?
 
-1. **Analytics Engine**: Perfect for high-volume event streams, real-time insights, and historical analysis
-2. **KV Storage**: Ideal for fast queries needed by the metrics API endpoints
-3. **Hierarchical Keys**: Easy to query, backup, and maintain without complex JSON parsing
-4. **Standardized Schema**: Consistent field ordering makes queries predictable and reliable
+1. **Lightning Fast**: KV storage provides sub-millisecond reads for dashboard queries
+2. **Simple & Reliable**: No complex schemas, just hierarchical key-value pairs
+3. **Cost Effective**: Cloudflare KV operations are incredibly cheap
+4. **Edge Native**: Perfect for Cloudflare Workers edge compute environment
+5. **Easy Backup**: Simple key listing and JSON export for data portability
+6. **Hierarchical**: Natural grouping makes metrics aggregation trivial
 
-My dual-storage approach gives you the best of both worlds: real-time analytics superpowers and lightning-fast API responses. Because why choose when you can have everything?
+My KV-focused approach gives you real-time metrics with edge-speed performance. Because when you can query your metrics faster than your users can blink, why complicate things?
 
 ## License
 
