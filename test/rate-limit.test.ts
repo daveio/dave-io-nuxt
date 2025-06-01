@@ -128,27 +128,6 @@ describe("Rate Limiting", () => {
     })
   })
 
-  describe("Rate Limit Analytics Integration", () => {
-    it("should log rate limit events to Analytics Engine", () => {
-      // Would test that rate limit events are properly logged for analytics
-      const rateLimitEvent = {
-        type: "rate_limit",
-        data: {
-          action: "throttled",
-          endpoint: "/api/data",
-          tokenSubject: "user@example.com",
-          requestsInWindow: 105,
-          windowSizeMs: 60000,
-          maxRequests: 100,
-          remainingRequests: 0,
-          resetTime: new Date().toISOString()
-        }
-      }
-
-      expect(rateLimitEvent.type).toBe("rate_limit")
-      expect(rateLimitEvent.data.action).toBe("throttled")
-    })
-  })
 
   describe("Hierarchical Permission Rate Limits", () => {
     it("should apply different limits based on token permissions", () => {

@@ -1,4 +1,4 @@
-import { createAPIRequestKVCounters, writeAnalytics } from "~/server/utils/analytics"
+import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
 import { createApiResponse, logRequest } from "~/server/utils/response"
 
@@ -17,19 +17,10 @@ export default defineEventHandler(async (event) => {
     user_agent: cfInfo.userAgent
   }
 
-  // Write analytics using standardized system
+  // Write KV metrics
   try {
     const env = getCloudflareEnv(event)
     const responseTime = Date.now() - startTime
-
-    const analyticsEvent = {
-      type: "ping" as const,
-      timestamp: new Date().toISOString(),
-      cloudflare: cfInfo,
-      data: {
-        pingCount: 1
-      }
-    }
 
     const kvCounters = createAPIRequestKVCounters("/api/ping", "GET", 200, cfInfo, [
       { key: "ping:total" },
@@ -42,9 +33,11 @@ export default defineEventHandler(async (event) => {
       } // Unique daily IPs
     ])
 
-    await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
+    if (env?.DATA) {
+      await writeKVMetrics(env.DATA, kvCounters)
+    }
   } catch (error) {
-    console.error("Failed to write ping analytics:", error)
+    console.error("Failed to write ping KV metrics:", error)
     // Continue with response even if analytics fails
   }
 

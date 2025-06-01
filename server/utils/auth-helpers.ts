@@ -1,5 +1,5 @@
-import type { H3Event } from "h3"
-import { createAuthKVCounters, createRateLimitKVCounters, writeAnalytics } from "./analytics"
+import type { H3Event } from "h3"\nimport { setHeader } from "h3"
+import { createAuthKVCounters, createRateLimitKVCounters, writeKVMetrics } from "./kv-metrics"
 import { type AuthResult, authorizeEndpoint } from "./auth"
 import { type CloudflareRequestInfo, getCloudflareEnv, getCloudflareRequestInfo } from "./cloudflare"
 import { createApiError } from "./response"
@@ -16,32 +16,23 @@ export async function requireAuth(event: H3Event, endpoint: string, subResource?
   const authFunc = await authorizeEndpoint(endpoint, subResource)
   const auth = await authFunc(event)
 
-  // Write detailed analytics for auth attempts
+  // Write KV metrics for auth attempts
   try {
     const env = getCloudflareEnv(event)
     const cfInfo = getCloudflareRequestInfo(event)
     const responseTime = Date.now() - startTime
     const fullEndpoint = subResource ? `${endpoint}:${subResource}` : endpoint
 
-    const analyticsEvent = {
-      type: "auth" as const,
-      timestamp: new Date().toISOString(),
-      cloudflare: cfInfo,
-      data: {
-        success: auth.success,
-        tokenSubject: auth.tokenSubject || "unknown",
-        endpoint: fullEndpoint
-      }
+    if (env?.DATA) {
+      const kvCounters = createAuthKVCounters(fullEndpoint, auth.success, auth.tokenSubject, cfInfo, [
+        { key: `auth:response-time:${responseTime < 100 ? "fast" : responseTime < 500 ? "medium" : "slow"}` }
+      ])
+
+      await writeKVMetrics(env.DATA, kvCounters)
     }
-
-    const kvCounters = createAuthKVCounters(fullEndpoint, auth.success, auth.tokenSubject, cfInfo, [
-      { key: `auth:response-time:${responseTime < 100 ? "fast" : responseTime < 500 ? "medium" : "slow"}` }
-    ])
-
-    await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
   } catch (analyticsError) {
-    console.error("Failed to write auth analytics:", analyticsError)
-    // Continue with auth flow even if analytics fails
+    console.error("Failed to write auth metrics:", analyticsError)
+    // Continue with auth flow even if metrics fail
   }
 
   if (!auth.success) {
@@ -71,7 +62,6 @@ export const requireAdminAuth = (event: H3Event) => requireAuth(event, "admin")
 export async function checkAIRateLimit(
   userId: string,
   kv?: KVNamespace,
-  analytics?: AnalyticsEngineDataset,
   maxRequests = 100,
   windowMs = 60 * 60 * 1000, // 1 hour
   cfInfo?: CloudflareRequestInfo
@@ -93,24 +83,8 @@ export async function checkAIRateLimit(
         resetTime: new Date(windowEnd)
       }
 
-      // Write analytics for rate limit check
-      if (analytics && cfInfo) {
-        const analyticsEvent = {
-          type: "rate_limit" as const,
-          timestamp: new Date().toISOString(),
-          cloudflare: cfInfo,
-          data: {
-            action: result.allowed ? "allowed" : ("blocked" as "throttled" | "blocked" | "warning"),
-            endpoint: "ai",
-            tokenSubject: userId,
-            requestsInWindow: currentCount,
-            windowSizeMs: windowMs,
-            maxRequests: maxRequests,
-            remainingRequests: result.remaining,
-            resetTime: result.resetTime.toISOString()
-          }
-        }
-
+      // Write KV metrics for rate limit check
+      if (cfInfo) {
         const kvCounters = createRateLimitKVCounters(
           result.allowed ? "allowed" : "blocked",
           "ai",
@@ -123,7 +97,7 @@ export async function checkAIRateLimit(
           ]
         )
 
-        await writeAnalytics(true, analytics, kv, analyticsEvent, kvCounters)
+        await writeKVMetrics(kv, kvCounters)
       }
 
       // Update the rate limit counter

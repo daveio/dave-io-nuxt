@@ -1,8 +1,6 @@
 import type { H3Event } from "h3"
 import { createError, defineEventHandler, getHeader, getQuery, getRequestURL, setHeader } from "h3"
-import { writeAnalyticsEvent } from "~/server/utils/analytics"
 import {
-  getAnalyticsBinding,
   getCloudflareEnv,
   getCloudflareRequestInfo,
   getKVNamespace
@@ -12,7 +10,7 @@ import {
   getSlidingWindowRateLimit,
   initializeRateLimitCache
 } from "~/server/utils/rate-limit-cache"
-import type { RateLimitEvent } from "~/types/analytics"
+import { writeKVMetrics, createRateLimitKVCounters } from "~/server/utils/kv-metrics"
 
 /**
  * Rate limiting configuration
@@ -206,12 +204,11 @@ export async function applyRateLimit(event: H3Event, config?: RateLimitConfig): 
   const env = getCloudflareEnv(event)
 
   // Skip rate limiting if required services are not available
-  if (!env.DATA || !env.ANALYTICS) {
+  if (!env.DATA) {
     return
   }
 
   const kv = getKVNamespace(env)
-  const analytics = getAnalyticsBinding(env)
   const cloudflareInfo = getCloudflareRequestInfo(event)
 
   const rateLimitKey = generateRateLimitKey(event, rateLimitConfig)
@@ -228,25 +225,15 @@ export async function applyRateLimit(event: H3Event, config?: RateLimitConfig): 
 
     // Check if rate limit is exceeded
     if (!rateLimitResult.allowed) {
-      // Log rate limit violation
-      const rateLimitEvent: RateLimitEvent = {
-        type: "rate_limit",
-        timestamp: new Date().toISOString(),
-        cloudflare: cloudflareInfo,
-        data: {
-          action: "blocked",
-          endpoint: pathname,
-          tokenSubject,
-          requestsInWindow: rateLimitConfig.maxRequests - rateLimitResult.remaining + 1,
-          windowSizeMs: rateLimitConfig.windowMs,
-          maxRequests: rateLimitConfig.maxRequests,
-          remainingRequests: rateLimitResult.remaining,
-          resetTime: new Date(rateLimitResult.resetTime).toISOString()
-        }
-      }
-
-      await writeAnalyticsEvent(analytics, rateLimitEvent)
-      await updateRateLimitMetrics(kv, "blocked", tokenSubject)
+      // Log rate limit violation to KV metrics
+      const kvCounters = createRateLimitKVCounters(
+        "blocked",
+        pathname,
+        tokenSubject,
+        rateLimitConfig.maxRequests - rateLimitResult.remaining + 1,
+        { country: cloudflareInfo.country }
+      )
+      await writeKVMetrics(kv, kvCounters)
 
       // Throw rate limit error with custom message if provided
       throw createError({
@@ -276,23 +263,14 @@ export async function applyRateLimit(event: H3Event, config?: RateLimitConfig): 
     // Log warning events when approaching limit
     const requestsUsed = rateLimitConfig.maxRequests - rateLimitResult.remaining
     if (requestsUsed > rateLimitConfig.maxRequests * 0.8) {
-      const rateLimitEvent: RateLimitEvent = {
-        type: "rate_limit",
-        timestamp: new Date().toISOString(),
-        cloudflare: cloudflareInfo,
-        data: {
-          action: "warning",
-          endpoint: pathname,
-          tokenSubject,
-          requestsInWindow: requestsUsed,
-          windowSizeMs: rateLimitConfig.windowMs,
-          maxRequests: rateLimitConfig.maxRequests,
-          remainingRequests: rateLimitResult.remaining,
-          resetTime: new Date(rateLimitResult.resetTime).toISOString()
-        }
-      }
-
-      await writeAnalyticsEvent(analytics, rateLimitEvent)
+      const kvCounters = createRateLimitKVCounters(
+        "warning",
+        pathname,
+        tokenSubject,
+        requestsUsed,
+        { country: cloudflareInfo.country }
+      )
+      await writeKVMetrics(kv, kvCounters)
     }
   } catch (error) {
     // Re-throw rate limit errors
@@ -510,7 +488,6 @@ export async function rateLimitMiddleware(event: H3Event): Promise<void> {
   }
 
   const kv = getKVNamespace(env)
-  const analytics = getAnalyticsBinding(env)
   const cloudflareInfo = getCloudflareRequestInfo(event)
 
   const config = getRateLimitConfig(pathname)
@@ -555,27 +532,15 @@ export async function rateLimitMiddleware(event: H3Event): Promise<void> {
     if (requestCount > config.maxRequests) {
       action = "blocked"
 
-      // Write rate limit event to analytics
-      const rateLimitEvent: RateLimitEvent = {
-        type: "rate_limit",
-        timestamp: new Date().toISOString(),
-        cloudflare: cloudflareInfo,
-        data: {
-          action,
-          endpoint: pathname,
-          tokenSubject,
-          requestsInWindow: requestCount,
-          windowSizeMs: config.windowMs,
-          maxRequests: config.maxRequests,
-          remainingRequests,
-          resetTime
-        }
-      }
-
-      await writeAnalyticsEvent(analytics, rateLimitEvent)
-
-      // Update KV metrics
-      await updateRateLimitMetrics(kv, action, tokenSubject)
+      // Log rate limit violation to KV metrics
+      const kvCounters = createRateLimitKVCounters(
+        action,
+        pathname,
+        tokenSubject,
+        requestCount,
+        { country: cloudflareInfo.country }
+      )
+      await writeKVMetrics(kv, kvCounters)
 
       // Throw rate limit error
       throw createError({
@@ -617,25 +582,16 @@ export async function rateLimitMiddleware(event: H3Event): Promise<void> {
     setHeader(event, "X-RateLimit-Reset", resetTime)
     setHeader(event, "X-RateLimit-Window", config.windowMs.toString())
 
-    // Log rate limit events for analytics (except normal requests)
+    // Log rate limit events for KV metrics (except normal requests)
     if (action !== "warning" || requestCount > config.maxRequests * 0.8) {
-      const rateLimitEvent: RateLimitEvent = {
-        type: "rate_limit",
-        timestamp: new Date().toISOString(),
-        cloudflare: cloudflareInfo,
-        data: {
-          action,
-          endpoint: pathname,
-          tokenSubject,
-          requestsInWindow: requestCount,
-          windowSizeMs: config.windowMs,
-          maxRequests: config.maxRequests,
-          remainingRequests,
-          resetTime
-        }
-      }
-
-      await writeAnalyticsEvent(analytics, rateLimitEvent)
+      const kvCounters = createRateLimitKVCounters(
+        action,
+        pathname,
+        tokenSubject,
+        requestCount,
+        { country: cloudflareInfo.country }
+      )
+      await writeKVMetrics(kv, kvCounters)
     }
   } catch (error) {
     // If it's a rate limit error, re-throw it

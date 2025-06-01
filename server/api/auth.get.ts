@@ -1,4 +1,4 @@
-import { createAuthKVCounters, writeAnalytics } from "~/server/utils/analytics"
+import { createAuthKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { extractToken, getUserFromPayload, verifyJWT } from "~/server/utils/auth"
 import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
 import { createApiError, isApiError, logRequest } from "~/server/utils/response"
@@ -32,24 +32,10 @@ export default defineEventHandler(async (event) => {
     const user = getUserFromPayload(payload)
     authToken = payload.sub
 
-    // Write analytics for successful auth using standardized system
+    // Write KV metrics for successful auth
     try {
       const env = getCloudflareEnv(event)
       const cfInfo = getCloudflareRequestInfo(event)
-      const responseTime = Date.now() - startTime
-
-      const analyticsEvent = {
-        type: "auth" as const,
-        timestamp: new Date().toISOString(),
-        cloudflare: cfInfo,
-        data: {
-          success: true,
-          method: "token_verification",
-          userId: payload.sub,
-          tokenId: payload.jti || undefined,
-          responseTimeMs: responseTime
-        }
-      }
 
       const kvCounters = createAuthKVCounters("auth", true, payload.sub, cfInfo, [
         { key: "auth:token-verifications:total" },
@@ -58,9 +44,11 @@ export default defineEventHandler(async (event) => {
         { key: `auth:tokens:verified:${payload.jti || "unknown"}` }
       ])
 
-      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
+      if (env?.DATA) {
+        await writeKVMetrics(env.DATA, kvCounters)
+      }
     } catch (error) {
-      console.error("Failed to write auth analytics:", error)
+      console.error("Failed to write auth KV metrics:", error)
       // Continue with response even if analytics fails
     }
 
@@ -98,26 +86,10 @@ export default defineEventHandler(async (event) => {
   } catch (error: unknown) {
     console.error("Authentication error:", error)
 
-    // Write analytics for failed auth using standardized system
+    // Write KV metrics for failed auth
     try {
       const env = getCloudflareEnv(event)
       const cfInfo = getCloudflareRequestInfo(event)
-      const responseTime = Date.now() - startTime
-      // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
-      const _statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
-
-      const analyticsEvent = {
-        type: "auth" as const,
-        timestamp: new Date().toISOString(),
-        cloudflare: cfInfo,
-        data: {
-          success: false,
-          method: "token_verification",
-          userId: authToken || undefined,
-          tokenId: undefined,
-          responseTimeMs: responseTime
-        }
-      }
 
       const kvCounters = createAuthKVCounters("auth", false, authToken || undefined, cfInfo, [
         { key: "auth:token-verifications:total" },
@@ -125,9 +97,11 @@ export default defineEventHandler(async (event) => {
         { key: "auth:errors:verification-failed" }
       ])
 
-      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
-    } catch (analyticsError) {
-      console.error("Failed to write auth failure analytics:", analyticsError)
+      if (env?.DATA) {
+        await writeKVMetrics(env.DATA, kvCounters)
+      }
+    } catch (kvError) {
+      console.error("Failed to write auth failure KV metrics:", kvError)
       // Continue with error response even if analytics fails
     }
 

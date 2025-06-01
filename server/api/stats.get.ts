@@ -1,4 +1,4 @@
-import { createAPIRequestKVCounters, writeAnalytics } from "~/server/utils/analytics"
+import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
 import { createApiError, createApiResponse, logRequest } from "~/server/utils/response"
 import { SystemMetricsSchema } from "~/server/utils/schemas"
@@ -9,47 +9,32 @@ export default defineEventHandler(async (event) => {
   try {
     const env = event.context.cloudflare?.env as {
       DATA?: KVNamespace
-      ANALYTICS?: AnalyticsEngineDataset
     }
 
-    if (!env?.DATA || !env?.ANALYTICS) {
-      // Write analytics for failed request using standardized system
+    if (!env?.DATA) {
+      // Write KV metrics for failed request
       try {
         const cfInfo = getCloudflareRequestInfo(event)
-        const responseTime = Date.now() - startTime
-
-        const analyticsEvent = {
-          type: "api_request" as const,
-          timestamp: new Date().toISOString(),
-          cloudflare: cfInfo,
-          data: {
-            endpoint: "/api/stats",
-            method: "GET",
-            statusCode: 503,
-            responseTimeMs: responseTime,
-            tokenSubject: undefined
-          }
-        }
 
         const kvCounters = createAPIRequestKVCounters("/api/stats", "GET", 503, cfInfo, [
           { key: "stats:errors:service-unavailable" },
-          { key: "stats:availability:kv", increment: env?.DATA ? 1 : 0 },
-          { key: "stats:availability:analytics", increment: env?.ANALYTICS ? 1 : 0 }
+          { key: "stats:availability:kv", increment: env?.DATA ? 1 : 0 }
         ])
 
-        await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
-      } catch (analyticsError) {
-        console.error("Failed to write stats error analytics:", analyticsError)
+        if (env?.DATA) {
+          await writeKVMetrics(env.DATA, kvCounters)
+        }
+      } catch (kvError) {
+        console.error("Failed to write stats error KV metrics:", kvError)
       }
 
       // Log error request
       logRequest(event, "stats", "GET", 503, {
-        error: "Analytics services not available",
-        kvAvailable: !!env?.DATA,
-        analyticsAvailable: !!env?.ANALYTICS
+        error: "KV storage not available",
+        kvAvailable: !!env?.DATA
       })
 
-      throw createApiError(503, "Analytics services not available")
+      throw createApiError(503, "KV storage not available")
     }
 
     // Get real statistics from KV and Analytics Engine
@@ -59,7 +44,7 @@ export default defineEventHandler(async (event) => {
       env.DATA.get("stats:api:endpoints").then((v) => Number.parseInt(v || "8"))
     ])
 
-    // Get active users from the last 24 hours via Analytics
+    // Get active users from the last 24 hours via KV
     const activeUsers = await env.DATA.get("stats:users:active-24h").then((v) => Number.parseInt(v || "0"))
     const newUsersToday = await env.DATA.get("stats:users:new-today").then((v) => Number.parseInt(v || "0"))
     const publishedPosts = await env.DATA.get("stats:posts:published").then((v) => Number.parseInt(v || "0"))
@@ -90,23 +75,9 @@ export default defineEventHandler(async (event) => {
       }
     })
 
-    // Write successful analytics using standardized system
+    // Write successful KV metrics
     try {
       const cfInfo = getCloudflareRequestInfo(event)
-      const responseTime = Date.now() - startTime
-
-      const analyticsEvent = {
-        type: "api_request" as const,
-        timestamp: new Date().toISOString(),
-        cloudflare: cfInfo,
-        data: {
-          endpoint: "/api/stats",
-          method: "GET",
-          statusCode: 200,
-          responseTimeMs: responseTime,
-          tokenSubject: undefined
-        }
-      }
 
       const kvCounters = createAPIRequestKVCounters("/api/stats", "GET", 200, cfInfo, [
         { key: "stats:retrievals:total" },
@@ -121,9 +92,11 @@ export default defineEventHandler(async (event) => {
         { key: `stats:datacenters:${stats.system.cf_datacenter}` }
       ])
 
-      await writeAnalytics(true, env.ANALYTICS, env.DATA, analyticsEvent, kvCounters)
-    } catch (analyticsError) {
-      console.error("Failed to write stats success analytics:", analyticsError)
+      if (env?.DATA) {
+        await writeKVMetrics(env.DATA, kvCounters)
+      }
+    } catch (kvError) {
+      console.error("Failed to write stats success KV metrics:", kvError)
     }
 
     // Log successful request

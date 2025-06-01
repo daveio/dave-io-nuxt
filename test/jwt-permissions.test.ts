@@ -51,12 +51,12 @@ describe("JWT Hierarchical Permissions", () => {
     it("should handle nested hierarchy correctly", () => {
       const permissions = ["api"]
       expect(hasPermission(permissions, "api:tokens:create")).toBe(true)
-      expect(hasPermission(permissions, "api:analytics:query")).toBe(true)
+      expect(hasPermission(permissions, "api:metrics:view")).toBe(true)
 
       const specificPermissions = ["api:tokens"]
       expect(hasPermission(specificPermissions, "api:tokens:create")).toBe(true)
       expect(hasPermission(specificPermissions, "api:tokens:revoke")).toBe(true)
-      expect(hasPermission(specificPermissions, "api:analytics:query")).toBe(false)
+      expect(hasPermission(specificPermissions, "api:metrics:view")).toBe(false)
     })
   })
 
@@ -166,16 +166,16 @@ describe("JWT Hierarchical Permissions", () => {
   })
 
   describe("Real-world Permission Scenarios", () => {
-    it("should handle analytics dashboard access", () => {
+    it("should handle dashboard access", () => {
       const readOnlyToken = {
         sub: "viewer@example.com",
-        permissions: ["analytics:view"],
+        permissions: ["dashboard:view"],
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600
       }
 
-      expect(validateTokenPermissions(readOnlyToken, "analytics:view")).toBe(true)
-      expect(validateTokenPermissions(readOnlyToken, "analytics:query")).toBe(false)
+      expect(validateTokenPermissions(readOnlyToken, "dashboard:view")).toBe(true)
+      expect(validateTokenPermissions(readOnlyToken, "dashboard:admin")).toBe(false)
     })
 
     it("should handle AI endpoint access", () => {
@@ -214,7 +214,7 @@ describe("JWT Hierarchical Permissions", () => {
 
       expect(validateTokenPermissions(tokenAdminToken, "api:tokens:usage")).toBe(true)
       expect(validateTokenPermissions(tokenAdminToken, "api:tokens:revoke")).toBe(true)
-      expect(validateTokenPermissions(tokenAdminToken, "api:analytics")).toBe(false)
+      expect(validateTokenPermissions(tokenAdminToken, "api:metrics")).toBe(false)
     })
   })
 })
