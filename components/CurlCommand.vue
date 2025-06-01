@@ -8,7 +8,7 @@
         <div class="text-gray-300">
           <UButton variant="ghost" size="sm" class="font-mono bg-gray-800 hover:bg-gray-700 cursor-pointer"
             @click="copyCurlCommand" title="Click to copy to clipboard" icon="i-heroicons-clipboard">
-            curl https://dave.io | sh@
+            curl https://dave.io | sh
           </UButton>
         </div>
       </div>
