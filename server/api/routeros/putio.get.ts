@@ -1,4 +1,4 @@
-import { writeAnalytics } from "~/server/utils/analytics"
+import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { getCloudflareRequestInfo } from "~/server/utils/cloudflare"
 import { generateRouterOSScript, handleResponseFormat } from "~/server/utils/formatters"
 import { createApiError, createApiResponse, isApiError, logRequest } from "~/server/utils/response"
@@ -183,27 +183,17 @@ export default defineEventHandler(async (event) => {
     try {
       const cfInfo = getCloudflareRequestInfo(event)
 
-      const analyticsEvent = {
-        type: "routeros" as const,
-        timestamp: new Date().toISOString(),
-        cloudflare: cfInfo,
-        data: {
-          operation: "putio" as "putio" | "cache" | "reset",
-          cacheStatus: data.cacheHit ? "hit" : "miss",
-          ipv4Count: data.ipv4Ranges.length,
-          ipv6Count: data.ipv6Ranges.length
-        }
-      }
-
-      const kvCounters = [
+      const kvCounters = createAPIRequestKVCounters("/api/routeros/putio", "GET", 200, cfInfo, [
         { key: "routeros:putio:requests:total" },
         { key: `routeros:putio:cache:${data.cacheHit ? "hits" : "misses"}` },
         { key: "routeros:putio:ipv4-ranges", value: data.ipv4Ranges.length },
         { key: "routeros:putio:ipv6-ranges", value: data.ipv6Ranges.length },
         { key: "routeros:putio:last-fetched", value: data.lastUpdated }
-      ]
+      ])
 
-      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
+      if (env?.DATA) {
+        await writeKVMetrics(env.DATA, kvCounters)
+      }
     } catch (error) {
       console.error("Failed to write RouterOS analytics:", error)
       // Continue with response even if analytics fails

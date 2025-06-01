@@ -1,4 +1,4 @@
-import { createAPIRequestKVCounters, writeAnalytics } from "~/server/utils/analytics"
+import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { requireAPIAuth } from "~/server/utils/auth-helpers"
 import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
 import { createApiError, createApiResponse, isApiError, logRequest } from "~/server/utils/response"
@@ -86,19 +86,6 @@ export default defineEventHandler(async (event) => {
       const cfInfo = getCloudflareRequestInfo(event)
       const responseTime = Date.now() - startTime
 
-      const analyticsEvent = {
-        type: "api_request" as const,
-        timestamp: new Date().toISOString(),
-        cloudflare: cfInfo,
-        data: {
-          endpoint: `/api/tokens/${uuid}/usage`,
-          method: "GET",
-          statusCode: 200,
-          responseTimeMs: responseTime,
-          tokenSubject: authToken || undefined
-        }
-      }
-
       const kvCounters = createAPIRequestKVCounters(`/api/tokens/${uuid}/usage`, "GET", 200, cfInfo, [
         { key: "tokens:usage:queries:total" },
         { key: `tokens:usage:${uuid}:queries` },
@@ -106,7 +93,9 @@ export default defineEventHandler(async (event) => {
         { key: "tokens:usage:revoked-count", increment: usage.isRevoked ? 1 : 0 }
       ])
 
-      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
+      if (env?.DATA) {
+        await writeKVMetrics(env.DATA, kvCounters)
+      }
     } catch (analyticsError) {
       console.error("Failed to write token usage success analytics:", analyticsError)
     }
@@ -139,19 +128,6 @@ export default defineEventHandler(async (event) => {
       // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
       const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
 
-      const analyticsEvent = {
-        type: "api_request" as const,
-        timestamp: new Date().toISOString(),
-        cloudflare: cfInfo,
-        data: {
-          endpoint: `/api/tokens/${uuid || "unknown"}/usage`,
-          method: "GET",
-          statusCode: statusCode,
-          responseTimeMs: responseTime,
-          tokenSubject: authToken || undefined
-        }
-      }
-
       const kvCounters = createAPIRequestKVCounters(
         `/api/tokens/${uuid || "unknown"}/usage`,
         "GET",
@@ -164,7 +140,9 @@ export default defineEventHandler(async (event) => {
         ]
       )
 
-      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
+      if (env?.DATA) {
+        await writeKVMetrics(env.DATA, kvCounters)
+      }
     } catch (analyticsError) {
       console.error("Failed to write token usage error analytics:", analyticsError)
     }

@@ -1,4 +1,4 @@
-import { createAPIRequestKVCounters, writeAnalytics } from "~/server/utils/analytics"
+import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { getCloudflareEnv, getCloudflareRequestInfo, getKVNamespace } from "~/server/utils/cloudflare"
 import { parseRSSFeed } from "~/server/utils/formatters"
 import { createApiError, createApiResponse, isApiError, logRequest } from "~/server/utils/response"
@@ -177,19 +177,6 @@ export default defineEventHandler(async (event) => {
       const cfInfo = getCloudflareRequestInfo(event)
       const responseTime = Date.now() - startTime
 
-      const analyticsEvent = {
-        type: "api_request" as const,
-        timestamp: new Date().toISOString(),
-        cloudflare: cfInfo,
-        data: {
-          endpoint: `/api/dashboard/${name}`,
-          method: "GET",
-          statusCode: 200,
-          responseTimeMs: responseTime,
-          tokenSubject: undefined
-        }
-      }
-
       const kvCounters = createAPIRequestKVCounters(`/api/dashboard/${name}`, "GET", 200, cfInfo, [
         { key: "dashboard:requests:total" },
         { key: `dashboard:${name}:requests` },
@@ -198,7 +185,9 @@ export default defineEventHandler(async (event) => {
         { key: `dashboard:${name}:items`, value: items.length }
       ])
 
-      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
+      if (env?.DATA) {
+        await writeKVMetrics(env.DATA, kvCounters)
+      }
     } catch (analyticsError) {
       console.error("Failed to write dashboard success analytics:", analyticsError)
     }
@@ -233,19 +222,6 @@ export default defineEventHandler(async (event) => {
       const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
       const name = getRouterParam(event, "name") || "unknown"
 
-      const analyticsEvent = {
-        type: "api_request" as const,
-        timestamp: new Date().toISOString(),
-        cloudflare: cfInfo,
-        data: {
-          endpoint: `/api/dashboard/${name}`,
-          method: "GET",
-          statusCode: statusCode,
-          responseTimeMs: responseTime,
-          tokenSubject: undefined
-        }
-      }
-
       const kvCounters = createAPIRequestKVCounters(`/api/dashboard/${name}`, "GET", statusCode, cfInfo, [
         { key: "dashboard:requests:total" },
         { key: `dashboard:${name}:requests` },
@@ -253,7 +229,9 @@ export default defineEventHandler(async (event) => {
         { key: `dashboard:errors:${statusCode}` }
       ])
 
-      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
+      if (env?.DATA) {
+        await writeKVMetrics(env.DATA, kvCounters)
+      }
     } catch (analyticsError) {
       console.error("Failed to write dashboard error analytics:", analyticsError)
     }

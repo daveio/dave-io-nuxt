@@ -1,4 +1,4 @@
-import { createAPIRequestKVCounters, writeAnalytics } from "~/server/utils/analytics"
+import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
 import { createApiError, createApiResponse, isApiError, logRequest } from "~/server/utils/response"
 
@@ -68,25 +68,14 @@ export default defineEventHandler(async (event) => {
         const cfInfo = getCloudflareRequestInfo(event)
         const responseTime = Date.now() - startTime
 
-        const analyticsEvent = {
-          type: "api_request" as const,
-          timestamp: new Date().toISOString(),
-          cloudflare: cfInfo,
-          data: {
-            endpoint: "/api/routeros/cache",
-            method: "GET",
-            statusCode: 503,
-            responseTimeMs: responseTime,
-            tokenSubject: undefined
-          }
-        }
-
         const kvCounters = createAPIRequestKVCounters("/api/routeros/cache", "GET", 503, cfInfo, [
           { key: "routeros:cache:errors:service-unavailable" },
           { key: "routeros:cache:availability:kv", increment: env?.DATA ? 1 : 0 }
         ])
 
-        await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
+        if (env?.DATA) {
+          await writeKVMetrics(env.DATA, kvCounters)
+        }
       } catch (analyticsError) {
         console.error("Failed to write RouterOS cache error analytics:", analyticsError)
       }
@@ -102,18 +91,6 @@ export default defineEventHandler(async (event) => {
       const cfInfo = getCloudflareRequestInfo(event)
       const _responseTime = Date.now() - startTime
 
-      const analyticsEvent = {
-        type: "routeros" as const,
-        timestamp: new Date().toISOString(),
-        cloudflare: cfInfo,
-        data: {
-          operation: "cache" as "putio" | "cache" | "reset",
-          cacheStatus: stats.isStale ? "stale" : "fresh",
-          ipv4Count: stats.ipv4Count,
-          ipv6Count: stats.ipv6Count
-        }
-      }
-
       const kvCounters = createAPIRequestKVCounters("/api/routeros/cache", "GET", 200, cfInfo, [
         { key: "routeros:cache:checks:total" },
         { key: `routeros:cache:status:${stats.isStale ? "stale" : "fresh"}` },
@@ -126,7 +103,9 @@ export default defineEventHandler(async (event) => {
         { key: "routeros:cache:last-updated", value: stats.lastUpdated || "never" }
       ])
 
-      await writeAnalytics(true, env.ANALYTICS, env.DATA, analyticsEvent, kvCounters)
+      if (env?.DATA) {
+        await writeKVMetrics(env.DATA, kvCounters)
+      }
     } catch (analyticsError) {
       console.error("Failed to write RouterOS cache success analytics:", analyticsError)
     }
@@ -159,23 +138,13 @@ export default defineEventHandler(async (event) => {
       // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
       const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
 
-      if (env?.ANALYTICS) {
-        env.ANALYTICS.writeDataPoint({
-          blobs: [
-            "api_request",
-            "/api/routeros/cache",
-            "GET",
-            cfInfo.userAgent,
-            cfInfo.ip,
-            cfInfo.country,
-            cfInfo.ray,
-            "cache_error",
-            String(statusCode),
-            ""
-          ],
-          doubles: [responseTime, statusCode, 0], // responseTime, statusCode, success
-          indexes: ["api_request"] // Analytics Engine only supports 1 index
-        })
+      const kvCounters = createAPIRequestKVCounters("/api/routeros/cache", "GET", statusCode, cfInfo, [
+        { key: "routeros:cache:errors:total" },
+        { key: `routeros:cache:errors:${statusCode}` }
+      ])
+
+      if (env?.DATA) {
+        await writeKVMetrics(env.DATA, kvCounters)
       }
     } catch (analyticsError) {
       console.error("Failed to write RouterOS cache error analytics:", analyticsError)

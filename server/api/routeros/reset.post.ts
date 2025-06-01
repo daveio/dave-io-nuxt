@@ -1,4 +1,4 @@
-import { createAPIRequestKVCounters, writeAnalytics } from "~/server/utils/analytics"
+import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { authorizeEndpoint } from "~/server/utils/auth"
 import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
 import { createApiError, createApiResponse, isApiError, logRequest } from "~/server/utils/response"
@@ -64,18 +64,6 @@ export default defineEventHandler(async (event) => {
       const cfInfo = getCloudflareRequestInfo(event)
       const _responseTime = Date.now() - startTime
 
-      const analyticsEvent = {
-        type: "routeros" as const,
-        timestamp: new Date().toISOString(),
-        cloudflare: cfInfo,
-        data: {
-          operation: "reset" as "putio" | "cache" | "reset",
-          cacheKeysDeleted: keysDeleted,
-          resetSuccess: true,
-          userId: authToken || undefined
-        }
-      }
-
       const kvCounters = createAPIRequestKVCounters("/api/routeros/reset", "POST", 200, cfInfo, [
         { key: "routeros:reset:total" },
         { key: "routeros:reset:success" },
@@ -84,7 +72,9 @@ export default defineEventHandler(async (event) => {
         { key: "routeros:cache:manual-resets" }
       ])
 
-      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
+      if (env?.DATA) {
+        await writeKVMetrics(env.DATA, kvCounters)
+      }
     } catch (analyticsError) {
       console.error("Failed to write RouterOS reset success analytics:", analyticsError)
     }
@@ -124,25 +114,14 @@ export default defineEventHandler(async (event) => {
       // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
       const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
 
-      const analyticsEvent = {
-        type: "api_request" as const,
-        timestamp: new Date().toISOString(),
-        cloudflare: cfInfo,
-        data: {
-          endpoint: "/api/routeros/reset",
-          method: "POST",
-          statusCode: statusCode,
-          responseTimeMs: responseTime,
-          tokenSubject: authToken || undefined
-        }
-      }
-
       const kvCounters = createAPIRequestKVCounters("/api/routeros/reset", "POST", statusCode, cfInfo, [
         { key: "routeros:reset:errors:total" },
         { key: authSuccess ? "routeros:reset:errors:processing" : "routeros:reset:errors:auth-failed" }
       ])
 
-      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
+      if (env?.DATA) {
+        await writeKVMetrics(env.DATA, kvCounters)
+      }
     } catch (analyticsError) {
       console.error("Failed to write RouterOS reset error analytics:", analyticsError)
     }
