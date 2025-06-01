@@ -50,49 +50,6 @@ export default defineEventHandler(async (event) => {
           updated_at: updatedAt || new Date().toISOString()
         }
       }
-
-      // Handle legacy JSON format during migration
-      if (!url) {
-        const legacyKey = `redirect:${slug}`
-        const kvData = await kv.get(legacyKey)
-        if (kvData) {
-          try {
-            const legacy = JSON.parse(kvData)
-            redirectData = {
-              slug: slug,
-              url: legacy.url || kvData,
-              clicks: legacy.clicks || 0,
-              created_at: legacy.created_at || new Date().toISOString(),
-              updated_at: legacy.updated_at || new Date().toISOString()
-            }
-            // Migrate to new format
-            await Promise.all([
-              kv.put(redirectUrlKey, redirectData.url),
-              kv.put(redirectClicksKey, redirectData.clicks.toString()),
-              kv.put(redirectCreatedKey, redirectData.created_at),
-              kv.put(redirectUpdatedKey, redirectData.updated_at),
-              kv.delete(legacyKey) // Remove legacy JSON format
-            ])
-          } catch {
-            // If JSON parsing fails, treat as simple string URL
-            redirectData = {
-              slug: slug,
-              url: kvData,
-              clicks: 0,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }
-            // Migrate to new format
-            await Promise.all([
-              kv.put(redirectUrlKey, redirectData.url),
-              kv.put(redirectClicksKey, redirectData.clicks.toString()),
-              kv.put(redirectCreatedKey, redirectData.created_at),
-              kv.put(redirectUpdatedKey, redirectData.updated_at),
-              kv.delete(legacyKey) // Remove legacy string format
-            ])
-          }
-        }
-      }
     } catch (error) {
       console.error("KV redirect lookup failed:", error)
       throw createApiError(500, "Failed to lookup redirect")

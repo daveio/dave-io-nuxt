@@ -324,44 +324,19 @@ export async function getRateLimitStatus(
   const now = Date.now()
   const windowStart = now - rateLimitConfig.windowMs
 
-  const storedData = await kv.get(rateLimitKey)
   let requestCount = 0
   let windowStartTime = now
 
-  // Try new kebab-case format first
   const countKey = `${rateLimitKey}:count`
   const windowStartKey = `${rateLimitKey}:window-start`
-  const lastUpdatedKey = `${rateLimitKey}:last-updated`
 
-  const [countStr, windowStartStr, _lastUpdatedStr] = await Promise.all([
-    kv.get(countKey),
-    kv.get(windowStartKey),
-    kv.get(lastUpdatedKey)
-  ])
+  const [countStr, windowStartStr] = await Promise.all([kv.get(countKey), kv.get(windowStartKey)])
 
   if (countStr && windowStartStr) {
     const storedWindowStart = Number.parseInt(windowStartStr, 10)
     if (storedWindowStart > windowStart) {
       requestCount = Number.parseInt(countStr, 10) || 0
       windowStartTime = storedWindowStart
-    }
-  } else if (storedData) {
-    // Handle legacy JSON format during migration
-    try {
-      const parsed = JSON.parse(storedData)
-      if (parsed.windowStart && parsed.windowStart > windowStart) {
-        requestCount = parsed.count || 0
-        windowStartTime = parsed.windowStart
-        // Migrate to new format
-        await Promise.all([
-          kv.put(countKey, requestCount.toString()),
-          kv.put(windowStartKey, windowStartTime.toString()),
-          kv.put(lastUpdatedKey, now.toString()),
-          kv.delete(rateLimitKey) // Remove legacy JSON format
-        ])
-      }
-    } catch (parseError) {
-      console.warn("Failed to parse rate limit data:", parseError)
     }
   }
 

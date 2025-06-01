@@ -144,36 +144,14 @@ export async function getCachedRateLimit(
       const countKey = `${key}:count`
       const windowStartKey = `${key}:window-start`
 
-      const [countStr, windowStartStr, legacyData] = await Promise.all([
-        kv.get(countKey),
-        kv.get(windowStartKey),
-        kv.get(key) // Check for legacy JSON format
-      ])
+      const [countStr, windowStartStr] = await Promise.all([kv.get(countKey), kv.get(windowStartKey)])
 
-      // biome-ignore lint/suspicious/noExplicitAny: Legacy migration requires flexible parsing
-      let parsed: any = null
+      let parsed: { count: number; windowStart: number } | null = null
 
       if (countStr && windowStartStr) {
-        // New kebab-case format
         parsed = {
           count: Number.parseInt(countStr, 10),
           windowStart: Number.parseInt(windowStartStr, 10)
-        }
-      } else if (legacyData) {
-        // Legacy JSON format - migrate it
-        try {
-          parsed = JSON.parse(legacyData)
-          if (parsed?.windowStart && parsed?.count !== undefined) {
-            // Migrate to new format
-            const ttl = Math.ceil(windowMs / 1000) + 300
-            await Promise.all([
-              kv.put(countKey, parsed.count.toString(), { expirationTtl: ttl }),
-              kv.put(windowStartKey, parsed.windowStart.toString(), { expirationTtl: ttl }),
-              kv.delete(key) // Remove legacy JSON
-            ])
-          }
-        } catch {
-          parsed = null
         }
       }
 
