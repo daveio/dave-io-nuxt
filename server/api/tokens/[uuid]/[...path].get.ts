@@ -60,7 +60,7 @@ export default defineEventHandler(async (event) => {
       const usage: TokenUsageData = JSON.parse(tokenData)
       const validatedUsage = TokenUsageSchema.parse(usage)
 
-      // Write successful analytics using standardized system
+      // Write successful KV metrics using standardized system
       try {
         const cfInfo = getCloudflareRequestInfo(event)
         const responseTime = Date.now() - startTime
@@ -74,8 +74,8 @@ export default defineEventHandler(async (event) => {
         if (env?.DATA) {
           await writeKVMetrics(env.DATA, kvCounters)
         }
-      } catch (analyticsError) {
-        console.error("Failed to write token lookup success analytics:", analyticsError)
+      } catch (metricsError) {
+        console.error("Failed to write token lookup success KV metrics:", metricsError)
       }
 
       return createApiResponse(validatedUsage, "Token usage retrieved successfully")
@@ -100,7 +100,7 @@ export default defineEventHandler(async (event) => {
         revoked_at: new Date().toISOString()
       }
 
-      // Write successful analytics using standardized system
+      // Write successful KV metrics using standardized system
       try {
         const cfInfo = getCloudflareRequestInfo(event)
         const responseTime = Date.now() - startTime
@@ -114,8 +114,8 @@ export default defineEventHandler(async (event) => {
         if (env?.DATA) {
           await writeKVMetrics(env.DATA, kvCounters)
         }
-      } catch (analyticsError) {
-        console.error("Failed to write token revocation success analytics:", analyticsError)
+      } catch (metricsError) {
+        console.error("Failed to write token revocation success KV metrics:", metricsError)
       }
 
       return createApiResponse(revokeData, "Token revoked successfully")
@@ -161,7 +161,7 @@ export default defineEventHandler(async (event) => {
         timestamp: new Date().toISOString()
       })
 
-      // Write successful analytics using standardized system
+      // Write successful KV metrics using standardized system
       try {
         const cfInfo = getCloudflareRequestInfo(event)
         const responseTime = Date.now() - startTime
@@ -176,8 +176,8 @@ export default defineEventHandler(async (event) => {
         if (env?.DATA) {
           await writeKVMetrics(env.DATA, kvCounters)
         }
-      } catch (analyticsError) {
-        console.error("Failed to write token metrics success analytics:", analyticsError)
+      } catch (metricsError) {
+        console.error("Failed to write token metrics success KV metrics:", metricsError)
       }
 
       return metrics
@@ -186,7 +186,7 @@ export default defineEventHandler(async (event) => {
   } catch (error: unknown) {
     console.error("Token management error:", error)
 
-    // Write analytics for failed requests
+    // Write KV metrics for failed requests
     try {
       const env = getCloudflareEnv(event)
       const cfInfo = getCloudflareRequestInfo(event)
@@ -204,8 +204,8 @@ export default defineEventHandler(async (event) => {
       if (env?.DATA) {
         await writeKVMetrics(env.DATA, kvCounters)
       }
-    } catch (analyticsError) {
-      console.error("Failed to write token management error analytics:", analyticsError)
+    } catch (metricsError) {
+      console.error("Failed to write token management error KV metrics:", metricsError)
     }
 
     // Re-throw API errors

@@ -24,8 +24,8 @@ export default defineEventHandler(async (event) => {
         if (env?.DATA) {
           await writeKVMetrics(env.DATA, kvCounters)
         }
-      } catch (kvError) {
-        console.error("Failed to write stats error KV metrics:", kvError)
+      } catch (metricsError) {
+        console.error("Failed to write stats error KV metrics:", metricsError)
       }
 
       // Log error request
@@ -37,7 +37,7 @@ export default defineEventHandler(async (event) => {
       throw createApiError(503, "KV storage not available")
     }
 
-    // Get real statistics from KV and Analytics Engine
+    // Get real statistics from KV storage
     const [userCount, postCount, apiMetrics] = await Promise.all([
       env.DATA.get("stats:users:total").then((v) => Number.parseInt(v || "0")),
       env.DATA.get("stats:posts:total").then((v) => Number.parseInt(v || "0")),
@@ -95,8 +95,8 @@ export default defineEventHandler(async (event) => {
       if (env?.DATA) {
         await writeKVMetrics(env.DATA, kvCounters)
       }
-    } catch (kvError) {
-      console.error("Failed to write stats success KV metrics:", kvError)
+    } catch (metricsError) {
+      console.error("Failed to write stats success KV metrics:", metricsError)
     }
 
     // Log successful request

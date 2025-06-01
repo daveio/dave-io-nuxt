@@ -179,7 +179,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Write analytics using standardized system
+    // Write KV metrics using standardized system
     try {
       const cfInfo = getCloudflareRequestInfo(event)
 
@@ -195,8 +195,8 @@ export default defineEventHandler(async (event) => {
         await writeKVMetrics(env.DATA, kvCounters)
       }
     } catch (error) {
-      console.error("Failed to write RouterOS analytics:", error)
-      // Continue with response even if analytics fails
+      console.error("Failed to write RouterOS KV metrics:", error)
+      // Continue with response even if metrics fails
     }
 
     // Check if JSON format is explicitly requested

@@ -172,7 +172,7 @@ export default defineEventHandler(async (event) => {
       setHeader(event, "X-Warning", "This endpoint is serving mock data for demonstration purposes")
     }
 
-    // Write successful analytics using standardized system
+    // Write successful KV metrics using standardized system
     try {
       const cfInfo = getCloudflareRequestInfo(event)
       const responseTime = Date.now() - startTime
@@ -188,8 +188,8 @@ export default defineEventHandler(async (event) => {
       if (env?.DATA) {
         await writeKVMetrics(env.DATA, kvCounters)
       }
-    } catch (analyticsError) {
-      console.error("Failed to write dashboard success analytics:", analyticsError)
+    } catch (metricsError) {
+      console.error("Failed to write dashboard success KV metrics:", metricsError)
     }
 
     // Log successful request
@@ -213,7 +213,7 @@ export default defineEventHandler(async (event) => {
       itemCount: 0
     })
 
-    // Write analytics for failed requests
+    // Write KV metrics for failed requests
     try {
       const env = getCloudflareEnv(event)
       const cfInfo = getCloudflareRequestInfo(event)
@@ -232,8 +232,8 @@ export default defineEventHandler(async (event) => {
       if (env?.DATA) {
         await writeKVMetrics(env.DATA, kvCounters)
       }
-    } catch (analyticsError) {
-      console.error("Failed to write dashboard error analytics:", analyticsError)
+    } catch (metricsError) {
+      console.error("Failed to write dashboard error KV metrics:", metricsError)
     }
 
     // Re-throw API errors

@@ -59,7 +59,7 @@ export default defineEventHandler(async (event) => {
       console.warn("KV storage not available for cache reset")
     }
 
-    // Write successful analytics using standardized system
+    // Write successful KV metrics using standardized system
     try {
       const cfInfo = getCloudflareRequestInfo(event)
       const _responseTime = Date.now() - startTime
@@ -75,8 +75,8 @@ export default defineEventHandler(async (event) => {
       if (env?.DATA) {
         await writeKVMetrics(env.DATA, kvCounters)
       }
-    } catch (analyticsError) {
-      console.error("Failed to write RouterOS reset success analytics:", analyticsError)
+    } catch (metricsError) {
+      console.error("Failed to write RouterOS reset success KV metrics:", metricsError)
     }
 
     // Log successful request
@@ -106,7 +106,7 @@ export default defineEventHandler(async (event) => {
       operation: "reset"
     })
 
-    // Write analytics for failed requests
+    // Write KV metrics for failed requests
     try {
       const env = getCloudflareEnv(event)
       const cfInfo = getCloudflareRequestInfo(event)
@@ -122,8 +122,8 @@ export default defineEventHandler(async (event) => {
       if (env?.DATA) {
         await writeKVMetrics(env.DATA, kvCounters)
       }
-    } catch (analyticsError) {
-      console.error("Failed to write RouterOS reset error analytics:", analyticsError)
+    } catch (metricsError) {
+      console.error("Failed to write RouterOS reset error KV metrics:", metricsError)
     }
 
     if (isApiError(error)) {

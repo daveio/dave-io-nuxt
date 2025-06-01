@@ -38,7 +38,7 @@ export default defineEventHandler(async (event) => {
     }
   } catch (error) {
     console.error("Failed to write ping KV metrics:", error)
-    // Continue with response even if analytics fails
+    // Continue with response even if metrics fails
   }
 
   // Log successful request

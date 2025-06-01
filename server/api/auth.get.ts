@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
       }
     } catch (error) {
       console.error("Failed to write auth KV metrics:", error)
-      // Continue with response even if analytics fails
+      // Continue with response even if metrics fails
     }
 
     // Log successful request
@@ -102,7 +102,7 @@ export default defineEventHandler(async (event) => {
       }
     } catch (kvError) {
       console.error("Failed to write auth failure KV metrics:", kvError)
-      // Continue with error response even if analytics fails
+      // Continue with error response even if metrics fails
     }
 
     // Log error request

@@ -10,7 +10,7 @@ import { createApiError } from "./response"
  * 1. Call authorizeEndpoint
  * 2. Check success
  * 3. Throw error if failed
- * 4. Write analytics for auth attempts
+ * 4. Write KV metrics for auth attempts
  */
 export async function requireAuth(event: H3Event, endpoint: string, subResource?: string): Promise<AuthResult> {
   const startTime = Date.now()
@@ -31,8 +31,8 @@ export async function requireAuth(event: H3Event, endpoint: string, subResource?
 
       await writeKVMetrics(env.DATA, kvCounters)
     }
-  } catch (analyticsError) {
-    console.error("Failed to write auth metrics:", analyticsError)
+  } catch (metricsError) {
+    console.error("Failed to write auth metrics:", metricsError)
     // Continue with auth flow even if metrics fail
   }
 
@@ -58,7 +58,7 @@ export const requireAdminAuth = (event: H3Event) => requireAuth(event, "admin")
 
 /**
  * Rate limiting helper for AI endpoints
- * Centralizes the AI rate limiting logic with analytics tracking
+ * Centralizes the AI rate limiting logic with KV metrics tracking
  */
 export async function checkAIRateLimit(
   userId: string,

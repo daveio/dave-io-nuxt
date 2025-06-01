@@ -58,7 +58,7 @@ export default defineEventHandler(async (event) => {
     // Validate redirect data
     const redirect = UrlRedirectSchema.parse(redirectData)
 
-    // Update redirect click metrics in BOTH KV (for metrics endpoint) and Analytics Engine
+    // Update redirect click metrics in KV (for metrics endpoint)
     const clickCount = (redirect.clicks || 0) + 1
     const updatedRedirect = {
       ...redirect,
@@ -104,7 +104,7 @@ export default defineEventHandler(async (event) => {
 
       await writeKVMetrics(kv, kvCounters)
     } catch (error) {
-      console.error("Failed to write redirect metrics:", error)
+      console.error("Failed to write redirect KV metrics:", error)
       // Continue with redirect even if metrics fails
     }
 

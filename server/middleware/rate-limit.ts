@@ -376,11 +376,6 @@ const DEFAULT_RATE_LIMITS: Record<string, RateLimitConfig> = {
   // AI endpoints - resource intensive
   "/api/ai/alt": RATE_LIMIT_PRESETS.AI_OPERATIONS,
 
-  // Analytics endpoints - moderate to lenient
-  "/api/analytics": RATE_LIMIT_PRESETS.LENIENT,
-  "/api/analytics/query": RATE_LIMIT_PRESETS.STANDARD,
-  "/api/analytics/realtime": RATE_LIMIT_PRESETS.REALTIME,
-
   // Token management - strict
   "/api/tokens": RATE_LIMIT_PRESETS.STRICT,
 

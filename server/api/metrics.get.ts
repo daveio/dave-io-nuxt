@@ -138,7 +138,7 @@ export default defineEventHandler(async (event) => {
       timestamp: new Date().toISOString()
     })
 
-    // Get requested format for analytics
+    // Get requested format for metrics response
     const requestedFormat = (getQuery(event).format as string) || "json"
 
     // Write successful KV metrics with rich data
@@ -159,8 +159,8 @@ export default defineEventHandler(async (event) => {
       if (env?.DATA) {
         await writeKVMetrics(env.DATA, kvCounters)
       }
-    } catch (kvError) {
-      console.error("Failed to write metrics success KV metrics:", kvError)
+    } catch (metricsError) {
+      console.error("Failed to write metrics success KV metrics:", metricsError)
     }
 
     // Log successful request
