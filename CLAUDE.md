@@ -91,8 +91,8 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 
 ## Endpoints
 
-**Public** (8/22): `/api/health`, `/api/ping`, `/api/_worker-info`, `/api/stats`, `/api/go/{slug}`, `/go/{slug}`
-**Protected** (14/22): All others require JWT with appropriate scope
+**Public** (7/21): `/api/health`, `/api/ping`, `/api/_worker-info`, `/api/stats`, `/go/{slug}`
+**Protected** (14/21): All others require JWT with appropriate scope
 **Key Protected**:
 
 - `/api/auth` - Token validation (any token)

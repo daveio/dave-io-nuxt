@@ -46,8 +46,8 @@ export default defineEventHandler(async (event) => {
           slug: slug,
           url: url,
           clicks: Number.parseInt(clicksStr || "0", 10),
-          created_at: createdAt || new Date().toISOString(),
-          updated_at: updatedAt || new Date().toISOString()
+          created_at: createdAt || Date.now().toString(),
+          updated_at: updatedAt || Date.now().toString()
         }
       }
     } catch (error) {
@@ -64,7 +64,7 @@ export default defineEventHandler(async (event) => {
 
     // Update redirect click metrics using kebab-case keys
     const clickCount = (redirect.clicks || 0) + 1
-    const updatedAt = new Date().toISOString()
+    const updatedAt = Date.now().toString()
 
     try {
       // Store redirect data using kebab-case colon-separated keys with simple values
