@@ -1,10 +1,10 @@
-import { createAIKVCounters, writeAnalytics } from "~/server/utils/analytics"
+import { createAIKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import {
   checkAIRateLimit as checkAIRateLimitAuth,
   requireAIAuth,
   setRateLimitHeaders
 } from "~/server/utils/auth-helpers"
-import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
+import { getCloudflareEnv, getCloudflareRequestInfo, getKVNamespace } from "~/server/utils/cloudflare"
 import { createApiError, createApiResponse, isApiError, logRequest } from "~/server/utils/response"
 import { AiAltTextRequestSchema } from "~/server/utils/schemas"
 
@@ -108,26 +108,10 @@ export default defineEventHandler(async (event) => {
 
     const processingTime = Date.now() - startTime
 
-    // Write analytics using standardized system
+    // Write KV metrics
     try {
       const cfInfo = getCloudflareRequestInfo(event)
-
-      const analyticsEvent = {
-        type: "ai" as const,
-        timestamp: new Date().toISOString(),
-        cloudflare: cfInfo,
-        data: {
-          operation: "alt-text" as const,
-          method: "POST" as "GET" | "POST",
-          imageSource: request.url || "uploaded-file",
-          processingTimeMs: processingTime,
-          imageSizeBytes: imageData.length,
-          generatedText: aiSuccess ? altText.substring(0, 100) : undefined,
-          userId: auth.payload?.sub || undefined,
-          success: aiSuccess,
-          errorType: aiSuccess ? undefined : aiErrorType || "unknown"
-        }
-      }
+      const kv = getKVNamespace(env)
 
       const kvCounters = createAIKVCounters(
         "alt-text",
@@ -145,10 +129,10 @@ export default defineEventHandler(async (event) => {
         ]
       )
 
-      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
+      await writeKVMetrics(kv, kvCounters)
     } catch (error) {
-      console.error("Failed to write AI analytics:", error)
-      // Continue with response even if analytics fails
+      console.error("Failed to write AI metrics:", error)
+      // Continue with response even if metrics fails
     }
 
     // Log successful request
@@ -187,43 +171,24 @@ export default defineEventHandler(async (event) => {
       success: false
     })
 
-    // Write failure analytics using standardized system
+    // Write failure KV metrics
     try {
       const env = getCloudflareEnv(event)
       const cfInfo = getCloudflareRequestInfo(event)
-      const body = await readBody(event).catch(() => ({}))
+      const kv = getKVNamespace(env)
       // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
       const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
 
-      if (env?.ANALYTICS) {
-        const analyticsEvent = {
-          type: "ai" as const,
-          timestamp: new Date().toISOString(),
-          cloudflare: cfInfo,
-          data: {
-            operation: "alt-text" as const,
-            method: "POST" as "GET" | "POST",
-            imageSource: body.url || "uploaded-file",
-            processingTimeMs: 0,
-            imageSizeBytes: 0,
-            generatedText: undefined,
-            userId: undefined,
-            success: false,
-            errorType: statusCode.toString()
-          }
-        }
+      const kvCounters = createAIKVCounters("alt-text", false, 0, 0, undefined, cfInfo, [
+        { key: "ai:alt-text:requests:total" },
+        { key: "ai:alt-text:methods:post" },
+        { key: "ai:alt-text:errors:total" },
+        { key: `ai:alt-text:errors:${statusCode}` }
+      ])
 
-        const kvCounters = createAIKVCounters("alt-text", false, 0, 0, undefined, cfInfo, [
-          { key: "ai:alt-text:requests:total" },
-          { key: "ai:alt-text:methods:post" },
-          { key: "ai:alt-text:errors:total" },
-          { key: `ai:alt-text:errors:${statusCode}` }
-        ])
-
-        await writeAnalytics(true, env.ANALYTICS, env.DATA, analyticsEvent, kvCounters)
-      }
-    } catch (analyticsError) {
-      console.error("Failed to write failure analytics:", analyticsError)
+      await writeKVMetrics(kv, kvCounters)
+    } catch (metricsError) {
+      console.error("Failed to write failure metrics:", metricsError)
     }
 
     // Re-throw API errors

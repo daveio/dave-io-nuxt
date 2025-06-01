@@ -1,4 +1,5 @@
-import type { H3Event } from "h3"\nimport { setHeader } from "h3"
+import type { H3Event } from "h3"
+import { setHeader } from "h3"
 import { createAuthKVCounters, createRateLimitKVCounters, writeKVMetrics } from "./kv-metrics"
 import { type AuthResult, authorizeEndpoint } from "./auth"
 import { type CloudflareRequestInfo, getCloudflareEnv, getCloudflareRequestInfo } from "./cloudflare"

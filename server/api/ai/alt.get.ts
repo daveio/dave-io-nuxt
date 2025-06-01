@@ -1,10 +1,10 @@
-import { createAIKVCounters, writeAnalytics } from "~/server/utils/analytics"
+import { createAIKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import {
   checkAIRateLimit as checkAIRateLimitAuth,
   requireAIAuth,
   setRateLimitHeaders
 } from "~/server/utils/auth-helpers"
-import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
+import { getCloudflareEnv, getCloudflareRequestInfo, getKVNamespace } from "~/server/utils/cloudflare"
 import { createApiError, createApiResponse, isApiError, logRequest } from "~/server/utils/response"
 import { validateImageURL } from "~/server/utils/validation"
 
@@ -78,26 +78,10 @@ export default defineEventHandler(async (event) => {
 
     const processingTime = Date.now() - processingStart
 
-    // Write analytics using standardized system
+    // Write KV metrics
     try {
       const cfInfo = getCloudflareRequestInfo(event)
-
-      const analyticsEvent = {
-        type: "ai" as const,
-        timestamp: new Date().toISOString(),
-        cloudflare: cfInfo,
-        data: {
-          operation: "alt-text" as const,
-          method: "GET" as "GET" | "POST",
-          imageSource: imageUrl,
-          processingTimeMs: processingTime,
-          imageSizeBytes: imageBuffer.byteLength,
-          generatedText: aiSuccess ? altText.substring(0, 100) : undefined,
-          userId: auth.payload?.sub || undefined,
-          success: aiSuccess,
-          errorType: aiSuccess ? undefined : aiErrorType || "unknown"
-        }
-      }
+      const kv = getKVNamespace(env)
 
       const kvCounters = createAIKVCounters(
         "alt-text",
@@ -114,10 +98,10 @@ export default defineEventHandler(async (event) => {
         ]
       )
 
-      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
+      await writeKVMetrics(kv, kvCounters)
     } catch (error) {
-      console.error("Failed to write AI analytics:", error)
-      // Continue with response even if analytics fails
+      console.error("Failed to write AI metrics:", error)
+      // Continue with response even if metrics fails
     }
 
     // Log successful request
@@ -156,35 +140,30 @@ export default defineEventHandler(async (event) => {
       success: false
     })
 
-    // Write failure analytics if we have enough context
+    // Write failure KV metrics if we have enough context
     try {
       const env = getCloudflareEnv(event)
       const cfInfo = getCloudflareRequestInfo(event)
-      const query = getQuery(event)
-      const imageUrl = query.image as string
+      const kv = getKVNamespace(env)
+      const statusCode = isApiError(error) ? error.statusCode || 500 : 500
 
-      if (env?.ANALYTICS && imageUrl) {
-        const errorType = isApiError(error) ? `${error.statusCode}` : "500"
-        env.ANALYTICS.writeDataPoint({
-          blobs: [
-            "ai",
-            "alt-text",
-            "get",
-            imageUrl,
-            "",
-            "anonymous",
-            cfInfo.userAgent,
-            cfInfo.ip,
-            cfInfo.country,
-            cfInfo.ray,
-            errorType
-          ],
-          doubles: [0, 0], // No processing time or image size for early failures
-          indexes: ["ai"] // Analytics Engine only supports 1 index
-        })
-      }
-    } catch (analyticsError) {
-      console.error("Failed to write failure analytics:", analyticsError)
+      const kvCounters = createAIKVCounters(
+        "alt-text",
+        false,
+        0,
+        0,
+        undefined,
+        cfInfo,
+        [
+          { key: "ai:alt-text:requests:total" },
+          { key: "ai:alt-text:errors:total" },
+          { key: `ai:alt-text:errors:${statusCode}` }
+        ]
+      )
+
+      await writeKVMetrics(kv, kvCounters)
+    } catch (metricsError) {
+      console.error("Failed to write failure metrics:", metricsError)
     }
 
     // Re-throw API errors

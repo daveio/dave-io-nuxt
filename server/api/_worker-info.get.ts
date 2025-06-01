@@ -1,6 +1,6 @@
 import { getHeader } from "h3"
-import { createAPIRequestKVCounters, writeAnalytics } from "~/server/utils/analytics"
-import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
+import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
+import { getCloudflareEnv, getCloudflareRequestInfo, getKVNamespace } from "~/server/utils/cloudflare"
 import { createApiResponse, logRequest } from "~/server/utils/response"
 
 export default defineEventHandler(async (event) => {
@@ -23,24 +23,11 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Write analytics using standardized system
+  // Write KV metrics
   try {
     const env = getCloudflareEnv(event)
     const cfInfo = getCloudflareRequestInfo(event)
-    const responseTime = Date.now() - startTime
-
-    const analyticsEvent = {
-      type: "api_request" as const,
-      timestamp: new Date().toISOString(),
-      cloudflare: cfInfo,
-      data: {
-        endpoint: "/api/_worker-info",
-        method: "GET",
-        statusCode: 200,
-        responseTimeMs: responseTime,
-        tokenSubject: undefined
-      }
-    }
+    const kv = getKVNamespace(env)
 
     const kvCounters = createAPIRequestKVCounters("/api/_worker-info", "GET", 200, cfInfo, [
       { key: "worker-info:requests:total" },
@@ -51,10 +38,10 @@ export default defineEventHandler(async (event) => {
       { key: "worker-info:features:edge-functions", increment: workerInfo.edge_functions ? 1 : 0 }
     ])
 
-    await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
+    await writeKVMetrics(kv, kvCounters)
   } catch (error) {
-    console.error("Failed to write worker-info analytics:", error)
-    // Continue with response even if analytics fails
+    console.error("Failed to write worker-info metrics:", error)
+    // Continue with response even if metrics fails
   }
 
   // Log successful request

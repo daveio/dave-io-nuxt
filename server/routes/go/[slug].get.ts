@@ -1,5 +1,5 @@
 import { setHeader, setResponseStatus } from "h3"
-import { writeAnalytics } from "~/server/utils/analytics"
+import { createRedirectKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { getCloudflareEnv, getCloudflareRequestInfo, getKVNamespace } from "~/server/utils/cloudflare"
 import { createApiError, isApiError, logRequest } from "~/server/utils/response"
 import { UrlRedirectSchema } from "~/server/utils/schemas"
@@ -86,34 +86,26 @@ export default defineEventHandler(async (event) => {
       // Continue with redirect even if click tracking fails
     }
 
-    // Write analytics using standardized system
+    // Write KV metrics
     try {
       const cfInfo = getCloudflareRequestInfo(event)
+      const kv = getKVNamespace(env)
 
-      const analyticsEvent = {
-        type: "redirect" as const,
-        timestamp: new Date().toISOString(),
-        cloudflare: cfInfo,
-        data: {
-          slug: slug,
-          targetUrl: redirect.url,
-          clickCount: clickCount,
-          title: redirect.title
-        }
-      }
+      const kvCounters = createRedirectKVCounters(
+        slug,
+        redirect.url,
+        1, // Single click increment
+        cfInfo,
+        [
+          { key: `redirect:${slug}:clicks`, value: clickCount },
+          { key: `redirect:daily:${new Date().toISOString().split("T")[0]}` }
+        ]
+      )
 
-      const kvCounters = [
-        { key: "redirect:total:clicks" },
-        { key: `redirect:${slug}:clicks`, value: clickCount },
-        { key: `redirect:targets:${redirect.url.replace(/[^a-z0-9]/g, "-")}` },
-        { key: `redirect:countries:${cfInfo.country.toLowerCase()}` },
-        { key: `redirect:daily:${new Date().toISOString().split("T")[0]}` }
-      ]
-
-      await writeAnalytics(true, env?.ANALYTICS, env?.DATA, analyticsEvent, kvCounters)
+      await writeKVMetrics(kv, kvCounters)
     } catch (error) {
-      console.error("Failed to write analytics:", error)
-      // Continue with redirect even if analytics fails
+      console.error("Failed to write redirect metrics:", error)
+      // Continue with redirect even if metrics fails
     }
 
     // Log redirect request
