@@ -94,7 +94,7 @@ export default defineEventHandler(async (event) => {
         redirect.url,
         1, // Single click increment
         cfInfo,
-        [{ key: `redirect:daily:${new Date().toISOString().split("T")[0]}` }]
+        [{ key: `metrics:redirect:daily:${new Date().toISOString().split("T")[0]}` }]
       )
 
       await writeKVMetrics(kv, kvCounters)

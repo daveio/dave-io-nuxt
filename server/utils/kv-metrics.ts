@@ -217,12 +217,10 @@ export function createRedirectKVCounters(
   cfInfo: { country: string },
   extraCounters?: KVCounterEntry[]
 ): KVCounterEntry[] {
-  const slugNormalized = slug.replace(/[^a-z0-9]/g, "-")
   const domainMatch = destinationUrl.match(/^https?:\/\/([^\/]+)/)
   const domain = domainMatch?.[1]?.replace(/[^a-z0-9]/g, "-") || "unknown"
 
   const baseCounters: KVCounterEntry[] = [
-    { key: `redirect:${slugNormalized}:clicks`, increment: clickCount },
     { key: `redirect:by-domain:${domain}`, increment: clickCount },
     { key: `redirect:by-country:${cfInfo.country.toLowerCase()}`, increment: clickCount }
   ]
