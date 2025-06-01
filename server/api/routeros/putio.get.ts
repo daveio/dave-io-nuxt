@@ -154,7 +154,7 @@ export default defineEventHandler(async (event) => {
     // Format parameter will be handled by handleResponseFormat
 
     // Get environment bindings
-    const env = event.context.cloudflare?.env as { DATA?: KVNamespace; ANALYTICS?: AnalyticsEngineDataset }
+    const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
 
     if (!env?.DATA) {
       throw createApiError(503, "RouterOS service not available")

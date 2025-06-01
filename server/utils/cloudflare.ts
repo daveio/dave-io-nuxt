@@ -49,8 +49,6 @@ export interface CloudflareEnv {
   DATA?: KVNamespace
   /** Cloudflare AI for machine learning tasks */
   AI?: Ai
-  /** Analytics Engine for logging and metrics */
-  ANALYTICS?: AnalyticsEngineDataset
   /** D1 Database for relational data */
   DB?: D1Database
 }
@@ -101,15 +99,6 @@ export function getAIBinding(env: CloudflareEnv): Ai {
   return env.AI
 }
 
-/**
- * Safe getter for Analytics binding with proper error handling
- */
-export function getAnalyticsBinding(env: CloudflareEnv): AnalyticsEngineDataset {
-  if (!env.ANALYTICS) {
-    throw createApiError(503, "Analytics service not available")
-  }
-  return env.ANALYTICS
-}
 
 /**
  * Safe getter for D1 database with proper error handling

@@ -10,7 +10,7 @@ If `git add -A . && oco --fgm --yes` fails, run `git add -A . && git commit -am 
 
 ## ⚠️ CRITICAL DEVELOPMENT RULE: ABSOLUTELY NO MOCK DATA
 
-**ZERO TOLERANCE FOR MOCK DATA, SIMULATIONS, OR FAKE RESPONSES**. Use ONLY real `env.ANALYTICS.sql()`, `env.AI.run()`, `env.DATA.get/put()` calls. Mocks or simulations are allowable in tests.
+**ZERO TOLERANCE FOR MOCK DATA, SIMULATIONS, OR FAKE RESPONSES**. Use ONLY real `env.AI.run()`, `env.DATA.get/put()` calls. Mocks or simulations are allowable in tests.
 
 **FORBIDDEN PATTERNS:**
 
@@ -81,15 +81,13 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 - `server/api/` - API endpoints
 - `server/utils/` - Auth, response helpers, schemas
 - `bin/` - CLI tools (jwt.ts, kv.ts, api-test.ts)
-- `pages/analytics/` - Dashboard
-- `components/analytics/` - Dashboard components
 
 ## Authentication
 
 **Dual Methods**: Bearer tokens (`Authorization: Bearer <jwt>`) + URL params (`?token=<jwt>`)
 **JWT Structure**: `{sub, iat, exp?, jti?, maxRequests?}`
 **Hierarchical Permissions**: `category:resource` format. Parent permissions grant child access. `admin`/`*` = full access.
-**Categories**: `api`, `ai`, `routeros`, `dashboard`, `analytics`, `admin`, `*`
+**Categories**: `api`, `ai`, `routeros`, `dashboard`, `admin`, `*`
 
 ## Endpoints
 
@@ -101,7 +99,6 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 - `/api/metrics` - API metrics (`api:metrics`+)
 - `/api/ai/alt` - Alt-text generation (`ai:alt`+)
 - `/api/tokens/{uuid}/*` - Token management (`api:tokens`+)
-- `/api/analytics*` - Analytics data (`api:analytics`+)
 - `/api/routeros/*` - RouterOS integration (`routeros:*`+)
 
 **Token Management**: Use `bin/jwt.ts` for create/verify/list/revoke operations
@@ -110,18 +107,15 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 
 **Core**: `/api/health`, `/api/ping`, `/api/auth`, `/api/metrics` (json/yaml/prometheus)
 **AI**: `/api/ai/alt` (GET url param, POST body/upload)
-**Analytics**: `/api/analytics` (timeRange params), `/api/analytics/realtime` (SSE), `/api/analytics/query` (POST)
 **RouterOS**: `/api/routeros/cache`, `/api/routeros/putio`, `/api/routeros/reset`
 **Tokens**: `/api/tokens/{uuid}/usage`, `/api/tokens/{uuid}/revoke`
 **Redirects**: `/go/{slug}` (gh/tw/li)
 
-## Analytics
+## Metrics
 
-**Dashboard**: `/analytics` - Vue 3 + @nuxt/ui + Chart.js
-**Features**: Real-time SSE updates, time ranges, interactive charts, filtering
-**Metrics**: System overview, redirects, AI ops, auth security, RouterOS, geographic, user agents
-**Tech**: Composition API, Pinia, @tanstack/vue-table, EventSource
-**Data**: Cloudflare Analytics Engine + KV storage for caching
+**Storage**: KV-based metrics for fast dashboard queries
+**Counters**: Request tracking, redirect clicks, auth events, AI operations, RouterOS stats
+**Functionality**: Real-time KV storage with hierarchical keys, automatic aggregation
 
 ## Response Format
 
@@ -132,7 +126,7 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 ## Config
 
 **Env**: `API_JWT_SECRET`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
-**Bindings**: KV (DATA), D1 (DB), AI, Analytics Engine (ANALYTICS)
+**Bindings**: KV (DATA), D1 (DB), AI
 **Optional**: `NUXT_PUBLIC_API_BASE_URL=/api`
 **Dev Options**:
 
@@ -220,14 +214,13 @@ Maintains API compatibility with original Worker while adding: TypeScript + Zod 
 
 Reference implementation for production-ready serverless APIs with TypeScript, testing, enterprise security.
 
-## Analytics Engine
+## KV Metrics System
 
-**Dual Storage**: Analytics Engine (events) + KV (fast metrics)
-**Schema**: `blobs[]` (strings, 10 max), `doubles[]` (numbers, 20 max), `indexes[]` (queries, 5 max)
-**Event Types**: redirect, auth, ai, ping, routeros with structured field patterns
-**KV Keys**: Hierarchical kebab-case (`metrics:requests:total`)
-**Query Results**: Positional field names (`blob1`, `double1`, `index1`)
-**Guidelines**: Event type first, include user context, use doubles for metrics, dual storage for queryable data
+**Storage**: Single KV-based metrics storage for performance and simplicity
+**Key Structure**: Hierarchical kebab-case (`metrics:requests:total`, `metrics:auth:by-country:us`)
+**Counters**: Increment-based metrics with automatic normalization and aggregation
+**Helpers**: Standardized counter creation functions for different event types
+**Performance**: Fast reads for dashboard queries, optimized for Cloudflare Workers edge compute
 
 ## Next Steps
 

@@ -12,12 +12,6 @@
   "ai": {
     "binding": "AI"
   },
-  "analytics_engine_datasets": [
-    {
-      "binding": "ANALYTICS",
-      "dataset": "next-dave-io"
-    }
-  ],
   "kv_namespaces": [
     {
       "binding": "DATA",

@@ -60,7 +60,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     // Get environment bindings
-    const env = event.context.cloudflare?.env as { DATA?: KVNamespace; ANALYTICS?: AnalyticsEngineDataset }
+    const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
 
     if (!env?.DATA) {
       // Write analytics for service unavailable using standardized system
