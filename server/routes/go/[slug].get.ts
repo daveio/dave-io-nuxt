@@ -26,10 +26,10 @@ export default defineEventHandler(async (event) => {
     }
 
     // Get redirect from KV storage using kebab-case keys
-    const redirectUrlKey = `redirect:${slug}:url`
-    const redirectClicksKey = `redirect:${slug}:clicks`
-    const redirectCreatedKey = `redirect:${slug}:created-at`
-    const redirectUpdatedKey = `redirect:${slug}:updated-at`
+    const redirectUrlKey = `redirect:${slug}`
+    const redirectClicksKey = `metrics:redirect:${slug}:clicks`
+    const redirectCreatedKey = `metrics:redirect:${slug}:created-at`
+    const redirectUpdatedKey = `metrics:redirect:${slug}:updated-at`
 
     let redirectData: RedirectData | undefined
 
@@ -71,7 +71,6 @@ export default defineEventHandler(async (event) => {
       await Promise.all([
         kv.put(redirectClicksKey, clickCount.toString()),
         kv.put(redirectUpdatedKey, updatedAt),
-        kv.put(`metrics:redirect:${slug}:clicks`, clickCount.toString()),
         // Update total redirect clicks
         kv
           .get("metrics:redirect:total:clicks")
@@ -95,10 +94,7 @@ export default defineEventHandler(async (event) => {
         redirect.url,
         1, // Single click increment
         cfInfo,
-        [
-          { key: `redirect:${slug}:clicks`, value: clickCount },
-          { key: `redirect:daily:${new Date().toISOString().split("T")[0]}` }
-        ]
+        [{ key: `redirect:daily:${new Date().toISOString().split("T")[0]}` }]
       )
 
       await writeKVMetrics(kv, kvCounters)

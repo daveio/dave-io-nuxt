@@ -222,10 +222,9 @@ export function createRedirectKVCounters(
   const domain = domainMatch?.[1]?.replace(/[^a-z0-9]/g, "-") || "unknown"
 
   const baseCounters: KVCounterEntry[] = [
-    { key: "redirects:total", increment: clickCount },
-    { key: `redirects:by-slug:${slugNormalized}`, increment: clickCount },
-    { key: `redirects:by-domain:${domain}`, increment: clickCount },
-    { key: `redirects:by-country:${cfInfo.country.toLowerCase()}`, increment: clickCount }
+    { key: `redirect:${slugNormalized}:clicks`, increment: clickCount },
+    { key: `redirect:by-domain:${domain}`, increment: clickCount },
+    { key: `redirect:by-country:${cfInfo.country.toLowerCase()}`, increment: clickCount }
   ]
 
   return [...baseCounters, ...(extraCounters || [])]
