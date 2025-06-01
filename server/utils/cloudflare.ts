@@ -99,7 +99,6 @@ export function getAIBinding(env: CloudflareEnv): Ai {
   return env.AI
 }
 
-
 /**
  * Safe getter for D1 database with proper error handling
  */

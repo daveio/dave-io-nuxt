@@ -1,6 +1,6 @@
 import { setHeader, setResponseStatus } from "h3"
-import { createRedirectKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { getCloudflareEnv, getCloudflareRequestInfo, getKVNamespace } from "~/server/utils/cloudflare"
+import { createRedirectKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { createApiError, isApiError, logRequest } from "~/server/utils/response"
 import { UrlRedirectSchema } from "~/server/utils/schemas"
 
@@ -25,24 +25,71 @@ export default defineEventHandler(async (event) => {
       throw createApiError(400, "Slug parameter is required")
     }
 
-    // Get redirect from KV storage
-    const redirectKey = `redirect:${slug}`
+    // Get redirect from KV storage using kebab-case keys
+    const redirectUrlKey = `redirect:${slug}:url`
+    const redirectClicksKey = `redirect:${slug}:clicks`
+    const redirectCreatedKey = `redirect:${slug}:created-at`
+    const redirectUpdatedKey = `redirect:${slug}:updated-at`
+
     let redirectData: RedirectData | undefined
 
     try {
-      const kvData = await kv.get(redirectKey)
-      if (kvData) {
-        // Handle both formats: simple string or full object
-        try {
-          redirectData = JSON.parse(kvData)
-        } catch {
-          // If JSON parsing fails, treat as simple string URL
-          redirectData = {
-            slug: slug,
-            url: kvData,
-            clicks: 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+      const [url, clicksStr, createdAt, updatedAt] = await Promise.all([
+        kv.get(redirectUrlKey),
+        kv.get(redirectClicksKey),
+        kv.get(redirectCreatedKey),
+        kv.get(redirectUpdatedKey)
+      ])
+
+      if (url) {
+        redirectData = {
+          slug: slug,
+          url: url,
+          clicks: Number.parseInt(clicksStr || "0", 10),
+          created_at: createdAt || new Date().toISOString(),
+          updated_at: updatedAt || new Date().toISOString()
+        }
+      }
+
+      // Handle legacy JSON format during migration
+      if (!url) {
+        const legacyKey = `redirect:${slug}`
+        const kvData = await kv.get(legacyKey)
+        if (kvData) {
+          try {
+            const legacy = JSON.parse(kvData)
+            redirectData = {
+              slug: slug,
+              url: legacy.url || kvData,
+              clicks: legacy.clicks || 0,
+              created_at: legacy.created_at || new Date().toISOString(),
+              updated_at: legacy.updated_at || new Date().toISOString()
+            }
+            // Migrate to new format
+            await Promise.all([
+              kv.put(redirectUrlKey, redirectData.url),
+              kv.put(redirectClicksKey, redirectData.clicks.toString()),
+              kv.put(redirectCreatedKey, redirectData.created_at),
+              kv.put(redirectUpdatedKey, redirectData.updated_at),
+              kv.delete(legacyKey) // Remove legacy JSON format
+            ])
+          } catch {
+            // If JSON parsing fails, treat as simple string URL
+            redirectData = {
+              slug: slug,
+              url: kvData,
+              clicks: 0,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }
+            // Migrate to new format
+            await Promise.all([
+              kv.put(redirectUrlKey, redirectData.url),
+              kv.put(redirectClicksKey, redirectData.clicks.toString()),
+              kv.put(redirectCreatedKey, redirectData.created_at),
+              kv.put(redirectUpdatedKey, redirectData.updated_at),
+              kv.delete(legacyKey) // Remove legacy string format
+            ])
           }
         }
       }
@@ -58,20 +105,15 @@ export default defineEventHandler(async (event) => {
     // Validate redirect data
     const redirect = UrlRedirectSchema.parse(redirectData)
 
-    // Update redirect click metrics in KV (for metrics endpoint)
+    // Update redirect click metrics using kebab-case keys
     const clickCount = (redirect.clicks || 0) + 1
-    const updatedRedirect = {
-      ...redirect,
-      clicks: clickCount,
-      updated_at: new Date().toISOString()
-    }
+    const updatedAt = new Date().toISOString()
 
     try {
-      // Store redirect data as JSON (exception for unknown object size)
-      await kv.put(redirectKey, JSON.stringify(updatedRedirect))
-
-      // Also store click metrics in hierarchical KV keys for metrics endpoint
+      // Store redirect data using kebab-case colon-separated keys with simple values
       await Promise.all([
+        kv.put(redirectClicksKey, clickCount.toString()),
+        kv.put(redirectUpdatedKey, updatedAt),
         kv.put(`metrics:redirect:${slug}:clicks`, clickCount.toString()),
         // Update total redirect clicks
         kv

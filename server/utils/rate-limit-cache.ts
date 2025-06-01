@@ -138,11 +138,44 @@ export async function getCachedRateLimit(
     return { allowed, remaining, resetTime, fromCache: true }
   }
 
-  // Cache miss - fetch from KV
+  // Cache miss - fetch from KV using kebab-case keys
   if (kv) {
     try {
-      const kvData = await kv.get(key)
-      const parsed = kvData ? JSON.parse(kvData) : null
+      const countKey = `${key}:count`
+      const windowStartKey = `${key}:window-start`
+
+      const [countStr, windowStartStr, legacyData] = await Promise.all([
+        kv.get(countKey),
+        kv.get(windowStartKey),
+        kv.get(key) // Check for legacy JSON format
+      ])
+
+      // biome-ignore lint/suspicious/noExplicitAny: Legacy migration requires flexible parsing
+      let parsed: any = null
+
+      if (countStr && windowStartStr) {
+        // New kebab-case format
+        parsed = {
+          count: Number.parseInt(countStr, 10),
+          windowStart: Number.parseInt(windowStartStr, 10)
+        }
+      } else if (legacyData) {
+        // Legacy JSON format - migrate it
+        try {
+          parsed = JSON.parse(legacyData)
+          if (parsed?.windowStart && parsed?.count !== undefined) {
+            // Migrate to new format
+            const ttl = Math.ceil(windowMs / 1000) + 300
+            await Promise.all([
+              kv.put(countKey, parsed.count.toString(), { expirationTtl: ttl }),
+              kv.put(windowStartKey, parsed.windowStart.toString(), { expirationTtl: ttl }),
+              kv.delete(key) // Remove legacy JSON
+            ])
+          }
+        } catch {
+          parsed = null
+        }
+      }
 
       if (parsed?.windowStart && now - parsed.windowStart < windowMs) {
         // Valid KV data
@@ -308,9 +341,25 @@ async function flushBatchQueue(kv: KVNamespace) {
     const batch = updates.slice(i, i + BATCH_SIZE)
 
     await Promise.allSettled(
-      batch.map(
-        ([key, { data }]) => kv.put(key, JSON.stringify(data), { expirationTtl: 300 }) // 5 minutes TTL
-      )
+      batch.map(async ([key, { data }]) => {
+        // Store using kebab-case keys with simple values
+        const countKey = `${key}:count`
+        const windowStartKey = `${key}:window-start`
+        const lastUpdateKey = `${key}:last-update`
+
+        // Type guard to check if data is CacheEntry
+        if (data && typeof data === "object" && "count" in data && "windowStart" in data && "lastUpdate" in data) {
+          const entry = data as CacheEntry
+          await Promise.all([
+            kv.put(countKey, entry.count.toString(), { expirationTtl: 300 }),
+            kv.put(windowStartKey, entry.windowStart.toString(), { expirationTtl: 300 }),
+            kv.put(lastUpdateKey, entry.lastUpdate.toString(), { expirationTtl: 300 })
+          ])
+        } else {
+          // Handle sliding window or other data types - fall back to legacy JSON storage
+          console.warn(`Skipping non-CacheEntry data for key: ${key}`)
+        }
+      })
     )
   }
 }

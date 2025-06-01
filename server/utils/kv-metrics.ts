@@ -55,10 +55,7 @@ function normalizeKVKey(key: string): string {
 /**
  * Write metrics to KV storage only
  */
-export async function writeKVMetrics(
-  kvNamespace: KVNamespace,
-  kvCounters: KVCounterEntry[]
-): Promise<void> {
+export async function writeKVMetrics(kvNamespace: KVNamespace, kvCounters: KVCounterEntry[]): Promise<void> {
   try {
     await Promise.all(
       kvCounters.map(async (counter) => {

@@ -1,16 +1,12 @@
 import type { H3Event } from "h3"
 import { createError, defineEventHandler, getHeader, getQuery, getRequestURL, setHeader } from "h3"
-import {
-  getCloudflareEnv,
-  getCloudflareRequestInfo,
-  getKVNamespace
-} from "~/server/utils/cloudflare"
+import { getCloudflareEnv, getCloudflareRequestInfo, getKVNamespace } from "~/server/utils/cloudflare"
+import { createRateLimitKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import {
   getCachedRateLimit,
   getSlidingWindowRateLimit,
   initializeRateLimitCache
 } from "~/server/utils/rate-limit-cache"
-import { writeKVMetrics, createRateLimitKVCounters } from "~/server/utils/kv-metrics"
 
 /**
  * Rate limiting configuration
@@ -263,13 +259,9 @@ export async function applyRateLimit(event: H3Event, config?: RateLimitConfig): 
     // Log warning events when approaching limit
     const requestsUsed = rateLimitConfig.maxRequests - rateLimitResult.remaining
     if (requestsUsed > rateLimitConfig.maxRequests * 0.8) {
-      const kvCounters = createRateLimitKVCounters(
-        "warning",
-        pathname,
-        tokenSubject,
-        requestsUsed,
-        { country: cloudflareInfo.country }
-      )
+      const kvCounters = createRateLimitKVCounters("warning", pathname, tokenSubject, requestsUsed, {
+        country: cloudflareInfo.country
+      })
       await writeKVMetrics(kv, kvCounters)
     }
   } catch (error) {
@@ -336,12 +328,37 @@ export async function getRateLimitStatus(
   let requestCount = 0
   let windowStartTime = now
 
-  if (storedData) {
+  // Try new kebab-case format first
+  const countKey = `${rateLimitKey}:count`
+  const windowStartKey = `${rateLimitKey}:window-start`
+  const lastUpdatedKey = `${rateLimitKey}:last-updated`
+
+  const [countStr, windowStartStr, _lastUpdatedStr] = await Promise.all([
+    kv.get(countKey),
+    kv.get(windowStartKey),
+    kv.get(lastUpdatedKey)
+  ])
+
+  if (countStr && windowStartStr) {
+    const storedWindowStart = Number.parseInt(windowStartStr, 10)
+    if (storedWindowStart > windowStart) {
+      requestCount = Number.parseInt(countStr, 10) || 0
+      windowStartTime = storedWindowStart
+    }
+  } else if (storedData) {
+    // Handle legacy JSON format during migration
     try {
       const parsed = JSON.parse(storedData)
       if (parsed.windowStart && parsed.windowStart > windowStart) {
         requestCount = parsed.count || 0
         windowStartTime = parsed.windowStart
+        // Migrate to new format
+        await Promise.all([
+          kv.put(countKey, requestCount.toString()),
+          kv.put(windowStartKey, windowStartTime.toString()),
+          kv.put(lastUpdatedKey, now.toString()),
+          kv.delete(rateLimitKey) // Remove legacy JSON format
+        ])
       }
     } catch (parseError) {
       console.warn("Failed to parse rate limit data:", parseError)
@@ -528,13 +545,9 @@ export async function rateLimitMiddleware(event: H3Event): Promise<void> {
       action = "blocked"
 
       // Log rate limit violation to KV metrics
-      const kvCounters = createRateLimitKVCounters(
-        action,
-        pathname,
-        tokenSubject,
-        requestCount,
-        { country: cloudflareInfo.country }
-      )
+      const kvCounters = createRateLimitKVCounters(action, pathname, tokenSubject, requestCount, {
+        country: cloudflareInfo.country
+      })
       await writeKVMetrics(kv, kvCounters)
 
       // Throw rate limit error
@@ -557,19 +570,20 @@ export async function rateLimitMiddleware(event: H3Event): Promise<void> {
       action = "warning"
     }
 
-    // Store updated rate limit data in KV
-    const rateLimitData = {
-      count: requestCount,
-      windowStart: windowStartTime,
-      lastUpdated: now,
-      endpoint: pathname
-    }
+    // Store updated rate limit data using kebab-case keys with simple values
+    const countKey = `${rateLimitKey}:count`
+    const windowStartKey = `${rateLimitKey}:window-start`
+    const lastUpdatedKey = `${rateLimitKey}:last-updated`
+    const endpointKey = `${rateLimitKey}:endpoint`
 
-    await kv.put(
-      rateLimitKey,
-      JSON.stringify(rateLimitData),
-      { expirationTtl: Math.ceil(config.windowMs / 1000) + 300 } // TTL with 5-minute buffer
-    )
+    const ttl = Math.ceil(config.windowMs / 1000) + 300 // TTL with 5-minute buffer
+
+    await Promise.all([
+      kv.put(countKey, requestCount.toString(), { expirationTtl: ttl }),
+      kv.put(windowStartKey, windowStartTime.toString(), { expirationTtl: ttl }),
+      kv.put(lastUpdatedKey, now.toString(), { expirationTtl: ttl }),
+      kv.put(endpointKey, pathname, { expirationTtl: ttl })
+    ])
 
     // Set rate limit headers
     setHeader(event, "X-RateLimit-Limit", config.maxRequests.toString())
@@ -579,13 +593,9 @@ export async function rateLimitMiddleware(event: H3Event): Promise<void> {
 
     // Log rate limit events for KV metrics (except normal requests)
     if (action !== "warning" || requestCount > config.maxRequests * 0.8) {
-      const kvCounters = createRateLimitKVCounters(
-        action,
-        pathname,
-        tokenSubject,
-        requestCount,
-        { country: cloudflareInfo.country }
-      )
+      const kvCounters = createRateLimitKVCounters(action, pathname, tokenSubject, requestCount, {
+        country: cloudflareInfo.country
+      })
       await writeKVMetrics(kv, kvCounters)
     }
   } catch (error) {

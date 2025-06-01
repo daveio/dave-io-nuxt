@@ -1,10 +1,10 @@
-import { createAIKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import {
   checkAIRateLimit as checkAIRateLimitAuth,
   requireAIAuth,
   setRateLimitHeaders
 } from "~/server/utils/auth-helpers"
 import { getCloudflareEnv, getCloudflareRequestInfo, getKVNamespace } from "~/server/utils/cloudflare"
+import { createAIKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { createApiError, createApiResponse, isApiError, logRequest } from "~/server/utils/response"
 import { validateImageURL } from "~/server/utils/validation"
 
@@ -147,19 +147,11 @@ export default defineEventHandler(async (event) => {
       const kv = getKVNamespace(env)
       const statusCode = isApiError(error) ? error.statusCode || 500 : 500
 
-      const kvCounters = createAIKVCounters(
-        "alt-text",
-        false,
-        0,
-        0,
-        undefined,
-        cfInfo,
-        [
-          { key: "ai:alt-text:requests:total" },
-          { key: "ai:alt-text:errors:total" },
-          { key: `ai:alt-text:errors:${statusCode}` }
-        ]
-      )
+      const kvCounters = createAIKVCounters("alt-text", false, 0, 0, undefined, cfInfo, [
+        { key: "ai:alt-text:requests:total" },
+        { key: "ai:alt-text:errors:total" },
+        { key: `ai:alt-text:errors:${statusCode}` }
+      ])
 
       await writeKVMetrics(kv, kvCounters)
     } catch (metricsError) {

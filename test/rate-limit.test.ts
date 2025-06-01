@@ -128,7 +128,6 @@ describe("Rate Limiting", () => {
     })
   })
 
-
   describe("Hierarchical Permission Rate Limits", () => {
     it("should apply different limits based on token permissions", () => {
       // Would test that admin tokens get higher rate limits

@@ -1,6 +1,6 @@
 import { getHeader } from "h3"
-import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { getCloudflareEnv, getCloudflareRequestInfo, getKVNamespace } from "~/server/utils/cloudflare"
+import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { createApiResponse, logRequest } from "~/server/utils/response"
 
 export default defineEventHandler(async (event) => {

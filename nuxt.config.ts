@@ -76,8 +76,7 @@ export default defineNuxtConfig({
   colorMode: {
     preference: "dark",
     fallback: "dark",
-    storageKey: "nuxt-color-mode",
-
+    storageKey: "nuxt-color-mode"
   },
   css: ["~/public/css/main.css"],
   fonts: {

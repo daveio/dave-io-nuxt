@@ -1,13 +1,11 @@
-import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { requireAPIAuth } from "~/server/utils/auth-helpers"
 import { batchKVGet, getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
 import { formatMetricsAsPrometheus, formatMetricsAsYAML, handleResponseFormat } from "~/server/utils/formatters"
+import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { createApiError, isApiError, logRequest } from "~/server/utils/response"
 import { TokenMetricsSchema } from "~/server/utils/schemas"
 
-async function getMetricsFromKV(
-  kv?: KVNamespace
-): Promise<{
+async function getMetricsFromKV(kv?: KVNamespace): Promise<{
   total_requests: number
   successful_requests: number
   failed_requests: number
