@@ -53,7 +53,7 @@ export const RATE_LIMIT_PRESETS = {
 /**
  * Rate limiting exemptions for specific endpoints
  */
-export const RATE_LIMIT_EXEMPTIONS = new Set(["/api/health", "/api/ping", "/api/_worker-info"])
+export const RATE_LIMIT_EXEMPTIONS = new Set(["/api/internal/health", "/api/internal/ping", "/api/internal/worker"])
 
 // NOTE: Rate limiting cache initialization moved to lazy loading to avoid global scope issues in Cloudflare Workers
 // Cache initialization happens automatically on first use via ensureCacheInitialized()
@@ -357,13 +357,13 @@ export async function getRateLimitStatus(
  * Default rate limiting configurations by endpoint pattern
  */
 const DEFAULT_RATE_LIMITS: Record<string, RateLimitConfig> = {
-  // Public endpoints - more lenient
-  "/api/health": RATE_LIMIT_PRESETS.LENIENT,
-  "/api/ping": RATE_LIMIT_PRESETS.STANDARD,
-  "/api/stats": RATE_LIMIT_PRESETS.STANDARD,
-
-  // Authentication endpoints - strict
-  "/api/auth": RATE_LIMIT_PRESETS.STRICT,
+  // Internal endpoints - more lenient
+  "/api/internal/health": RATE_LIMIT_PRESETS.LENIENT,
+  "/api/internal/ping": RATE_LIMIT_PRESETS.STANDARD,
+  "/api/internal/metrics": RATE_LIMIT_PRESETS.STANDARD,
+  "/api/internal/auth": RATE_LIMIT_PRESETS.STRICT,
+  "/api/internal/worker": RATE_LIMIT_PRESETS.LENIENT,
+  "/api/internal/headers": RATE_LIMIT_PRESETS.STANDARD,
 
   // AI endpoints - resource intensive
   "/api/ai/alt": RATE_LIMIT_PRESETS.AI_OPERATIONS,

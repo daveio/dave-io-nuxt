@@ -86,8 +86,8 @@ class APITester {
 
       console.log("✅ Generated tokens for: admin, metrics, ai, limited")
       console.log("🔗 Token URLs for manual testing:")
-      console.log(`   Admin: ${this.baseUrl}/api/auth?token=${adminToken.token}`)
-      console.log(`   Metrics: ${this.baseUrl}/api/metrics?token=${metricsToken.token}`)
+      console.log(`   Admin: ${this.baseUrl}/api/internal/auth?token=${adminToken.token}`)
+      console.log(`   Metrics: ${this.baseUrl}/api/internal/metrics?token=${metricsToken.token}`)
       console.log(`   AI: ${this.baseUrl}/api/ai/alt?token=${aiToken.token}&url=https://example.com/image.jpg`)
     } catch (error) {
       console.error("❌ Failed to generate tokens:", error)
@@ -166,17 +166,17 @@ class APITester {
     console.log("\n🔐 Testing Authentication Endpoints...")
 
     // Test auth endpoint without token
-    results.push(await this.makeRequest("/api/auth"))
+    results.push(await this.makeRequest("/api/internal/auth"))
 
     // Test auth endpoint with valid token
-    results.push(await this.makeRequest("/api/auth", "GET", this.tokens.get("admin")))
+    results.push(await this.makeRequest("/api/internal/auth", "GET", this.tokens.get("admin")))
 
     // Test auth endpoint with invalid token
-    results.push(await this.makeRequest("/api/auth", "GET", "invalid.token.here"))
+    results.push(await this.makeRequest("/api/internal/auth", "GET", "invalid.token.here"))
 
     // Test auth endpoint with query parameter token
     const queryToken = this.tokens.get("metrics")
-    results.push(await this.makeRequest(`/api/auth?token=${queryToken}`))
+    results.push(await this.makeRequest(`/api/internal/auth?token=${queryToken}`))
 
     const passed = results.filter((r) => r.success).length
     const failed = results.length - passed
@@ -198,21 +198,21 @@ class APITester {
     console.log("\n📊 Testing Metrics Endpoints...")
 
     // Test metrics without auth (should fail)
-    results.push(await this.makeRequest("/api/metrics"))
+    results.push(await this.makeRequest("/api/internal/metrics"))
 
     // Test metrics with valid token
-    results.push(await this.makeRequest("/api/metrics", "GET", this.tokens.get("metrics")))
+    results.push(await this.makeRequest("/api/internal/metrics", "GET", this.tokens.get("metrics")))
 
     // Test metrics with admin token (should work)
-    results.push(await this.makeRequest("/api/metrics", "GET", this.tokens.get("admin")))
+    results.push(await this.makeRequest("/api/internal/metrics", "GET", this.tokens.get("admin")))
 
     // Test metrics with wrong permission token (should fail)
-    results.push(await this.makeRequest("/api/metrics", "GET", this.tokens.get("ai")))
+    results.push(await this.makeRequest("/api/internal/metrics", "GET", this.tokens.get("ai")))
 
     // Test different response formats
-    results.push(await this.makeRequest("/api/metrics?format=json", "GET", this.tokens.get("metrics")))
-    results.push(await this.makeRequest("/api/metrics?format=yaml", "GET", this.tokens.get("metrics")))
-    results.push(await this.makeRequest("/api/metrics?format=prometheus", "GET", this.tokens.get("metrics")))
+    results.push(await this.makeRequest("/api/internal/metrics?format=json", "GET", this.tokens.get("metrics")))
+    results.push(await this.makeRequest("/api/internal/metrics?format=yaml", "GET", this.tokens.get("metrics")))
+    results.push(await this.makeRequest("/api/internal/metrics?format=prometheus", "GET", this.tokens.get("metrics")))
 
     const passed = results.filter((r) => r.success).length
     const failed = results.length - passed
@@ -347,7 +347,7 @@ class APITester {
 
     console.log("\n❤️ Testing Health Endpoint...")
 
-    results.push(await this.makeRequest("/api/health"))
+    results.push(await this.makeRequest("/api/internal/health"))
 
     const passed = results.filter((r) => r.success).length
     const failed = results.length - passed
@@ -462,9 +462,9 @@ class APITester {
     console.log("\n📈 Testing Metrics Format Endpoints...")
 
     // Test all metrics format endpoints via query parameters
-    results.push(await this.makeRequest("/api/metrics?format=json", "GET", this.tokens.get("metrics")))
-    results.push(await this.makeRequest("/api/metrics?format=yaml", "GET", this.tokens.get("metrics")))
-    results.push(await this.makeRequest("/api/metrics?format=prometheus", "GET", this.tokens.get("metrics")))
+    results.push(await this.makeRequest("/api/internal/metrics?format=json", "GET", this.tokens.get("metrics")))
+    results.push(await this.makeRequest("/api/internal/metrics?format=yaml", "GET", this.tokens.get("metrics")))
+    results.push(await this.makeRequest("/api/internal/metrics?format=prometheus", "GET", this.tokens.get("metrics")))
 
     const passed = results.filter((r) => r.success).length
     const failed = results.length - passed

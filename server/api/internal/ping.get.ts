@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
     const env = getCloudflareEnv(event)
     const responseTime = Date.now() - startTime
 
-    const kvCounters = createAPIRequestKVCounters("/api/ping", "GET", 200, cfInfo, cfInfo.userAgent)
+    const kvCounters = createAPIRequestKVCounters("/api/internal/ping", "GET", 200, cfInfo, cfInfo.userAgent)
 
     if (env?.DATA) {
       await writeKVMetrics(env.DATA, kvCounters)

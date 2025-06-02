@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
     const kv = getKVNamespace(env)
 
     const userAgent = getHeader(event, "user-agent") || ""
-    const kvCounters = createAPIRequestKVCounters("/api/_worker-info", "GET", 200, cfInfo, userAgent, [
+    const kvCounters = createAPIRequestKVCounters("/api/internal/worker", "GET", 200, cfInfo, userAgent, [
       { key: "worker-info:requests:total" },
       { key: `worker-info:runtimes:${workerInfo.runtime.replace(/[^a-z0-9]/g, "-")}` },
       { key: `worker-info:presets:${workerInfo.preset}` },

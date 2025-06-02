@@ -61,7 +61,7 @@ export default defineEventHandler(async (event) => {
         const cfInfo = getCloudflareRequestInfo(event)
 
         const kvCounters = createAPIRequestKVCounters(
-          "/api/metrics",
+          "/api/internal/metrics",
           "GET",
           503,
           cfInfo,
@@ -102,7 +102,7 @@ export default defineEventHandler(async (event) => {
     try {
       const cfInfo = getCloudflareRequestInfo(event)
 
-      const kvCounters = createAPIRequestKVCounters("/api/metrics", "GET", 200, cfInfo, getHeader(event, "user-agent"))
+      const kvCounters = createAPIRequestKVCounters("/api/internal/metrics", "GET", 200, cfInfo, getHeader(event, "user-agent"))
 
       if (env?.DATA) {
         await writeKVMetrics(env.DATA, kvCounters)
@@ -138,7 +138,7 @@ export default defineEventHandler(async (event) => {
 
       if (env?.DATA) {
         const kvCounters = createAPIRequestKVCounters(
-          "/api/metrics",
+          "/api/internal/metrics",
           "GET",
           statusCode,
           cfInfo,
