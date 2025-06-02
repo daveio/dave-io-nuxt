@@ -9,7 +9,6 @@ async function getMetricsFromKV(kv?: KVNamespace): Promise<{
   total_requests: number
   successful_requests: number
   failed_requests: number
-  rate_limited_requests: number
   redirect_clicks: number
   last_24h: { total: number; successful: number; failed: number; redirects: number }
 }> {
@@ -25,7 +24,6 @@ async function getMetricsFromKV(kv?: KVNamespace): Promise<{
       total_requests: kvMetrics.totalRequests,
       successful_requests: kvMetrics.successfulRequests,
       failed_requests: kvMetrics.failedRequests,
-      rate_limited_requests: kvMetrics.rateLimitedRequests,
       redirect_clicks: kvMetrics.redirectClicks,
       last_24h: {
         total: 0,

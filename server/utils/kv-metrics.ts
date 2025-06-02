@@ -16,7 +16,6 @@ interface KVMetrics {
   totalRequests: number
   successfulRequests: number
   failedRequests: number
-  rateLimitedRequests: number
   redirectClicks: number
   redirectsBySlug: Record<string, number>
 }
@@ -61,7 +60,6 @@ export async function getKVMetrics(kv: KVNamespace): Promise<KVMetrics> {
   let totalRequests = 0
   let successfulRequests = 0
   let failedRequests = 0
-  let rateLimitedRequests = 0
   let redirectClicks = 0
 
   // Get redirect metrics by slug
@@ -90,15 +88,10 @@ export async function getKVMetrics(kv: KVNamespace): Promise<KVMetrics> {
     }
   }
 
-  // Calculate rate limited requests from the difference between total and successful/failed
-  // Since rate limited requests are counted as errors, we don't need separate tracking
-  rateLimitedRequests = 0 // Rate limits are already included in failedRequests
-
   return {
     totalRequests,
     successfulRequests,
     failedRequests,
-    rateLimitedRequests,
     redirectClicks,
     redirectsBySlug
   }
@@ -227,27 +220,6 @@ export function createAIKVCounters(
     // AI operation tracking
     { key: success ? "metrics:ai:hit:ok" : "metrics:ai:hit:error" },
     { key: "metrics:ai:hit:total" }
-  ]
-
-  return [...baseCounters, ...(extraCounters || [])]
-}
-
-/**
- * Helper to create KV counters for rate limit events
- */
-export function createRateLimitKVCounters(
-  _action: string,
-  endpoint: string,
-  _tokenSubject: string | undefined,
-  _requestsInWindow: number,
-  _cfInfo: { country: string },
-  extraCounters?: KVCounterEntry[]
-): KVCounterEntry[] {
-  const resource = getResourceFromEndpoint(endpoint)
-
-  const baseCounters: KVCounterEntry[] = [
-    // Rate limit tracking (could be expanded with specific rate limit metrics)
-    { key: `metrics:${resource}:hit:error` } // Rate limited requests are errors
   ]
 
   return [...baseCounters, ...(extraCounters || [])]

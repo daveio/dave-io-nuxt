@@ -4,7 +4,7 @@ Welcome to the most spectacularly over-engineered personal website you'll encoun
 
 This isn't just a website; it's a full-blown API fortress masquerading as a humble Nuxt application.
 
-I decided my personal site needed JWT authentication, hierarchical permissions, rate limiting, schema validation, backup systems, and enough security features to make the **[Fortress of Solitude](https://dc.fandom.com/wiki/Fortress_of_Solitude)** feel inadequate.
+I decided my personal site needed JWT authentication, hierarchical permissions, schema validation, backup systems, and enough security features to make the **[Fortress of Solitude](https://dc.fandom.com/wiki/Fortress_of_Solitude)** feel inadequate.
 
 ## What Is This Beautiful Monstrosity?
 
@@ -65,7 +65,6 @@ bun jwt create --interactive
 - Alt-text generation for images (URL or file upload) using Cloudflare AI
 - Powered by `@cf/llava-hf/llava-1.5-7b-hf` model (because we don't mess around with fake AI)
 - Because accessibility matters, even for personal sites that are way too complicated
-- Comprehensive rate limiting (100 requests/hour per token, because I don't trust anyone)
 - File size validation and proper error handling (up to 10MB images)
 - Consistent authentication and response formatting across both GET and POST endpoints
 
@@ -89,8 +88,7 @@ bun jwt create --interactive
 
 ### 📱 Dashboard Data Feeds
 
-- Hacker News RSS integration
-- Demo data endpoints for testing
+- Hacker News RSS integration with hourly caching
 - Because even personal sites need dashboards these days
 
 ### 💾 KV Storage Management (The Crown Jewel)
@@ -103,7 +101,6 @@ bun jwt create --interactive
 ### 🛡️ Security Features Which Would Impress the NSA
 
 - CORS headers that actually make sense
-- Rate limiting (in-memory for dev, KV storage for production)
 - Input sanitisation and validation with Zod
 - Security headers that would make OWASP shed a single tear of joy
 - Shell script responses for curl/wget requests
@@ -239,12 +236,9 @@ curl -X POST -H "Authorization: Bearer <token>" \
 
 #### `GET /api/dashboard/{name}`
 
-Get dashboard data feeds. Supports `demo` and `hackernews`.
+Get dashboard data feeds. Currently supports `hackernews`.
 
 ```bash
-# Demo data (for testing purposes)
-curl -H "Authorization: Bearer <token>" http://localhost:3000/api/dashboard/demo
-
 # Hacker News feed (for your daily dose of tech drama)
 curl -H "Authorization: Bearer <token>" http://localhost:3000/api/dashboard/hackernews
 ```

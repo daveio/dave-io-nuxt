@@ -1,6 +1,10 @@
 # CLAUDE.md - AI Agent Instructions
 
-## ⚠️ CRITICAL DEVELOPMENT RULE: IMPLEMENT tests
+## ⚠️ CRITICAL DEVELOPMENT RULE: TIME AND COST ARE NOT IMPORTANT
+
+Do a good job. Don't try to optimise for how long you take, or how much you spend on API calls. Code quality and completeness are more important.
+
+## ⚠️ CRITICAL DEVELOPMENT RULE: IMPLEMENT TESTS
 
 **EVERYTHING MUST HAVE A TEST**. This is non-negotiable. If you write a function, you must also write a test for it. This ensures that the function works as intended and prevents regressions in the future.
 
@@ -115,8 +119,8 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 
 ## Endpoints
 
-**Public** (4/18): `/api/internal/health`, `/api/internal/ping`, `/api/internal/worker`, `/go/{slug}`
-**Protected** (14/18): All others require JWT with appropriate scope
+**Public** (4): `/api/internal/health`, `/api/internal/ping`, `/api/internal/worker`, `/go/{slug}`
+**Protected**: All others require JWT with appropriate scope
 **Key Protected**:
 
 - `/api/internal/auth` - Token validation (any token)
@@ -152,7 +156,6 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 **Optional**: `NUXT_PUBLIC_API_BASE_URL=/api`
 **Dev Options**:
 
-- `API_DEV_DISABLE_RATE_LIMITS=1` - Disable rate limiting
 - `API_DEV_USE_DANGEROUS_GLOBAL_KEY=1` - Use legacy API key authentication (requires `CLOUDFLARE_API_KEY` + `CLOUDFLARE_EMAIL`)
 
 ## Testing
@@ -171,7 +174,6 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 ## Security
 
 **Headers**: CORS, CSP, security headers, cache control disabled for APIs
-**Rate Limiting**: Per-token limits with KV storage, JWT middleware integration
 **Validation**: Zod schemas for all inputs, TypeScript integration, file upload limits
 
 ## Development
@@ -217,7 +219,7 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 
 ## Migration Context
 
-Maintains API compatibility with original Worker while adding: TypeScript + Zod validation, comprehensive testing, enhanced JWT auth, consistent error handling, CLI tools, security headers, rate limiting.
+Maintains API compatibility with original Worker while adding: TypeScript + Zod validation, comprehensive testing, enhanced JWT auth, consistent error handling, CLI tools, security headers.
 
 ## Documentation Guidelines
 
@@ -232,7 +234,7 @@ Maintains API compatibility with original Worker while adding: TypeScript + Zod 
 **Type Safety**: TypeScript strict, avoid `any`, schema-first development, export types via `types/api.ts`
 **Testing**: Unit + integration tests, test auth hierarchies and error scenarios
 **Performance**: Monitor bundle size, minimize cold starts, optimize caching
-**Security**: Validate all inputs, verify tokens/permissions, rate limiting, security headers, log security events
+**Security**: Validate all inputs, verify tokens/permissions, security headers, log security events
 
 Reference implementation for production-ready serverless APIs with TypeScript, testing, enterprise security.
 
@@ -244,17 +246,18 @@ Reference implementation for production-ready serverless APIs with TypeScript, t
 **Helpers**: Standardized counter creation functions for different event types
 **Performance**: Fast reads for dashboard queries, optimized for Cloudflare Workers edge compute
 
-### New KV Hierarchy
+### KV Hierarchy
 
 **Redirect Storage**: `redirect:[slug]` stores target URLs
 **Redirect Metrics**: `metrics:redirect:[slug]` tracks click counts
 **API Metrics**: `metrics:[resource]:hit:ok/error/total` tracks request success/failure
 **Auth Metrics**: `metrics:[resource]:auth:succeeded/failed` tracks authentication events
 **Visitor Metrics**: `metrics:[resource]:visitor:human/bot/unknown` tracks visitor classification
+**Dashboard Cache**: `dashboard:hackernews:cache` and `dashboard:hackernews:last-updated` for Hacker News data
 
 **Resource Extraction**: First URL segment after `/api/` (e.g., `/api/auth` → `auth` resource)
 **User Agent Classification**: Automatic bot/human/unknown classification based on user agent patterns
-**Performance**: Eliminates legacy time-based buckets and complex key normalization
+**Metrics Middleware**: Centralized metrics collection via helper functions for all API endpoints
 
 ## Next Steps
 

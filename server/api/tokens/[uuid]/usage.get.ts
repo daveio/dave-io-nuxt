@@ -1,6 +1,8 @@
+import { getHeader } from "h3"
 import { recordAPIErrorMetrics, recordAPIMetrics } from "~/server/middleware/metrics"
 import { requireAPIAuth } from "~/server/utils/auth-helpers"
-import { getCloudflareEnv } from "~/server/utils/cloudflare"
+import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
+import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { createApiError, createApiResponse, isApiError, logRequest } from "~/server/utils/response"
 import { getValidatedUUID } from "~/server/utils/validation"
 
@@ -11,7 +13,6 @@ interface TokenUsage {
   isRevoked: boolean
   maxRequests?: number
   createdAt: string
-  rateLimitRemaining?: number
 }
 
 // Get token usage from KV storage
@@ -40,17 +41,13 @@ async function getTokenUsageFromKV(uuid: string, kv?: KVNamespace): Promise<Toke
     const lastUsedData = await kv.get(`auth:count:${uuid}:last-used`)
     const lastUsed = lastUsedData || null
 
-    // Calculate remaining requests if there's a limit
-    const rateLimitRemaining = token.maxRequests ? Math.max(0, token.maxRequests - requestCount) : undefined
-
     return {
       uuid,
       requestCount,
       lastUsed,
       isRevoked,
       maxRequests: token.maxRequests,
-      createdAt: token.createdAt || new Date().toISOString(),
-      rateLimitRemaining
+      createdAt: token.createdAt || new Date().toISOString()
     }
   } catch (error: unknown) {
     if (error && typeof error === "object" && "statusCode" in error) throw error
@@ -88,10 +85,10 @@ export default defineEventHandler(async (event) => {
 
       const userAgent = getHeader(event, "user-agent") || ""
       const kvCounters = createAPIRequestKVCounters(`/api/tokens/${uuid}/usage`, "GET", 200, cfInfo, userAgent, [
-        { key: "tokens:usage:queries:total" },
-        { key: `tokens:usage:${uuid}:queries` },
-        { key: "tokens:usage:request-counts", value: usage.requestCount },
-        { key: "tokens:usage:revoked-count", increment: usage.isRevoked ? 1 : 0 }
+        { key: "metrics:tokens:usage:queries:total" },
+        { key: `metrics:tokens:usage:${uuid}:queries` },
+        { key: "metrics:tokens:usage:request-counts", value: usage.requestCount },
+        { key: "metrics:tokens:usage:revoked-count", increment: usage.isRevoked ? 1 : 0 }
       ])
 
       if (env?.DATA) {
@@ -104,7 +101,7 @@ export default defineEventHandler(async (event) => {
     // Log successful request
     logRequest(event, "tokens/{uuid}/usage", "GET", 200, {
       tokenId: uuid,
-      usage: `requests:${usage.requestCount},remaining:${usage.rateLimitRemaining || "unlimited"}`,
+      usage: `requests:${usage.requestCount},max:${usage.maxRequests || "unlimited"}`,
       isRevoked: usage.isRevoked
     })
 

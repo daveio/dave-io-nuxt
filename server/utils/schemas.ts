@@ -106,8 +106,7 @@ export const SystemMetricsSchema = z.object({
   }),
   api: z.object({
     version: z.string(),
-    endpoints_available: z.number(),
-    rate_limit: z.string()
+    endpoints_available: z.number()
   })
 })
 
@@ -187,11 +186,12 @@ export const TokenMetricsSchema = z.object({
     total_requests: z.number(),
     successful_requests: z.number(),
     failed_requests: z.number(),
-    rate_limited_requests: z.number(),
+    redirect_clicks: z.number(),
     last_24h: z.object({
       total: z.number(),
       successful: z.number(),
-      failed: z.number()
+      failed: z.number(),
+      redirects: z.number()
     })
   }),
   timestamp: z.string()

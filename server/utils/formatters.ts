@@ -20,11 +20,12 @@ export function formatMetricsAsYAML(metrics: {
     total_requests: number
     successful_requests: number
     failed_requests: number
-    rate_limited_requests: number
+    redirect_clicks: number
     last_24h: {
       total: number
       successful: number
       failed: number
+      redirects: number
     }
   }
   timestamp: string
@@ -45,11 +46,12 @@ export function formatMetricsAsPrometheus(metrics: {
     total_requests: number
     successful_requests: number
     failed_requests: number
-    rate_limited_requests: number
+    redirect_clicks: number
     last_24h: {
       total: number
       successful: number
       failed: number
+      redirects: number
     }
   }
 }): string {
@@ -73,16 +75,22 @@ export function formatMetricsAsPrometheus(metrics: {
   lines.push(`api_requests_failed_total ${metrics.data.failed_requests}`)
   lines.push("")
 
-  // Rate limited requests counter
-  lines.push("# HELP api_requests_rate_limited_total Total number of rate limited API requests")
-  lines.push("# TYPE api_requests_rate_limited_total counter")
-  lines.push(`api_requests_rate_limited_total ${metrics.data.rate_limited_requests}`)
+  // Redirect clicks counter
+  lines.push("# HELP redirect_clicks_total Total number of redirect clicks")
+  lines.push("# TYPE redirect_clicks_total counter")
+  lines.push(`redirect_clicks_total ${metrics.data.redirect_clicks}`)
   lines.push("")
 
   // 24h requests gauge
   lines.push("# HELP api_requests_24h_total Total number of API requests in last 24 hours")
   lines.push("# TYPE api_requests_24h_total gauge")
   lines.push(`api_requests_24h_total ${metrics.data.last_24h.total}`)
+  lines.push("")
+
+  // 24h redirects gauge
+  lines.push("# HELP redirects_24h_total Total number of redirects in last 24 hours")
+  lines.push("# TYPE redirects_24h_total gauge")
+  lines.push(`redirects_24h_total ${metrics.data.last_24h.redirects}`)
 
   return lines.join("\n")
 }

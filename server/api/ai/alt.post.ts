@@ -1,8 +1,4 @@
-import {
-  checkAIRateLimit as checkAIRateLimitAuth,
-  requireAIAuth,
-  setRateLimitHeaders
-} from "~/server/utils/auth-helpers"
+import { requireAIAuth } from "~/server/utils/auth-helpers"
 import { getCloudflareEnv, getCloudflareRequestInfo, getKVNamespace } from "~/server/utils/cloudflare"
 import { createAIKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { createApiError, createApiResponse, isApiError, logRequest } from "~/server/utils/response"
@@ -19,18 +15,6 @@ export default defineEventHandler(async (event) => {
     // Parse and validate request body
     const body = await readBody(event)
     const request = AiAltTextRequestSchema.parse(body)
-
-    // Check rate limiting using shared helper
-    const userId = auth.payload?.jti || auth.payload?.sub || "anonymous"
-    const rateLimit = await checkAIRateLimitAuth(userId, env.DATA)
-
-    if (!rateLimit.allowed) {
-      setRateLimitHeaders(event, 100, 0, rateLimit.resetTime)
-      throw createApiError(429, "Rate limit exceeded. Maximum 100 requests per hour.")
-    }
-
-    // Set rate limit headers using helper
-    setRateLimitHeaders(event, 100, rateLimit.remaining, rateLimit.resetTime)
 
     const startTime = Date.now()
 
@@ -121,11 +105,9 @@ export default defineEventHandler(async (event) => {
         auth.payload?.sub,
         cfInfo,
         [
-          { key: "ai:alt-text:requests:total" },
-          { key: `ai:alt-text:models:${aiModel.replace(/[^a-z0-9]/g, "-")}` },
-          { key: "ai:alt-text:methods:post" },
-          { key: "ai:alt-text:rate-limit:used", increment: 1 },
-          { key: "ai:alt-text:rate-limit:remaining", value: rateLimit.remaining }
+          { key: "metrics:ai:alt-text:requests:total" },
+          { key: `metrics:ai:alt-text:models:${aiModel.replace(/[^a-z0-9]/g, "-")}` },
+          { key: "metrics:ai:alt-text:methods:post" }
         ]
       )
 
@@ -150,11 +132,7 @@ export default defineEventHandler(async (event) => {
         model: aiModel,
         timestamp: new Date().toISOString(),
         processingTimeMs: processingTime,
-        imageSizeBytes: imageData.length,
-        rateLimit: {
-          remaining: rateLimit.remaining,
-          resetTime: rateLimit.resetTime.toISOString()
-        }
+        imageSizeBytes: imageData.length
       },
       "Alt text generated successfully"
     )

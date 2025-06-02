@@ -1,9 +1,8 @@
 import { createError, getHeader, getMethod, setResponseHeader } from "h3"
-import { checkRateLimit, getRateLimitInfo, isApiError } from "~/server/utils/response"
+import { isApiError } from "~/server/utils/response"
 
 // Error categorization for better logging and monitoring
 enum ErrorCategory {
-  RATE_LIMIT = "rate_limit",
   AUTH = "auth",
   VALIDATION = "validation",
   SERVICE = "service",
@@ -22,33 +21,9 @@ interface ErrorContext {
   country?: string
 }
 
-// Rate limiting for error responses to prevent abuse
-const ERROR_RATE_LIMITS = new Map<string, { count: number; lastReset: number }>()
-const ERROR_WINDOW_MS = 60000 // 1 minute
-const MAX_ERRORS_PER_WINDOW = 10
-
-function checkErrorRateLimit(ip: string): boolean {
-  const now = Date.now()
-  const key = `error:${ip}`
-  const current = ERROR_RATE_LIMITS.get(key)
-
-  if (!current || now - current.lastReset > ERROR_WINDOW_MS) {
-    ERROR_RATE_LIMITS.set(key, { count: 1, lastReset: now })
-    return true
-  }
-
-  if (current.count >= MAX_ERRORS_PER_WINDOW) {
-    return false
-  }
-
-  current.count++
-  return true
-}
-
 function categorizeError(error: unknown, _context: ErrorContext): ErrorCategory {
   if (isApiError(error)) {
     const statusCode = error.statusCode
-    if (statusCode === 429) return ErrorCategory.RATE_LIMIT
     if (statusCode === 401 || statusCode === 403) return ErrorCategory.AUTH
     if (statusCode >= 400 && statusCode < 500) return ErrorCategory.VALIDATION
     if (statusCode >= 500) return ErrorCategory.INTERNAL
@@ -97,46 +72,11 @@ export default defineEventHandler(async (event) => {
       country: cfCountry
     }
 
-    // Apply rate limiting only to API routes (not redirects)
+    // Add API version header for API routes
     if (url.startsWith("/api/")) {
-      const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
-
-      // Only apply rate limiting if KV storage is available
-      // This allows 404s to be returned properly when services are unavailable
-      if (env?.DATA) {
-        const rateLimitKey = `${ip}:${method}:${url}`
-        const rateLimit = await checkRateLimit(rateLimitKey, env.DATA, 100, 60000)
-        if (!rateLimit.allowed) {
-          throw createError({
-            statusCode: 429,
-            statusMessage: "Too Many Requests",
-            data: {
-              success: false,
-              error: "Rate limit exceeded",
-              meta: { retry_after: 60 },
-              timestamp: new Date().toISOString()
-            }
-          })
-        }
-
-        const rateLimitInfo = await getRateLimitInfo(rateLimitKey, env.DATA, 100, 60000)
-
-        // Add API-specific headers
-        setHeaders(event, {
-          "X-API-Version": "1.0.0",
-          "X-RateLimit-Limit": "100",
-          "X-RateLimit-Remaining": rateLimitInfo.remaining.toString(),
-          "X-RateLimit-Reset": Math.floor(rateLimitInfo.resetTime / 1000).toString()
-        })
-      } else {
-        // KV storage not available - add headers without rate limiting
-        setHeaders(event, {
-          "X-API-Version": "1.0.0",
-          "X-RateLimit-Limit": "disabled",
-          "X-RateLimit-Remaining": "N/A",
-          "X-RateLimit-Reset": "N/A"
-        })
-      }
+      setHeaders(event, {
+        "X-API-Version": "1.0.0"
+      })
     }
 
     // Add request logging for both API and redirect routes
@@ -174,34 +114,9 @@ export default defineEventHandler(async (event) => {
     const category = categorizeError(error, errorContext)
     logError(error, category, errorContext)
 
-    // Check error rate limiting
-    if (!checkErrorRateLimit(errorContext.ip)) {
-      throw createError({
-        statusCode: 429,
-        statusMessage: "Too Many Errors",
-        data: {
-          success: false,
-          error: "Error rate limit exceeded",
-          requestId: errorContext.requestId,
-          timestamp: errorContext.timestamp
-        }
-      })
-    }
-
-    // Re-throw rate limit errors with enhanced context
-    if (isApiError(error) && error.statusCode === 429) {
-      const enhancedError = createError({
-        statusCode: 429,
-        // biome-ignore lint/suspicious/noExplicitAny: Error object structure varies and needs dynamic property access
-        statusMessage: (error as any).statusMessage || "Too Many Requests",
-        data: {
-          // biome-ignore lint/suspicious/noExplicitAny: Error data structure is dynamic
-          ...(error as any).data,
-          requestId: errorContext.requestId,
-          category: ErrorCategory.RATE_LIMIT
-        }
-      })
-      throw enhancedError
+    // Re-throw API errors as-is
+    if (isApiError(error)) {
+      throw error
     }
 
     // Sanitize error details for production
