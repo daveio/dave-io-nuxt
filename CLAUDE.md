@@ -28,6 +28,12 @@ If you must skip them due to scoping or resource limitation, add a TODO to come 
 - `bun run typecheck` - TypeScript type checking
 - `bun run test` - unit tests with Vitest
 
+When everything is clean, try a build:
+
+- `bun run check` - run all previous checks and attempt to build the project
+  - This is an expensive and time-consuming operation.
+  - Only run it when everything else is passing.
+
 ## ⚠️ CRITICAL DEVELOPMENT RULE: COMMIT AFTER CHANGES
 
 **COMMIT AFTER EVERY SIGNIFICANT BLOCK OF WORK**.
