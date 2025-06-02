@@ -28,7 +28,7 @@ async function getMetricsFromKV(kv?: KVNamespace): Promise<{
       rate_limited_requests: kvMetrics.rateLimitedRequests,
       redirect_clicks: kvMetrics.redirectClicks,
       last_24h: {
-        total: 0, // TODO: Remove 24h tracking in new hierarchy
+        total: 0,
         successful: 0,
         failed: 0,
         redirects: 0
@@ -102,7 +102,13 @@ export default defineEventHandler(async (event) => {
     try {
       const cfInfo = getCloudflareRequestInfo(event)
 
-      const kvCounters = createAPIRequestKVCounters("/api/internal/metrics", "GET", 200, cfInfo, getHeader(event, "user-agent"))
+      const kvCounters = createAPIRequestKVCounters(
+        "/api/internal/metrics",
+        "GET",
+        200,
+        cfInfo,
+        getHeader(event, "user-agent")
+      )
 
       if (env?.DATA) {
         await writeKVMetrics(env.DATA, kvCounters)

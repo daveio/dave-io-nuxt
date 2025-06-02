@@ -106,7 +106,7 @@ export default defineEventHandler(async (event) => {
     // Write successful KV metrics using standardized system
     try {
       const cfInfo = getCloudflareRequestInfo(event)
-      const responseTime = Date.now() - startTime
+      const _responseTime = Date.now() - startTime
 
       const userAgent = getHeader(event, "user-agent") || ""
       const kvCounters = createAPIRequestKVCounters(`/api/tokens/${uuid}/revoke`, "POST", 200, cfInfo, userAgent, [
@@ -134,7 +134,7 @@ export default defineEventHandler(async (event) => {
     try {
       const env = getCloudflareEnv(event)
       const cfInfo = getCloudflareRequestInfo(event)
-      const responseTime = Date.now() - startTime
+      const _responseTime = Date.now() - startTime
       // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
       const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
 

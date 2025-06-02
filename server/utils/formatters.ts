@@ -10,7 +10,6 @@ interface RSSItem {
   pubDate?: string
 }
 
-
 /**
  * Format metrics data as YAML using js-yaml library
  * Replaces manual string concatenation in metrics endpoint
@@ -179,4 +178,3 @@ export function parseRSSFeed(xmlContent: string): Array<{
     throw createApiError(500, "Failed to parse RSS feed")
   }
 }
-

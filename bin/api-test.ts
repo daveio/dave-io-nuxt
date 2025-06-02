@@ -429,31 +429,6 @@ class APITester {
     }
   }
 
-  // Test RouterOS endpoints
-  async testRouterOS(): Promise<TestSuite> {
-    const results: TestResult[] = []
-    const startTime = Date.now()
-
-    console.log("\n🔧 Testing RouterOS Endpoints...")
-
-    // Test RouterOS endpoints
-    results.push(await this.makeRequest("/api/routeros/putio"))
-    results.push(await this.makeRequest("/api/routeros/putio?format=json"))
-    results.push(await this.makeRequest("/api/routeros/cache"))
-    results.push(await this.makeRequest("/api/routeros/reset", "POST", this.tokens.get("admin")))
-
-    const passed = results.filter((r) => r.success).length
-    const failed = results.length - passed
-
-    return {
-      name: "RouterOS",
-      results,
-      passed,
-      failed,
-      duration: Date.now() - startTime
-    }
-  }
-
   // Test multiple metrics formats
   async testMetricsFormats(): Promise<TestSuite> {
     const results: TestResult[] = []
@@ -527,7 +502,6 @@ class APITester {
       suites.push(await this.testMetrics())
       suites.push(await this.testMetricsFormats())
       suites.push(await this.testDashboard())
-      suites.push(await this.testRouterOS())
       suites.push(await this.testAI())
       suites.push(await this.testRedirects())
       suites.push(await this.testTokens())
@@ -555,7 +529,6 @@ program
   .option("--tokens-only", "Test only token management endpoints")
   .option("--health-only", "Test only health endpoint")
   .option("--dashboard-only", "Test only dashboard endpoints")
-  .option("--routeros-only", "Test only RouterOS endpoints")
   .option("--metrics-formats-only", "Test only metrics format endpoints")
   .action(async (options) => {
     const tester = new APITester(options.url, options.secret)
@@ -596,10 +569,6 @@ program
       } else if (options.dashboardOnly) {
         if (!options.token) await tester.generateTokens()
         const suite = await tester.testDashboard()
-        success = tester.printResults([suite])
-      } else if (options.routerosOnly) {
-        if (!options.token) await tester.generateTokens()
-        const suite = await tester.testRouterOS()
         success = tester.printResults([suite])
       } else if (options.metricsFormatsOnly) {
         if (!options.token) await tester.generateTokens()

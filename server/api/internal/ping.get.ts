@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
   // Write KV metrics
   try {
     const env = getCloudflareEnv(event)
-    const responseTime = Date.now() - startTime
+    const _responseTime = Date.now() - startTime
 
     const kvCounters = createAPIRequestKVCounters("/api/internal/ping", "GET", 200, cfInfo, cfInfo.userAgent)
 

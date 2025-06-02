@@ -8,22 +8,28 @@ export default defineEventHandler(async (event) => {
 
   // Get all request headers as seen by the Worker
   const headers = getHeaders(event)
-  
+
   // Extract Cloudflare-specific headers for easier inspection
   const cloudflareHeaders = Object.entries(headers)
-    .filter(([key]) => key.toLowerCase().startsWith('cf-'))
-    .reduce((acc, [key, value]) => {
-      acc[key] = value
-      return acc
-    }, {} as Record<string, string>)
+    .filter(([key]) => key.toLowerCase().startsWith("cf-"))
+    .reduce(
+      (acc, [key, value]) => {
+        acc[key] = value || ""
+        return acc
+      },
+      {} as Record<string, string>
+    )
 
   // Extract forwarding headers
   const forwardingHeaders = Object.entries(headers)
-    .filter(([key]) => key.toLowerCase().includes('forward') || key.toLowerCase().includes('real-ip'))
-    .reduce((acc, [key, value]) => {
-      acc[key] = value
-      return acc
-    }, {} as Record<string, string>)
+    .filter(([key]) => key.toLowerCase().includes("forward") || key.toLowerCase().includes("real-ip"))
+    .reduce(
+      (acc, [key, value]) => {
+        acc[key] = value || ""
+        return acc
+      },
+      {} as Record<string, string>
+    )
 
   const headerInfo = {
     all_headers: headers,

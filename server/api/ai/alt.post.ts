@@ -80,7 +80,7 @@ export default defineEventHandler(async (event) => {
     }
 
     let aiSuccess = false
-    let aiErrorType: string | undefined
+    let _aiErrorType: string | undefined
 
     try {
       const result = (await env.AI.run(aiModel as "@cf/llava-hf/llava-1.5-7b-hf", {
@@ -102,7 +102,7 @@ export default defineEventHandler(async (event) => {
     } catch (error) {
       console.error("AI processing failed:", error)
       aiSuccess = false
-      aiErrorType = error instanceof Error ? error.name : "UnknownError"
+      _aiErrorType = error instanceof Error ? error.name : "UnknownError"
       throw createApiError(500, "Failed to process image with AI")
     }
 

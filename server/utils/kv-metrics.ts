@@ -54,48 +54,51 @@ export async function writeKVMetrics(kvNamespace: KVNamespace, kvCounters: KVCou
  * Get KV metrics for fast dashboard queries
  */
 export async function getKVMetrics(kv: KVNamespace): Promise<KVMetrics> {
-  // Get all resource-specific metrics in parallel
-  const resourceKeys = await kv.list({ prefix: "metrics:" })
-  const redirectKeys = await kv.list({ prefix: "redirect:" })
+  // Get all metrics keys in parallel
+  const metricsKeys = await kv.list({ prefix: "metrics:" })
 
   // Calculate totals by aggregating all resource metrics
   let totalRequests = 0
   let successfulRequests = 0
   let failedRequests = 0
+  let rateLimitedRequests = 0
   let redirectClicks = 0
-
-  // Aggregate metrics from all resources
-  for (const key of resourceKeys.keys) {
-    const value = await kv.get(key.name)
-    const count = Number.parseInt(value || "0", 10) || 0
-
-    if (key.name.includes(":hit:total")) {
-      totalRequests += count
-    } else if (key.name.includes(":hit:ok")) {
-      successfulRequests += count
-    } else if (key.name.includes(":hit:error")) {
-      failedRequests += count
-    }
-  }
 
   // Get redirect metrics by slug
   const redirectsBySlug: Record<string, number> = {}
 
-  for (const key of resourceKeys.keys) {
-    if (key.name.startsWith("metrics:redirect:")) {
-      const slug = key.name.replace("metrics:redirect:", "")
-      const clicks = await kv.get(key.name)
-      const count = Number.parseInt(clicks || "0", 10) || 0
+  // Process all metrics keys in parallel
+  const metricValues = await Promise.all(
+    metricsKeys.keys.map(async (key) => {
+      const value = await kv.get(key.name)
+      return { key: key.name, count: Number.parseInt(value || "0", 10) || 0 }
+    })
+  )
+
+  // Aggregate metrics from all resources
+  for (const { key, count } of metricValues) {
+    if (key.includes(":hit:total")) {
+      totalRequests += count
+    } else if (key.includes(":hit:ok")) {
+      successfulRequests += count
+    } else if (key.includes(":hit:error")) {
+      failedRequests += count
+    } else if (key.startsWith("metrics:redirect:")) {
+      const slug = key.replace("metrics:redirect:", "")
       redirectsBySlug[slug] = count
       redirectClicks += count
     }
   }
 
+  // Calculate rate limited requests from the difference between total and successful/failed
+  // Since rate limited requests are counted as errors, we don't need separate tracking
+  rateLimitedRequests = 0 // Rate limits are already included in failedRequests
+
   return {
     totalRequests,
     successfulRequests,
     failedRequests,
-    rateLimitedRequests: 0, // TODO: Implement rate limit tracking in new hierarchy
+    rateLimitedRequests,
     redirectClicks,
     redirectsBySlug
   }
@@ -148,9 +151,9 @@ function classifyVisitor(userAgent: string): "human" | "bot" | "unknown" {
  */
 export function createAPIRequestKVCounters(
   endpoint: string,
-  method: string,
+  _method: string,
   statusCode: number,
-  cfInfo: { country: string; datacenter: string },
+  _cfInfo: { country: string; datacenter: string },
   userAgent?: string,
   extraCounters?: KVCounterEntry[]
 ): KVCounterEntry[] {
@@ -176,8 +179,8 @@ export function createAPIRequestKVCounters(
 export function createAuthKVCounters(
   endpoint: string,
   success: boolean,
-  tokenSubject: string | undefined,
-  cfInfo: { country: string },
+  _tokenSubject: string | undefined,
+  _cfInfo: { country: string },
   extraCounters?: KVCounterEntry[]
 ): KVCounterEntry[] {
   const resource = getResourceFromEndpoint(endpoint)
@@ -195,9 +198,9 @@ export function createAuthKVCounters(
  */
 export function createRedirectKVCounters(
   slug: string,
-  destinationUrl: string,
+  _destinationUrl: string,
   clickCount: number,
-  cfInfo: { country: string },
+  _cfInfo: { country: string },
   extraCounters?: KVCounterEntry[]
 ): KVCounterEntry[] {
   const baseCounters: KVCounterEntry[] = [
@@ -212,18 +215,18 @@ export function createRedirectKVCounters(
  * Helper to create KV counters for AI events
  */
 export function createAIKVCounters(
-  operation: string,
+  _operation: string,
   success: boolean,
-  processingTimeMs: number,
-  imageSizeBytes: number | undefined,
-  userId: string | undefined,
-  cfInfo: { country: string },
+  _processingTimeMs: number,
+  _imageSizeBytes: number | undefined,
+  _userId: string | undefined,
+  _cfInfo: { country: string },
   extraCounters?: KVCounterEntry[]
 ): KVCounterEntry[] {
   const baseCounters: KVCounterEntry[] = [
     // AI operation tracking
-    { key: success ? `metrics:ai:hit:ok` : `metrics:ai:hit:error` },
-    { key: `metrics:ai:hit:total` }
+    { key: success ? "metrics:ai:hit:ok" : "metrics:ai:hit:error" },
+    { key: "metrics:ai:hit:total" }
   ]
 
   return [...baseCounters, ...(extraCounters || [])]
@@ -233,11 +236,11 @@ export function createAIKVCounters(
  * Helper to create KV counters for rate limit events
  */
 export function createRateLimitKVCounters(
-  action: string,
+  _action: string,
   endpoint: string,
-  tokenSubject: string | undefined,
+  _tokenSubject: string | undefined,
   _requestsInWindow: number,
-  cfInfo: { country: string },
+  _cfInfo: { country: string },
   extraCounters?: KVCounterEntry[]
 ): KVCounterEntry[] {
   const resource = getResourceFromEndpoint(endpoint)

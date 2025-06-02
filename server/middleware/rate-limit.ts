@@ -371,7 +371,6 @@ const DEFAULT_RATE_LIMITS: Record<string, RateLimitConfig> = {
   // Token management - strict
   "/api/tokens": RATE_LIMIT_PRESETS.STRICT,
 
-
   // Redirects - high volume (public facing)
   "/go": RATE_LIMIT_PRESETS.HIGH_VOLUME,
 
@@ -628,40 +627,6 @@ async function extractTokenSubject(event: H3Event): Promise<string | undefined> 
   }
 
   return undefined
-}
-
-/**
- * Update rate limiting metrics in KV
- */
-async function updateRateLimitMetrics(
-  kv: KVNamespace,
-  _action: "throttled" | "blocked",
-  tokenSubject?: string
-): Promise<void> {
-  try {
-    // Update total rate limited requests
-    const totalKey = "metrics:requests:rate_limited"
-    const currentTotal = await kv.get(totalKey)
-    const newTotal = (Number.parseInt(currentTotal || "0", 10) || 0) + 1
-    await kv.put(totalKey, newTotal.toString())
-
-    // Update rate limited requests by token subject
-    if (tokenSubject) {
-      const tokenKey = `metrics:rate_limit:token:${tokenSubject}`
-      const currentTokenCount = await kv.get(tokenKey)
-      const newTokenCount = (Number.parseInt(currentTokenCount || "0", 10) || 0) + 1
-      await kv.put(tokenKey, newTokenCount.toString())
-    }
-
-    // Update 24h metrics
-    const dailyKey = "metrics:24h:rate_limited"
-    const currentDaily = await kv.get(dailyKey)
-    const newDaily = (Number.parseInt(currentDaily || "0", 10) || 0) + 1
-    await kv.put(dailyKey, newDaily.toString(), { expirationTtl: 24 * 60 * 60 }) // 24 hours
-  } catch (error) {
-    console.error("Failed to update rate limit metrics:", error)
-    // Don't throw - metrics should never break the main flow
-  }
 }
 
 /**

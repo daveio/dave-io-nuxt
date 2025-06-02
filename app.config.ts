@@ -6,9 +6,7 @@ export default defineAppConfig({
     },
     // Configure ULink specifically to ensure all links are blue
     link: {
-      slots: {
-        base: "text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
-      }
+      base: "text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
     }
   }
 })

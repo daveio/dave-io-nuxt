@@ -122,8 +122,8 @@ bun jwt create --interactive
 
 ```bash
 # Clone this magnificent monstrosity
-git clone https://github.com/daveio/dave-io-nuxt.git
-cd dave-io-nuxt
+git clone https://github.com/daveio/next-dave-io.git
+cd next-dave-io
 
 # Install dependencies (bun is preferred, but we don't judge)
 bun install
@@ -256,9 +256,9 @@ curl -H "Authorization: Bearer <token>" http://localhost:3000/api/dashboard/hack
 
 URL redirects for the chronically lazy (we've all been there).
 
-- `/go/github` → My GitHub
-- `/go/mastodon` → My Mastodon
-- `/go/key` → My public key
+- `/go/gh` → My GitHub
+- `/go/tw` → My Twitter/X
+- `/go/li` → My LinkedIn
 
 ### Token Management (Handle With Care)
 
@@ -339,7 +339,6 @@ bun run test:api --auth-only
 bun run test:api --metrics-only
 bun run test:api --ai-only
 bun run test:api --dashboard-only
-bun run test:api --routeros-only
 
 # Use an existing token (for when you're feeling prepared)
 bun run test:api --token "eyJhbGciOiJIUzI1NiJ9..."
@@ -365,8 +364,6 @@ bun run kv wipe                      # Nuclear option (requires CONFIRM_WIPE=yes
 
 - `redirect:*` - URL redirect mappings (slug → target URL)
 - `metrics:*` - All API metrics (resource-based hierarchy)
-- `dashboard:demo:items` - Demo dashboard data (legacy)
-- `auth:*` - Authentication data (if any legacy remains)
 - `routeros:*` - RouterOS cache (legacy, may be removed)
 
 ### `bin/deploy-env.ts` - Secure Environment Deployment (The Security-Conscious Wizard)
