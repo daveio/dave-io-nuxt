@@ -1,71 +1,5 @@
 # `dave.io`: Nuxt Edition 🌟
 
-```mermaid
----
-config:
-  theme: neo-dark
-  layout: elk
-id: f8a5ff3b-03b9-42ef-a901-b1537198c6ea
-title: dave.io/api KV
-description: |
-  This diagram illustrates the structure of Cloudflare KV used for metrics and redirects.
-  It includes main categories, keys, and their relationships, such as authentication metrics,
-  redirect metrics, and specific data points like clicks and errors.
----
-flowchart LR
-    %% Root KV Store
-    ROOT["Cloudflare KV Store"]
-
-    %% Main Categories
-    ROOT --> METRICS["metrics"]
-    ROOT --> REDIRECT["redirect"]
-
-    %% Redirect Keys
-    REDIRECT --> REDIRECT_WAT{{"[slug]"}}
-
-    %% Auth Metrics
-    METRICS --> AUTH["auth"]
-    AUTH --> AUTH_TOTAL{{"total"}}
-    AUTH --> AUTH_FAILED{{"failed"}}
-
-    AUTH --> AUTH_BY_COUNTRY["by-country"]
-    AUTH_BY_COUNTRY --> AUTH_US["us"]
-
-    AUTH_FAILED --> AUTH_FAILED_BY_COUNTRY["by-country"]
-    AUTH_FAILED_BY_COUNTRY --> AUTH_FAILED_US{{"[slug]"}}
-
-    AUTH --> AUTH_BY_ENDPOINT["by-endpoint"]
-    AUTH_BY_ENDPOINT --> AUTH_ENDPOINT["[slug]"]
-    AUTH_ENDPOINT --> AUTH_ENDPOINT_TOTAL{{"total"}}
-    AUTH_ENDPOINT --> AUTH_ENDPOINT_FAILED{{"failed"}}
-
-    AUTH --> AUTH_ERRORS["errors"]
-    AUTH_ERRORS --> AUTH_VERIFY_FAILED["verification-failed"]
-
-    AUTH --> AUTH_TOKEN_VERIF["token-verifications"]
-    AUTH_TOKEN_VERIF --> AUTH_TOKEN_TOTAL{{"total"}}
-    AUTH_TOKEN_VERIF --> AUTH_TOKEN_FAILED{{"failed"}}
-
-    %% Redirect Metrics
-    METRICS --> REDIRECT_METRICS["redirect"]
-
-    REDIRECT_METRICS --> REDIRECT_BY_COUNTRY["by-country"]
-    REDIRECT_BY_COUNTRY --> REDIRECT_GB["gb"]
-
-    REDIRECT_METRICS --> REDIRECT_BY_DOMAIN["by-domain"]
-    REDIRECT_BY_DOMAIN --> REDIRECT_DAS["www-destroyallsoftware-com"]
-
-    REDIRECT_METRICS --> REDIRECT_DAILY["daily"]
-    REDIRECT_DAILY --> REDIRECT_20250601["2025-06-01"]
-
-    REDIRECT_METRICS --> REDIRECT_TOTAL["total"]
-    REDIRECT_TOTAL --> REDIRECT_CLICKS["clicks"]
-
-    REDIRECT_METRICS --> REDIRECT_WAT_METRICS["wat"]
-    REDIRECT_WAT_METRICS --> WAT_CLICKS["clicks"]
-    REDIRECT_WAT_METRICS --> WAT_UPDATED["updated-at"]
-```
-
 Welcome to the most spectacularly over-engineered personal website you'll encounter today.
 
 This isn't just a website; it's a full-blown API fortress masquerading as a humble Nuxt application.
@@ -154,6 +88,8 @@ bun jwt create --interactive
 - Click tracking with KV metrics integration
 
 ### 🛠️ RouterOS Integration (Because I love Networking)
+
+**TODO**: The RouterOS endpoint will shortly be removed.
 
 - MikroTik router script generation
 - `/api/routeros/putio` for automated download management
@@ -690,6 +626,191 @@ metrics:ai:alt:failed              # "6"     - Failed generations
 metrics:routeros:cache-hits        # "89"    - Cache hits
 metrics:routeros:cache-misses      # "12"    - Cache misses
 metrics:routeros:refresh-count     # "5"     - Manual refreshes
+```
+
+**TODO**: We are soon going to migrate to this hierarchy for KV and no other keys.
+
+```mermaid
+---
+config:
+  theme: neo-dark
+  layout: elk
+  htmlLabels: true
+id: ee3114f7-6c54-4dcc-a315-24c20d9a7d28
+title: Cloudflare KV Store Key Hierarchy
+---
+
+flowchart TD
+    %% ---
+    %% KEY DEFINITIONS:
+    %% TARGET_URL contains the target URL for the redirect.
+    %% [resource] is the first part of the URL after /api, for example /api/foo/bar would be foo.
+    %% /go is excluded from main metrics, as we handle redirect metrics separately.
+    %% All integer types are hit counts of categories described by their key hierarchy.
+    %% ---
+
+    %% Root KV Store
+    ROOT[["🗄️ Cloudflare KV Store<br/>_Core key-value storage_"]]
+
+    %% Redirect Key Namespace
+    subgraph REDIRECT_NS["📍 redirect: namespace<br/>_URL redirection keys_"]
+        direction TB
+        REDIRECT_KEY["`**redirect**
+        _base key pattern_`"]
+        REDIRECT_SLUG_KEY["`**redirect:[slug]**
+        _specific redirect key_`"]
+        REDIRECT_VALUE["`🎯 **Target URL**
+        _string value_
+        Contains destination URL for redirect`"]
+    end
+
+    %% Metrics Key Namespace
+    subgraph METRICS_NS["📊 metrics: namespace<br/>_Metrics keys_"]
+        direction TB
+
+        METRICS_KEY["`**metrics**
+        _base metrics key_`"]
+        METRICS_RESOURCE_KEY["`**metrics:[resource]**
+        _resource-specific metrics_
+        [resource] = first URL segment after /api`"]
+
+        %% Redirect Metrics Keys
+        subgraph REDIRECT_METRICS_NS["📍 Redirect Metrics Keys<br/>/go endpoint"]
+            direction TB
+            REDIRECT_METRICS_KEY["`**metrics:redirect**
+            _redirect tracking base_`"]
+            REDIRECT_SLUG_METRICS_KEY["`**metrics:redirect:[slug]**
+            _per-slug redirect tracking_`"]
+            REDIRECT_COUNT_VALUE["`🔢 **Redirect Count**
+            _integer value_
+            Hit count for this redirect`"]
+        end
+
+        %% Hit Counter Keys
+        subgraph HIT_COUNTER_NS["🎯 Hit Counter Keys<br/>_Request success/failure tracking_"]
+            direction TB
+            HIT_KEY["`**metrics:[resource]:hit**
+            _hit tracking base_`"]
+            HIT_OK_KEY["`**metrics:[resource]:hit:ok**
+            _successful requests_`"]
+            HIT_TOTAL_KEY["`**metrics:[resource]:hit:total**
+            _all requests_`"]
+            HIT_ERROR_KEY["`**metrics:[resource]:hit:error**
+            _failed requests_`"]
+            SUCCESS_COUNT_VALUE["`✅ **Success Count**
+            _integer value_
+            Hit count of successful requests`"]
+            TOTAL_COUNT_VALUE["`📊 **Total Count**
+            _integer value_
+            Hit count of all requests`"]
+            ERROR_COUNT_VALUE["`❌ **Error Count**
+            _integer value_
+            Hit count of failed requests`"]
+        end
+
+        %% Authentication Keys
+        subgraph AUTH_KEYS_NS["🔐 Authentication Keys<br/>_Auth success/failure tracking_"]
+            direction TB
+            AUTH_KEY["`**metrics:[resource]:auth**
+            _auth tracking base_`"]
+            AUTH_FAILED_KEY["`**metrics:[resource]:auth:failed**
+            _failed authentication_`"]
+            AUTH_SUCCESS_KEY["`**metrics:[resource]:auth:succeeded**
+            _successful authentication_`"]
+            FAILED_AUTH_VALUE["`❌ **Failed Auth Count**
+            _integer value_
+            Hit count of failed auth attempts`"]
+            SUCCESS_AUTH_VALUE["`✅ **Success Auth Count**
+            _integer value_
+            Hit count of successful auth attempts`"]
+        end
+
+        %% Visitor Tracking Keys
+        subgraph VISITOR_KEYS_NS["👥 Visitor Tracking Keys<br/>_User-agent classification_"]
+            direction TB
+            VISITOR_KEY["`**metrics:[resource]:visitor**
+            _visitor tracking base_`"]
+            HUMAN_KEY["`**metrics:[resource]:visitor:human**
+            _human visitor classification_`"]
+            BOT_KEY["`**metrics:[resource]:visitor:bot**
+            _bot visitor classification_`"]
+            UNKNOWN_KEY["`**metrics:[resource]:visitor:unknown**
+            _unclassified visitor type_`"]
+            HUMAN_COUNT_VALUE["`👤 **Human Count**
+            _integer value_
+            Hit count from human visitors`"]
+            BOT_COUNT_VALUE["`🤖 **Bot Count**
+            _integer value_
+            Hit count from bot visitors`"]
+            UNKNOWN_COUNT_VALUE["`❓ **Unknown Count**
+            _integer value_
+            Hit count from unknown visitor types`"]
+        end
+    end
+
+    %% Key Hierarchy Connections
+    ROOT -->|"`contains keys`"| REDIRECT_KEY
+    ROOT -->|"`contains keys`"| METRICS_KEY
+
+    %% Redirect Key Hierarchy
+    REDIRECT_KEY -->|"`key pattern`"| REDIRECT_SLUG_KEY
+    REDIRECT_SLUG_KEY -->|"`stores value`"| REDIRECT_VALUE
+
+    %% Metrics Key Hierarchy
+    METRICS_KEY -->|"`key pattern`"| METRICS_RESOURCE_KEY
+    METRICS_RESOURCE_KEY -->|"`branches to`"| HIT_KEY
+    METRICS_RESOURCE_KEY -->|"`branches to`"| AUTH_KEY
+    METRICS_RESOURCE_KEY -->|"`branches to`"| VISITOR_KEY
+    METRICS_RESOURCE_KEY -->|"`branches to`"| REDIRECT_METRICS_KEY
+
+    %% Hit Counter Key Patterns
+    HIT_KEY -->|"`key pattern`"| HIT_OK_KEY
+    HIT_KEY -->|"`key pattern`"| HIT_TOTAL_KEY
+    HIT_KEY -->|"`key pattern`"| HIT_ERROR_KEY
+    HIT_OK_KEY -->|"`stores value`"| SUCCESS_COUNT_VALUE
+    HIT_TOTAL_KEY -->|"`stores value`"| TOTAL_COUNT_VALUE
+    HIT_ERROR_KEY -->|"`stores value`"| ERROR_COUNT_VALUE
+
+    %% Redirect Metrics Key Patterns
+    REDIRECT_METRICS_KEY -->|"`key pattern`"| REDIRECT_SLUG_METRICS_KEY
+    REDIRECT_SLUG_METRICS_KEY -->|"`stores value`"| REDIRECT_COUNT_VALUE
+
+    %% Auth Key Patterns
+    AUTH_KEY -->|"`key pattern`"| AUTH_FAILED_KEY
+    AUTH_KEY -->|"`key pattern`"| AUTH_SUCCESS_KEY
+    AUTH_FAILED_KEY -->|"`stores value`"| FAILED_AUTH_VALUE
+    AUTH_SUCCESS_KEY -->|"`stores value`"| SUCCESS_AUTH_VALUE
+
+    %% Visitor Key Patterns
+    VISITOR_KEY -->|"`key pattern`"| HUMAN_KEY
+    VISITOR_KEY -->|"`key pattern`"| BOT_KEY
+    VISITOR_KEY -->|"`key pattern`"| UNKNOWN_KEY
+    HUMAN_KEY -->|"`stores value`"| HUMAN_COUNT_VALUE
+    BOT_KEY -->|"`stores value`"| BOT_COUNT_VALUE
+    UNKNOWN_KEY -->|"`stores value`"| UNKNOWN_COUNT_VALUE
+
+    %% Styling Classes
+    classDef rootClass fill:#1a1a2e,stroke:#16213e,stroke-width:3px,color:#ffffff
+    classDef namespaceClass fill:#0f3460,stroke:#16537e,stroke-width:2px,color:#ffffff
+    classDef keyClass fill:#1a472a,stroke:#2d5a32,stroke-width:2px,color:#ffffff
+    classDef keyPatternClass fill:#7b2cbf,stroke:#9d4edd,stroke-width:2px,color:#ffffff
+    classDef valueClass fill:#c9184a,stroke:#ff006e,stroke-width:2px,color:#ffffff
+    classDef containerClass fill:#283593,stroke:#3949ab,stroke-width:2px,color:#ffffff
+
+    %% Apply Classes
+    class ROOT rootClass
+    class REDIRECT_KEY,METRICS_KEY keyClass
+    class METRICS_RESOURCE_KEY,HIT_KEY,AUTH_KEY,VISITOR_KEY,REDIRECT_METRICS_KEY containerClass
+    class REDIRECT_SLUG_KEY,REDIRECT_SLUG_METRICS_KEY,HIT_OK_KEY,HIT_TOTAL_KEY,HIT_ERROR_KEY,AUTH_FAILED_KEY,AUTH_SUCCESS_KEY,HUMAN_KEY,BOT_KEY,UNKNOWN_KEY keyPatternClass
+    class REDIRECT_VALUE,REDIRECT_COUNT_VALUE,SUCCESS_COUNT_VALUE,TOTAL_COUNT_VALUE,ERROR_COUNT_VALUE,FAILED_AUTH_VALUE,SUCCESS_AUTH_VALUE,HUMAN_COUNT_VALUE,BOT_COUNT_VALUE,UNKNOWN_COUNT_VALUE valueClass
+
+    %% Subgraph Styling
+    style REDIRECT_NS fill:#0a1e3d,stroke:#1565c0,stroke-width:3px
+    style METRICS_NS fill:#1b5e20,stroke:#388e3c,stroke-width:3px
+    style REDIRECT_METRICS_NS fill:#2e0854,stroke:#7b2cbf,stroke-width:2px
+    style HIT_COUNTER_NS fill:#640d14,stroke:#c9184a,stroke-width:2px
+    style AUTH_KEYS_NS fill:#1a2e05,stroke:#558b2f,stroke-width:2px
+    style VISITOR_KEYS_NS fill:#e65100,stroke:#ff9800,stroke-width:2px
 ```
 
 ### Counter Functions
