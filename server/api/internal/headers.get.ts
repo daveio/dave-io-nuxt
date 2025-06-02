@@ -1,6 +1,5 @@
 import { getHeaders } from "h3"
-import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
-import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
+import { recordAPIMetrics } from "~/server/middleware/metrics"
 import { createApiResponse, logRequest } from "~/server/utils/response"
 
 export default defineEventHandler(async (event) => {
@@ -43,25 +42,8 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Write KV metrics
-  try {
-    const env = getCloudflareEnv(event)
-    const cfInfo = getCloudflareRequestInfo(event)
-
-    const userAgent = headers["user-agent"] || ""
-    const kvCounters = createAPIRequestKVCounters("/api/internal/headers", "GET", 200, cfInfo, userAgent, [
-      { key: "headers:requests:total" },
-      { key: `headers:count:${Math.floor(headerInfo.header_count / 10) * 10}` }, // Bucket header counts by 10s
-      { key: `headers:cf-headers:${Object.keys(cloudflareHeaders).length}` }
-    ])
-
-    if (env?.DATA) {
-      await writeKVMetrics(env.DATA, kvCounters)
-    }
-  } catch (error) {
-    console.error("Failed to write headers metrics:", error)
-    // Continue with response even if metrics fails
-  }
+  // Record standard API metrics
+  await recordAPIMetrics(event, 200)
 
   // Log successful request
   const responseTime = Date.now() - startTime

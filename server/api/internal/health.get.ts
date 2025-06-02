@@ -1,5 +1,4 @@
-import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
-import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
+import { recordAPIMetrics } from "~/server/middleware/metrics"
 import { createApiResponse, logRequest } from "~/server/utils/response"
 import { HealthCheckSchema } from "~/server/utils/schemas"
 
@@ -16,25 +15,8 @@ export default defineEventHandler(async (event) => {
     cf_datacenter: getHeader(event, "cf-ray")?.substring(0, 3) || "unknown"
   })
 
-  // Write KV metrics
-  try {
-    const env = getCloudflareEnv(event)
-    const cfInfo = getCloudflareRequestInfo(event)
-
-    const userAgent = getHeader(event, "user-agent") || ""
-    const kvCounters = createAPIRequestKVCounters("/api/internal/health", "GET", 200, cfInfo, userAgent, [
-      { key: "health:checks:total" },
-      { key: `health:environments:${healthData.environment}` },
-      { key: `health:runtimes:${healthData.runtime}` }
-    ])
-
-    if (env?.DATA) {
-      await writeKVMetrics(env.DATA, kvCounters)
-    }
-  } catch (error) {
-    console.error("Failed to write health check KV metrics:", error)
-    // Continue with response even if metrics fails
-  }
+  // Record standard API metrics
+  await recordAPIMetrics(event, 200)
 
   // Log successful request
   const responseTime = Date.now() - startTime

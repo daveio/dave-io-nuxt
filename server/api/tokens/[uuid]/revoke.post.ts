@@ -1,6 +1,6 @@
+import { recordAPIErrorMetrics, recordAPIMetrics } from "~/server/middleware/metrics"
 import { authorizeEndpoint } from "~/server/utils/auth"
-import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
-import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
+import { getCloudflareEnv } from "~/server/utils/cloudflare"
 import { createApiError, createApiResponse, isApiError } from "~/server/utils/response"
 
 interface RevokeRequest {
@@ -15,10 +15,10 @@ interface RevokeResponse {
 }
 
 export default defineEventHandler(async (event) => {
-  const startTime = Date.now()
-  let authToken: string | null = null
+  const _startTime = Date.now()
+  let _authToken: string | null = null
   let uuid: string | undefined
-  let operation: "revoke" | "unrevoke" | undefined
+  let _operation: "revoke" | "unrevoke" | undefined
 
   try {
     // Check authorization for token management
@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
       throw createApiError(401, auth.error || "Unauthorized")
     }
 
-    authToken = auth.payload?.sub || null
+    _authToken = auth.payload?.sub || null
 
     uuid = getRouterParam(event, "uuid")
 
@@ -54,7 +54,7 @@ export default defineEventHandler(async (event) => {
       throw createApiError(400, 'Field "revoked" must be a boolean')
     }
 
-    operation = body.revoked ? "revoke" : "unrevoke"
+    _operation = body.revoked ? "revoke" : "unrevoke"
     const now = new Date().toISOString()
 
     // Get environment bindings using helper
@@ -103,25 +103,8 @@ export default defineEventHandler(async (event) => {
       response.revokedAt = now
     }
 
-    // Write successful KV metrics using standardized system
-    try {
-      const cfInfo = getCloudflareRequestInfo(event)
-      const _responseTime = Date.now() - startTime
-
-      const userAgent = getHeader(event, "user-agent") || ""
-      const kvCounters = createAPIRequestKVCounters(`/api/tokens/${uuid}/revoke`, "POST", 200, cfInfo, userAgent, [
-        { key: "tokens:revocations:total" },
-        { key: `tokens:revocations:${operation}` },
-        { key: `tokens:revoked:${uuid}:operations` },
-        { key: `tokens:revocations:by-user:${authToken || "unknown"}` }
-      ])
-
-      if (env?.DATA) {
-        await writeKVMetrics(env.DATA, kvCounters)
-      }
-    } catch (metricsError) {
-      console.error("Failed to write token revocation success KV metrics:", metricsError)
-    }
+    // Record successful metrics
+    await recordAPIMetrics(event, 200)
 
     return createApiResponse(
       response,
@@ -130,35 +113,8 @@ export default defineEventHandler(async (event) => {
   } catch (error: unknown) {
     console.error("Token revocation error:", error)
 
-    // Write KV metrics for failed requests
-    try {
-      const env = getCloudflareEnv(event)
-      const cfInfo = getCloudflareRequestInfo(event)
-      const _responseTime = Date.now() - startTime
-      // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
-      const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
-
-      const userAgent = getHeader(event, "user-agent") || ""
-      const kvCounters = createAPIRequestKVCounters(
-        `/api/tokens/${uuid || "unknown"}/revoke`,
-        "POST",
-        statusCode,
-        cfInfo,
-        userAgent,
-        [
-          { key: "tokens:revocations:total" },
-          { key: "tokens:revocations:errors:total" },
-          { key: `tokens:revocations:errors:${statusCode}` },
-          { key: operation ? `tokens:revocations:${operation}:errors` : "tokens:revocations:unknown:errors" }
-        ]
-      )
-
-      if (env?.DATA) {
-        await writeKVMetrics(env.DATA, kvCounters)
-      }
-    } catch (metricsError) {
-      console.error("Failed to write token revocation error KV metrics:", metricsError)
-    }
+    // Record error metrics
+    await recordAPIErrorMetrics(event, error)
 
     if (isApiError(error)) {
       throw error

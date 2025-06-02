@@ -1,5 +1,5 @@
-import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
-import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
+import { recordAPIMetrics } from "~/server/middleware/metrics"
+import { getCloudflareRequestInfo } from "~/server/utils/cloudflare"
 import { createApiResponse, logRequest } from "~/server/utils/response"
 
 export default defineEventHandler(async (event) => {
@@ -17,20 +17,8 @@ export default defineEventHandler(async (event) => {
     user_agent: cfInfo.userAgent
   }
 
-  // Write KV metrics
-  try {
-    const env = getCloudflareEnv(event)
-    const _responseTime = Date.now() - startTime
-
-    const kvCounters = createAPIRequestKVCounters("/api/internal/ping", "GET", 200, cfInfo, cfInfo.userAgent)
-
-    if (env?.DATA) {
-      await writeKVMetrics(env.DATA, kvCounters)
-    }
-  } catch (error) {
-    console.error("Failed to write ping KV metrics:", error)
-    // Continue with response even if metrics fails
-  }
+  // Record standard API metrics
+  await recordAPIMetrics(event, 200)
 
   // Log successful request
   const responseTime = Date.now() - startTime

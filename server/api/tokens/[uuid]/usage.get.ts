@@ -1,6 +1,6 @@
+import { recordAPIErrorMetrics, recordAPIMetrics } from "~/server/middleware/metrics"
 import { requireAPIAuth } from "~/server/utils/auth-helpers"
-import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
-import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
+import { getCloudflareEnv } from "~/server/utils/cloudflare"
 import { createApiError, createApiResponse, isApiError, logRequest } from "~/server/utils/response"
 import { getValidatedUUID } from "~/server/utils/validation"
 
@@ -122,33 +122,8 @@ export default defineEventHandler(async (event) => {
     })
 
     // Write KV metrics for failed requests
-    try {
-      const env = getCloudflareEnv(event)
-      const cfInfo = getCloudflareRequestInfo(event)
-      const _responseTime = Date.now() - startTime
-      // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
-      const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
-
-      const userAgent = getHeader(event, "user-agent") || ""
-      const kvCounters = createAPIRequestKVCounters(
-        `/api/tokens/${uuid || "unknown"}/usage`,
-        "GET",
-        statusCode,
-        cfInfo,
-        userAgent,
-        [
-          { key: "tokens:usage:queries:total" },
-          { key: "tokens:usage:errors:total" },
-          { key: `tokens:usage:errors:${statusCode}` }
-        ]
-      )
-
-      if (env?.DATA) {
-        await writeKVMetrics(env.DATA, kvCounters)
-      }
-    } catch (metricsError) {
-      console.error("Failed to write token usage error KV metrics:", metricsError)
-    }
+    // Record error metrics
+    await recordAPIErrorMetrics(event, error)
 
     if (isApiError(error)) {
       throw error

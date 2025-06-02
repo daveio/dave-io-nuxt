@@ -1,6 +1,5 @@
 import { getHeader } from "h3"
-import { getCloudflareEnv, getCloudflareRequestInfo, getKVNamespace } from "~/server/utils/cloudflare"
-import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
+import { recordAPIMetrics } from "~/server/middleware/metrics"
 import { createApiResponse, logRequest } from "~/server/utils/response"
 
 export default defineEventHandler(async (event) => {
@@ -23,27 +22,8 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Write KV metrics
-  try {
-    const env = getCloudflareEnv(event)
-    const cfInfo = getCloudflareRequestInfo(event)
-    const kv = getKVNamespace(env)
-
-    const userAgent = getHeader(event, "user-agent") || ""
-    const kvCounters = createAPIRequestKVCounters("/api/internal/worker", "GET", 200, cfInfo, userAgent, [
-      { key: "worker-info:requests:total" },
-      { key: `worker-info:runtimes:${workerInfo.runtime.replace(/[^a-z0-9]/g, "-")}` },
-      { key: `worker-info:presets:${workerInfo.preset}` },
-      { key: "worker-info:features:api-available", increment: workerInfo.api_available ? 1 : 0 },
-      { key: "worker-info:features:ssr", increment: workerInfo.server_side_rendering ? 1 : 0 },
-      { key: "worker-info:features:edge-functions", increment: workerInfo.edge_functions ? 1 : 0 }
-    ])
-
-    await writeKVMetrics(kv, kvCounters)
-  } catch (error) {
-    console.error("Failed to write worker-info metrics:", error)
-    // Continue with response even if metrics fails
-  }
+  // Record standard API metrics
+  await recordAPIMetrics(event, 200)
 
   // Log successful request
   const responseTime = Date.now() - startTime
