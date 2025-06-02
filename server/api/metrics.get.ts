@@ -1,7 +1,7 @@
 import { requireAPIAuth } from "~/server/utils/auth-helpers"
 import { batchKVGet, getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
 import { formatMetricsAsPrometheus, formatMetricsAsYAML, handleResponseFormat } from "~/server/utils/formatters"
-import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
+import { createAPIRequestKVCounters, writeKVMetrics, getKVMetrics } from "~/server/utils/kv-metrics"
 import { createApiError, isApiError, logRequest } from "~/server/utils/response"
 import { TokenMetricsSchema } from "~/server/utils/schemas"
 
@@ -18,65 +18,21 @@ async function getMetricsFromKV(kv?: KVNamespace): Promise<{
   }
 
   try {
-    // Try to get cached metrics from KV first
-    const cachedMetrics = await kv.get("api_metrics_cache")
-    if (cachedMetrics) {
-      const parsed = JSON.parse(cachedMetrics)
-      // Check if cache is less than 5 minutes old
-      if (Date.now() - parsed.cached_at < 5 * 60 * 1000) {
-        return parsed.data
-      }
-    }
-
-    // Query real metrics from KV storage
-    const now = new Date()
-
-    // Get total API requests from KV counters using batch helper
-    const [totalRequests = 0, successfulRequests = 0, failedRequests = 0, rateLimitedRequests = 0] = await batchKVGet(
-      kv,
-      [
-        "metrics:requests:total",
-        "metrics:requests:successful",
-        "metrics:requests:failed",
-        "metrics:requests:rate_limited"
-      ]
-    )
-
-    // Get 24h metrics from KV using batch helper
-    const [last24hTotal = 0, last24hSuccessful = 0, last24hFailed = 0, last24hRedirects = 0] = await batchKVGet(kv, [
-      "metrics:24h:total",
-      "metrics:24h:successful",
-      "metrics:24h:failed",
-      "metrics:24h:redirects"
-    ])
-
-    // Get redirect click metrics from KV
-    const [totalRedirectClicks = 0] = await batchKVGet(kv, ["metrics:redirect:total:clicks"])
+    // Get metrics using new hierarchy
+    const kvMetrics = await getKVMetrics(kv)
 
     const metricsData = {
-      total_requests: totalRequests,
-      successful_requests: successfulRequests,
-      failed_requests: failedRequests,
-      rate_limited_requests: rateLimitedRequests,
-      redirect_clicks: totalRedirectClicks,
+      total_requests: kvMetrics.totalRequests,
+      successful_requests: kvMetrics.successfulRequests,
+      failed_requests: kvMetrics.failedRequests,
+      rate_limited_requests: kvMetrics.rateLimitedRequests,
+      redirect_clicks: kvMetrics.redirectClicks,
       last_24h: {
-        total: last24hTotal,
-        successful: last24hSuccessful,
-        failed: last24hFailed,
-        redirects: last24hRedirects
+        total: 0, // TODO: Remove 24h tracking in new hierarchy
+        successful: 0,
+        failed: 0,
+        redirects: 0
       }
-    }
-
-    // Cache the results if KV is available
-    if (kv) {
-      await kv.put(
-        "api_metrics_cache",
-        JSON.stringify({
-          data: metricsData,
-          cached_at: now
-        }),
-        { expirationTtl: 300 }
-      ) // 5 minutes
     }
 
     return metricsData
@@ -104,10 +60,7 @@ export default defineEventHandler(async (event) => {
       try {
         const cfInfo = getCloudflareRequestInfo(event)
 
-        const kvCounters = createAPIRequestKVCounters("/api/metrics", "GET", 503, cfInfo, [
-          { key: "metrics:errors:service-unavailable" },
-          { key: "metrics:availability:kv", increment: env?.DATA ? 1 : 0 }
-        ])
+        const kvCounters = createAPIRequestKVCounters("/api/metrics", "GET", 503, cfInfo, getHeader(event, "user-agent"))
 
         if (env?.DATA) {
           await writeKVMetrics(env.DATA, kvCounters)
@@ -143,16 +96,7 @@ export default defineEventHandler(async (event) => {
     try {
       const cfInfo = getCloudflareRequestInfo(event)
 
-      const kvCounters = createAPIRequestKVCounters("/api/metrics", "GET", 200, cfInfo, [
-        { key: "metrics:retrievals:total" },
-        { key: `metrics:format:${requestedFormat}` },
-        { key: "metrics:data:total-requests", value: metricsData.total_requests },
-        { key: "metrics:data:successful-requests", value: metricsData.successful_requests },
-        { key: "metrics:data:failed-requests", value: metricsData.failed_requests },
-        { key: "metrics:data:rate-limited-requests", value: metricsData.rate_limited_requests },
-        { key: "metrics:data:redirect-clicks", value: metricsData.redirect_clicks },
-        { key: "metrics:data:last-24h-total", value: metricsData.last_24h.total }
-      ])
+      const kvCounters = createAPIRequestKVCounters("/api/metrics", "GET", 200, cfInfo, getHeader(event, "user-agent"))
 
       if (env?.DATA) {
         await writeKVMetrics(env.DATA, kvCounters)
@@ -187,10 +131,7 @@ export default defineEventHandler(async (event) => {
       const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
 
       if (env?.DATA) {
-        const kvCounters = createAPIRequestKVCounters("/api/metrics", "GET", statusCode, cfInfo, [
-          { key: "metrics:errors:total" },
-          { key: authSuccess ? "metrics:errors:processing" : "metrics:errors:auth-failed" }
-        ])
+        const kvCounters = createAPIRequestKVCounters("/api/metrics", "GET", statusCode, cfInfo, getHeader(event, "user-agent"))
 
         await writeKVMetrics(env.DATA, kvCounters)
       }

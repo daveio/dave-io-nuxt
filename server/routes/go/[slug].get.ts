@@ -25,20 +25,15 @@ export default defineEventHandler(async (event) => {
       throw createApiError(400, "Slug parameter is required")
     }
 
-    // Get redirect from KV storage using kebab-case keys
+    // Get redirect from KV storage using new hierarchy
     const redirectUrlKey = `redirect:${slug}`
-    const redirectClicksKey = `metrics:redirect:${slug}:clicks`
-    const redirectCreatedKey = `metrics:redirect:${slug}:created-at`
-    const redirectUpdatedKey = `metrics:redirect:${slug}:updated-at`
 
     let redirectData: RedirectData | undefined
 
     try {
-      const [url, clicksStr, createdAt, updatedAt] = await Promise.all([
+      const [url, clicksStr] = await Promise.all([
         kv.get(redirectUrlKey),
-        kv.get(redirectClicksKey),
-        kv.get(redirectCreatedKey),
-        kv.get(redirectUpdatedKey)
+        kv.get(`metrics:redirect:${slug}`)
       ])
 
       if (url) {
@@ -46,8 +41,8 @@ export default defineEventHandler(async (event) => {
           slug: slug,
           url: url,
           clicks: Number.parseInt(clicksStr || "0", 10),
-          created_at: createdAt || Date.now().toString(),
-          updated_at: updatedAt || Date.now().toString()
+          created_at: Date.now().toString(),
+          updated_at: Date.now().toString()
         }
       }
     } catch (error) {
@@ -62,23 +57,12 @@ export default defineEventHandler(async (event) => {
     // Validate redirect data
     const redirect = UrlRedirectSchema.parse(redirectData)
 
-    // Update redirect click metrics using kebab-case keys
+    // Update redirect click metrics using new hierarchy
     const clickCount = (redirect.clicks || 0) + 1
-    const updatedAt = Date.now().toString()
 
     try {
-      // Store redirect data using kebab-case colon-separated keys with simple values
-      await Promise.all([
-        kv.put(redirectClicksKey, clickCount.toString()),
-        kv.put(redirectUpdatedKey, updatedAt),
-        // Update total redirect clicks
-        kv
-          .get("metrics:redirect:total:clicks")
-          .then(async (totalStr) => {
-            const currentTotal = Number.parseInt(totalStr || "0", 10)
-            await kv.put("metrics:redirect:total:clicks", (currentTotal + 1).toString())
-          })
-      ])
+      // Update click count in new hierarchy
+      await kv.put(`metrics:redirect:${slug}`, clickCount.toString())
     } catch (error) {
       console.error("Failed to update redirect metrics in KV:", error)
       // Continue with redirect even if click tracking fails
@@ -93,8 +77,7 @@ export default defineEventHandler(async (event) => {
         slug,
         redirect.url,
         1, // Single click increment
-        cfInfo,
-        [{ key: `metrics:redirect:daily:${new Date().toISOString().split("T")[0]}` }]
+        cfInfo
       )
 
       await writeKVMetrics(kv, kvCounters)

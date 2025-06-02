@@ -89,13 +89,7 @@ export default defineEventHandler(async (event) => {
         processingTime,
         imageBuffer.byteLength,
         auth.payload?.sub,
-        cfInfo,
-        [
-          { key: "ai:alt-text:requests:total" },
-          { key: `ai:alt-text:models:${aiModel.replace(/[^a-z0-9]/g, "-")}` },
-          { key: "ai:alt-text:rate-limit:used", increment: 1 },
-          { key: "ai:alt-text:rate-limit:remaining", value: rateLimit.remaining }
-        ]
+        cfInfo
       )
 
       await writeKVMetrics(kv, kvCounters)
@@ -147,11 +141,7 @@ export default defineEventHandler(async (event) => {
       const kv = getKVNamespace(env)
       const statusCode = isApiError(error) ? error.statusCode || 500 : 500
 
-      const kvCounters = createAIKVCounters("alt-text", false, 0, 0, undefined, cfInfo, [
-        { key: "ai:alt-text:requests:total" },
-        { key: "ai:alt-text:errors:total" },
-        { key: `ai:alt-text:errors:${statusCode}` }
-      ])
+      const kvCounters = createAIKVCounters("alt-text", false, 0, 0, undefined, cfInfo)
 
       await writeKVMetrics(kv, kvCounters)
     } catch (metricsError) {

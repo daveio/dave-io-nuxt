@@ -22,16 +22,7 @@ export default defineEventHandler(async (event) => {
     const env = getCloudflareEnv(event)
     const responseTime = Date.now() - startTime
 
-    const kvCounters = createAPIRequestKVCounters("/api/ping", "GET", 200, cfInfo, [
-      { key: "ping:total" },
-      { key: `ping:by-datacenter:${cfInfo.datacenter.toLowerCase()}` },
-      { key: "ping:response-time:bucket", increment: responseTime < 10 ? 1 : 0 }, // Fast pings
-      {
-        key: `ping:unique-ips:daily:${new Date().toISOString().split("T")[0]}:${cfInfo.ip.replace(/\./g, "-")}`,
-        increment: 0,
-        value: 1
-      } // Unique daily IPs
-    ])
+    const kvCounters = createAPIRequestKVCounters("/api/ping", "GET", 200, cfInfo, cfInfo.userAgent)
 
     if (env?.DATA) {
       await writeKVMetrics(env.DATA, kvCounters)

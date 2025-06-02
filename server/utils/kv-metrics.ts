@@ -18,38 +18,11 @@ interface KVMetrics {
   failedRequests: number
   rateLimitedRequests: number
   redirectClicks: number
-  last24h: {
-    total: number
-    successful: number
-    failed: number
-    redirects: number
-  }
   routeros: {
     cacheHits: number
     cacheMisses: number
   }
   redirectsBySlug: Record<string, number>
-}
-
-/**
- * Normalize key to kebab-case with colons and ensure metrics: prefix
- */
-function normalizeKVKey(key: string): string {
-  // Ensure it starts with metrics:
-  let normalizedKey = key
-  if (!normalizedKey.startsWith("metrics:")) {
-    normalizedKey = `metrics:${normalizedKey}`
-  }
-
-  // Convert to kebab-case and normalize separators
-  return normalizedKey
-    .toLowerCase()
-    .replace(/[^a-z0-9:]/g, "-") // Replace non-alphanumeric (except colons) with dashes
-    .replace(/-+/g, "-") // Remove multiple consecutive dashes
-    .replace(/-:/g, ":") // Clean up dash-colon combinations
-    .replace(/:-/g, ":") // Clean up colon-dash combinations
-    .replace(/^-/, "") // Remove leading dash
-    .replace(/-$/, "") // Remove trailing dash
 }
 
 /**
@@ -60,16 +33,14 @@ export async function writeKVMetrics(kvNamespace: KVNamespace, kvCounters: KVCou
     await Promise.all(
       kvCounters.map(async (counter) => {
         try {
-          const normalizedKey = normalizeKVKey(counter.key)
-
           if (counter.value !== undefined) {
             // Set specific value
-            await kvNamespace.put(normalizedKey, String(counter.value))
+            await kvNamespace.put(counter.key, String(counter.value))
           } else {
             // Increment by specified amount (default 1)
-            const currentValue = await kvNamespace.get(normalizedKey).then((v) => Number.parseInt(v || "0"))
+            const currentValue = await kvNamespace.get(counter.key).then((v) => Number.parseInt(v || "0"))
             const increment = counter.increment || 1
-            await kvNamespace.put(normalizedKey, String(currentValue + increment))
+            await kvNamespace.put(counter.key, String(currentValue + increment))
           }
         } catch (error) {
           console.error("Failed to update KV counter:", counter.key, error)
@@ -87,58 +58,105 @@ export async function writeKVMetrics(kvNamespace: KVNamespace, kvCounters: KVCou
  * Get KV metrics for fast dashboard queries
  */
 export async function getKVMetrics(kv: KVNamespace): Promise<KVMetrics> {
-  // Get all metric keys in parallel
-  const metricKeys = [
-    "metrics:requests:total",
-    "metrics:requests:successful",
-    "metrics:requests:failed",
-    "metrics:requests:rate_limited",
-    "metrics:redirect:total:clicks",
-    "metrics:24h:total",
-    "metrics:24h:successful",
-    "metrics:24h:failed",
-    "metrics:24h:redirects",
-    "metrics:routeros:cache-hits",
-    "metrics:routeros:cache-misses"
-  ]
-
-  const results = await Promise.all(
-    metricKeys.map(async (key) => {
-      const value = await kv.get(key)
-      return Number.parseInt(value || "0", 10) || 0
-    })
-  )
-
+  // Get all resource-specific metrics in parallel
+  const resourceKeys = await kv.list({ prefix: "metrics:" })
+  const redirectKeys = await kv.list({ prefix: "redirect:" })
+  
+  // Calculate totals by aggregating all resource metrics
+  let totalRequests = 0
+  let successfulRequests = 0
+  let failedRequests = 0
+  let redirectClicks = 0
+  let routerOSCacheHits = 0
+  let routerOSCacheMisses = 0
+  
+  // Aggregate metrics from all resources
+  for (const key of resourceKeys.keys) {
+    const value = await kv.get(key.name)
+    const count = Number.parseInt(value || "0", 10) || 0
+    
+    if (key.name.includes(":hit:total")) {
+      totalRequests += count
+    } else if (key.name.includes(":hit:ok")) {
+      successfulRequests += count
+    } else if (key.name.includes(":hit:error")) {
+      failedRequests += count
+    } else if (key.name === "metrics:redirect") {
+      // This is handled separately below
+    } else if (key.name === "metrics:routeros:hit:total" && key.name.includes("cache-hits")) {
+      routerOSCacheHits += count
+    } else if (key.name === "metrics:routeros:hit:total" && key.name.includes("cache-misses")) {
+      routerOSCacheMisses += count
+    }
+  }
+  
   // Get redirect metrics by slug
-  const redirectKeys = await kv.list({ prefix: "metrics:redirect:" })
   const redirectsBySlug: Record<string, number> = {}
-
-  for (const key of redirectKeys.keys) {
-    if (key.name !== "metrics:redirect:total:clicks") {
-      const slug = key.name.replace("metrics:redirect:", "").replace(":clicks", "")
+  
+  for (const key of resourceKeys.keys) {
+    if (key.name.startsWith("metrics:redirect:")) {
+      const slug = key.name.replace("metrics:redirect:", "")
       const clicks = await kv.get(key.name)
-      redirectsBySlug[slug] = Number.parseInt(clicks || "0", 10) || 0
+      const count = Number.parseInt(clicks || "0", 10) || 0
+      redirectsBySlug[slug] = count
+      redirectClicks += count
     }
   }
 
   return {
-    totalRequests: results[0] ?? 0,
-    successfulRequests: results[1] ?? 0,
-    failedRequests: results[2] ?? 0,
-    rateLimitedRequests: results[3] ?? 0,
-    redirectClicks: results[4] ?? 0,
-    last24h: {
-      total: results[5] ?? 0,
-      successful: results[6] ?? 0,
-      failed: results[7] ?? 0,
-      redirects: results[8] ?? 0
-    },
+    totalRequests,
+    successfulRequests,
+    failedRequests,
+    rateLimitedRequests: 0, // TODO: Implement rate limit tracking in new hierarchy
+    redirectClicks,
     routeros: {
-      cacheHits: results[9] ?? 0,
-      cacheMisses: results[10] ?? 0
+      cacheHits: routerOSCacheHits,
+      cacheMisses: routerOSCacheMisses
     },
     redirectsBySlug
   }
+}
+
+/**
+ * Extract resource name from endpoint path
+ */
+function getResourceFromEndpoint(endpoint: string): string {
+  // Remove /api/ prefix and get first segment
+  const path = endpoint.replace(/^\/api\//, "")
+  const segments = path.split("/")
+  return segments[0] || "unknown"
+}
+
+/**
+ * Classify user agent as human, bot, or unknown
+ */
+function classifyVisitor(userAgent: string): "human" | "bot" | "unknown" {
+  if (!userAgent) return "unknown"
+  
+  const botPatterns = [
+    /bot/i,
+    /crawler/i,
+    /spider/i,
+    /scraper/i,
+    /headless/i,
+    /phantom/i,
+    /puppeteer/i,
+    /playwright/i,
+    /selenium/i,
+    /curl/i,
+    /wget/i
+  ]
+  
+  if (botPatterns.some(pattern => pattern.test(userAgent))) {
+    return "bot"
+  }
+  
+  // Simple heuristic for human browsers
+  if (/mozilla|chrome|safari|firefox|edge/i.test(userAgent)) {
+    return "human"
+  }
+  
+  return "unknown"
 }
 
 /**
@@ -149,22 +167,20 @@ export function createAPIRequestKVCounters(
   method: string,
   statusCode: number,
   cfInfo: { country: string; datacenter: string },
+  userAgent?: string,
   extraCounters?: KVCounterEntry[]
 ): KVCounterEntry[] {
+  const resource = getResourceFromEndpoint(endpoint)
   const success = statusCode < 400
-  const endpointSlug = endpoint.replace(/^\/api\//, "").replace(/[^a-z0-9]/g, "-")
-
+  const visitorType = classifyVisitor(userAgent || "")
+  
   const baseCounters: KVCounterEntry[] = [
-    { key: "requests:total" },
-    { key: success ? "requests:successful" : "requests:failed" },
-    { key: `requests:by-status:${statusCode}` },
-    { key: `requests:by-method:${method.toLowerCase()}` },
-    { key: `requests:by-endpoint:${endpointSlug}:total` },
-    {
-      key: success ? `requests:by-endpoint:${endpointSlug}:successful` : `requests:by-endpoint:${endpointSlug}:failed`
-    },
-    { key: `requests:by-country:${cfInfo.country.toLowerCase()}` },
-    { key: `requests:by-datacenter:${cfInfo.datacenter.toLowerCase()}` }
+    // Hit tracking
+    { key: `metrics:${resource}:hit:total` },
+    { key: success ? `metrics:${resource}:hit:ok` : `metrics:${resource}:hit:error` },
+    
+    // Visitor tracking
+    { key: `metrics:${resource}:visitor:${visitorType}` }
   ]
 
   return [...baseCounters, ...(extraCounters || [])]
@@ -180,29 +196,12 @@ export function createAuthKVCounters(
   cfInfo: { country: string },
   extraCounters?: KVCounterEntry[]
 ): KVCounterEntry[] {
-  const endpointSlug = endpoint.replace(/[^a-z0-9]/g, "-")
+  const resource = getResourceFromEndpoint(endpoint)
 
   const baseCounters: KVCounterEntry[] = [
-    { key: "auth:total" },
-    { key: success ? "auth:successful" : "auth:failed" },
-    { key: `auth:by-endpoint:${endpointSlug}:total` },
-    { key: success ? `auth:by-endpoint:${endpointSlug}:successful` : `auth:by-endpoint:${endpointSlug}:failed` },
-    { key: `auth:by-country:${cfInfo.country.toLowerCase()}` }
+    // Auth tracking
+    { key: success ? `metrics:${resource}:auth:succeeded` : `metrics:${resource}:auth:failed` }
   ]
-
-  // Add token-specific counters if we have a token subject
-  if (tokenSubject) {
-    const tokenSlug = tokenSubject.replace(/[^a-z0-9]/g, "-")
-    baseCounters.push(
-      { key: `auth:by-token:${tokenSlug}:total` },
-      { key: success ? `auth:by-token:${tokenSlug}:successful` : `auth:by-token:${tokenSlug}:failed` }
-    )
-  }
-
-  // Failed auth by country for security monitoring
-  if (!success) {
-    baseCounters.push({ key: `auth:failed:by-country:${cfInfo.country.toLowerCase()}` })
-  }
 
   return [...baseCounters, ...(extraCounters || [])]
 }
@@ -217,12 +216,9 @@ export function createRedirectKVCounters(
   cfInfo: { country: string },
   extraCounters?: KVCounterEntry[]
 ): KVCounterEntry[] {
-  const domainMatch = destinationUrl.match(/^https?:\/\/([^\/]+)/)
-  const domain = domainMatch?.[1]?.replace(/[^a-z0-9]/g, "-") || "unknown"
-
   const baseCounters: KVCounterEntry[] = [
-    { key: `redirect:by-domain:${domain}`, increment: clickCount },
-    { key: `redirect:by-country:${cfInfo.country.toLowerCase()}`, increment: clickCount }
+    // Redirect click tracking
+    { key: `metrics:redirect:${slug}`, increment: clickCount }
   ]
 
   return [...baseCounters, ...(extraCounters || [])]
@@ -241,31 +237,10 @@ export function createAIKVCounters(
   extraCounters?: KVCounterEntry[]
 ): KVCounterEntry[] {
   const baseCounters: KVCounterEntry[] = [
-    { key: "ai:total" },
-    { key: success ? "ai:successful" : "ai:failed" },
-    { key: `ai:by-operation:${operation}:total` },
-    { key: success ? `ai:by-operation:${operation}:successful` : `ai:by-operation:${operation}:failed` },
-    { key: `ai:by-country:${cfInfo.country.toLowerCase()}` }
+    // AI operation tracking
+    { key: success ? `metrics:ai:hit:ok` : `metrics:ai:hit:error` },
+    { key: `metrics:ai:hit:total` }
   ]
-
-  // Add processing time buckets for performance monitoring
-  const timeBucket = processingTimeMs < 1000 ? "fast" : processingTimeMs < 5000 ? "medium" : "slow"
-  baseCounters.push({ key: `ai:by-speed:${timeBucket}` })
-
-  // Add image size buckets if available
-  if (imageSizeBytes) {
-    const sizeBucket = imageSizeBytes < 100000 ? "small" : imageSizeBytes < 1000000 ? "medium" : "large"
-    baseCounters.push({ key: `ai:by-image-size:${sizeBucket}` })
-  }
-
-  // Add user-specific counters if available
-  if (userId) {
-    const userSlug = userId.replace(/[^a-z0-9]/g, "-")
-    baseCounters.push(
-      { key: `ai:by-user:${userSlug}:total` },
-      { key: success ? `ai:by-user:${userSlug}:successful` : `ai:by-user:${userSlug}:failed` }
-    )
-  }
 
   return [...baseCounters, ...(extraCounters || [])]
 }
@@ -281,23 +256,12 @@ export function createRateLimitKVCounters(
   cfInfo: { country: string },
   extraCounters?: KVCounterEntry[]
 ): KVCounterEntry[] {
-  const endpointSlug = endpoint.replace(/[^a-z0-9]/g, "-")
+  const resource = getResourceFromEndpoint(endpoint)
 
   const baseCounters: KVCounterEntry[] = [
-    { key: "rate-limits:total" },
-    { key: `rate-limits:by-action:${action}` },
-    { key: `rate-limits:by-endpoint:${endpointSlug}` },
-    { key: `rate-limits:by-country:${cfInfo.country.toLowerCase()}` }
+    // Rate limit tracking (could be expanded with specific rate limit metrics)
+    { key: `metrics:${resource}:hit:error` } // Rate limited requests are errors
   ]
-
-  // Add token-specific rate limit tracking
-  if (tokenSubject) {
-    const tokenSlug = tokenSubject.replace(/[^a-z0-9]/g, "-")
-    baseCounters.push(
-      { key: `rate-limits:by-token:${tokenSlug}:total` },
-      { key: `rate-limits:by-token:${tokenSlug}:${action}` }
-    )
-  }
 
   return [...baseCounters, ...(extraCounters || [])]
 }
@@ -306,19 +270,7 @@ export function createRateLimitKVCounters(
  * Helper to detect bot user agents
  */
 export function isBot(userAgent: string): boolean {
-  const botPatterns = [
-    /bot/i,
-    /crawler/i,
-    /spider/i,
-    /scraper/i,
-    /headless/i,
-    /phantom/i,
-    /puppeteer/i,
-    /playwright/i,
-    /selenium/i
-  ]
-
-  return botPatterns.some((pattern) => pattern.test(userAgent))
+  return classifyVisitor(userAgent) === "bot"
 }
 
 export type { KVCounterEntry, KVMetrics }
