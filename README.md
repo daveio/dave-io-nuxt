@@ -402,13 +402,13 @@ bun run kv list --pattern "metrics" # Filter by pattern
 bun run kv wipe                      # Nuclear option (requires CONFIRM_WIPE=yes)
 ```
 
-**Backup Patterns (which are not all created equal):**
+**Backup Patterns (simplified hierarchy):**
 
-- `dashboard:demo:items` - Demo dashboard data
-- `redirect:*` - URL redirections
-- `metrics:*` - API metrics cache
-- `auth:*` - Authentication data
-- `routeros:*` - RouterOS cache
+- `redirect:*` - URL redirect mappings (slug → target URL)
+- `metrics:*` - All API metrics (resource-based hierarchy)
+- `dashboard:demo:items` - Demo dashboard data (legacy)
+- `auth:*` - Authentication data (if any legacy remains)
+- `routeros:*` - RouterOS cache (legacy, may be removed)
 
 ### `bin/deploy-env.ts` - Secure Environment Deployment (The Security-Conscious Wizard)
 
@@ -591,44 +591,38 @@ My implementation uses Cloudflare KV storage for fast, hierarchical metrics trac
 
 ### KV Storage Architecture
 
-All metrics are stored in KV using a hierarchical key structure for fast retrieval and easy aggregation:
+All metrics are stored in KV using a simplified hierarchical key structure for fast retrieval and easy aggregation:
 
 ```bash
-# Core API metrics for the /api/metrics endpoint
-metrics:requests:total              # "12345" - Total API requests
-metrics:requests:successful         # "12000" - Successful responses
-metrics:requests:failed            # "345"   - Failed responses
-metrics:requests:rate_limited      # "100"   - Rate limited requests
+# Redirect Storage and Metrics
+redirect:gh                        # "https://github.com/daveio" - Target URL
+redirect:tw                        # "https://twitter.com/daveio" - Target URL
+metrics:redirect:gh                # "1234" - Click count for GitHub redirect
+metrics:redirect:tw                # "567"  - Click count for Twitter redirect
 
-# Redirect tracking
-metrics:redirect:total:clicks      # "5678"  - Total redirect clicks
-metrics:redirect:gh:clicks         # "1234"  - GitHub redirect clicks
-metrics:redirect:tw:clicks         # "567"   - Twitter redirect clicks
-metrics:redirect:li:clicks         # "890"   - LinkedIn redirect clicks
+# API Hit Tracking (by resource)
+metrics:auth:hit:total             # "8901" - Total requests to /api/auth/*
+metrics:auth:hit:ok                # "8700" - Successful auth requests
+metrics:auth:hit:error             # "201"  - Failed auth requests
+metrics:ai:hit:total               # "456"  - Total requests to /api/ai/*
+metrics:ai:hit:ok                  # "450"  - Successful AI requests
+metrics:ai:hit:error               # "6"    - Failed AI requests
 
-# 24-hour rolling metrics (auto-expire)
-metrics:24h:total                  # "2345"  - Last 24h requests
-metrics:24h:successful             # "2300"  - Last 24h success
-metrics:24h:failed                 # "45"    - Last 24h failures
-metrics:24h:redirects              # "123"   - Last 24h redirects
+# Authentication Events
+metrics:auth:auth:succeeded        # "8700" - Successful authentications
+metrics:auth:auth:failed           # "201"  - Failed authentications
+metrics:ai:auth:succeeded          # "445"  - Successful AI auths
+metrics:ai:auth:failed             # "11"   - Failed AI auths
 
-# Authentication metrics
-metrics:auth:total                 # "8901"  - Total auth attempts
-metrics:auth:successful            # "8700"  - Successful auths
-metrics:auth:failed                # "201"   - Failed auths
-
-# AI operation metrics
-metrics:ai:alt:total               # "456"   - Total alt-text requests
-metrics:ai:alt:successful          # "450"   - Successful generations
-metrics:ai:alt:failed              # "6"     - Failed generations
-
-# RouterOS cache metrics
-metrics:routeros:cache-hits        # "89"    - Cache hits
-metrics:routeros:cache-misses      # "12"    - Cache misses
-metrics:routeros:refresh-count     # "5"     - Manual refreshes
+# Visitor Classification
+metrics:auth:visitor:human         # "7500" - Human visitors to auth endpoints
+metrics:auth:visitor:bot           # "1200" - Bot visitors to auth endpoints
+metrics:auth:visitor:unknown       # "201"  - Unknown visitor type
+metrics:ai:visitor:human           # "400"  - Human visitors to AI endpoints
+metrics:ai:visitor:bot             # "56"   - Bot visitors to AI endpoints
 ```
 
-**TODO**: We are soon going to migrate to this hierarchy for KV and no other keys.
+**IMPLEMENTED**: The simplified KV hierarchy is now active and replaces all legacy patterns.
 
 ```mermaid
 ---
@@ -818,24 +812,17 @@ flowchart TD
 Standardized helper functions maintain consistency across the codebase:
 
 ```typescript
-// API request counters
-const kvCounters = createAPIRequestKVCounters(endpoint, method, statusCode, cfInfo, [
-  { key: "custom:metric:key", value: 123 },
-  { key: "custom:increment:counter", increment: 1 }
-])
+// API request counters (resource-based)
+const kvCounters = createAPIRequestKVCounters(endpoint, method, statusCode, cfInfo, userAgent)
 
-// Authentication event counters
-const authCounters = createAuthKVCounters(endpoint, success, tokenSubject, cfInfo, [
-  { key: "auth:custom:metric" }
-])
+// Authentication event counters (resource-based)
+const authCounters = createAuthKVCounters(endpoint, success, tokenSubject, cfInfo)
 
-// Redirect click counters
-const redirectCounters = createRedirectKVCounters(slug, url, clicks, cfInfo, [
-  { key: `redirect:${slug}:daily:${date}` }
-])
+// Redirect click counters (simplified)
+const redirectCounters = createRedirectKVCounters(slug, url, clicks, cfInfo)
 
-// Rate limiting counters
-const rateLimitCounters = createRateLimitKVCounters(action, endpoint, user, count, cfInfo)
+// AI operation counters (resource-based)
+const aiCounters = createAIKVCounters(operation, success, processingTime, imageSize, userId, cfInfo)
 ```
 
 ### Why KV-Only Architecture?

@@ -61,7 +61,7 @@ export async function getKVMetrics(kv: KVNamespace): Promise<KVMetrics> {
   // Get all resource-specific metrics in parallel
   const resourceKeys = await kv.list({ prefix: "metrics:" })
   const redirectKeys = await kv.list({ prefix: "redirect:" })
-  
+
   // Calculate totals by aggregating all resource metrics
   let totalRequests = 0
   let successfulRequests = 0
@@ -69,12 +69,12 @@ export async function getKVMetrics(kv: KVNamespace): Promise<KVMetrics> {
   let redirectClicks = 0
   let routerOSCacheHits = 0
   let routerOSCacheMisses = 0
-  
+
   // Aggregate metrics from all resources
   for (const key of resourceKeys.keys) {
     const value = await kv.get(key.name)
     const count = Number.parseInt(value || "0", 10) || 0
-    
+
     if (key.name.includes(":hit:total")) {
       totalRequests += count
     } else if (key.name.includes(":hit:ok")) {
@@ -89,10 +89,10 @@ export async function getKVMetrics(kv: KVNamespace): Promise<KVMetrics> {
       routerOSCacheMisses += count
     }
   }
-  
+
   // Get redirect metrics by slug
   const redirectsBySlug: Record<string, number> = {}
-  
+
   for (const key of resourceKeys.keys) {
     if (key.name.startsWith("metrics:redirect:")) {
       const slug = key.name.replace("metrics:redirect:", "")
@@ -132,7 +132,7 @@ function getResourceFromEndpoint(endpoint: string): string {
  */
 function classifyVisitor(userAgent: string): "human" | "bot" | "unknown" {
   if (!userAgent) return "unknown"
-  
+
   const botPatterns = [
     /bot/i,
     /crawler/i,
@@ -146,16 +146,16 @@ function classifyVisitor(userAgent: string): "human" | "bot" | "unknown" {
     /curl/i,
     /wget/i
   ]
-  
-  if (botPatterns.some(pattern => pattern.test(userAgent))) {
+
+  if (botPatterns.some((pattern) => pattern.test(userAgent))) {
     return "bot"
   }
-  
+
   // Simple heuristic for human browsers
   if (/mozilla|chrome|safari|firefox|edge/i.test(userAgent)) {
     return "human"
   }
-  
+
   return "unknown"
 }
 
@@ -173,12 +173,12 @@ export function createAPIRequestKVCounters(
   const resource = getResourceFromEndpoint(endpoint)
   const success = statusCode < 400
   const visitorType = classifyVisitor(userAgent || "")
-  
+
   const baseCounters: KVCounterEntry[] = [
     // Hit tracking
     { key: `metrics:${resource}:hit:total` },
     { key: success ? `metrics:${resource}:hit:ok` : `metrics:${resource}:hit:error` },
-    
+
     // Visitor tracking
     { key: `metrics:${resource}:visitor:${visitorType}` }
   ]

@@ -177,7 +177,8 @@ export default defineEventHandler(async (event) => {
       const cfInfo = getCloudflareRequestInfo(event)
       const responseTime = Date.now() - startTime
 
-      const kvCounters = createAPIRequestKVCounters(`/api/dashboard/${name}`, "GET", 200, cfInfo, [
+      const userAgent = getHeader(event, "user-agent") || ""
+      const kvCounters = createAPIRequestKVCounters(`/api/dashboard/${name}`, "GET", 200, cfInfo, userAgent, [
         { key: "dashboard:requests:total" },
         { key: `dashboard:${name}:requests` },
         { key: `dashboard:sources:${source}` },
@@ -222,7 +223,8 @@ export default defineEventHandler(async (event) => {
       const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
       const name = getRouterParam(event, "name") || "unknown"
 
-      const kvCounters = createAPIRequestKVCounters(`/api/dashboard/${name}`, "GET", statusCode, cfInfo, [
+      const userAgent = getHeader(event, "user-agent") || ""
+      const kvCounters = createAPIRequestKVCounters(`/api/dashboard/${name}`, "GET", statusCode, cfInfo, userAgent, [
         { key: "dashboard:requests:total" },
         { key: `dashboard:${name}:requests` },
         { key: "dashboard:errors:total" },

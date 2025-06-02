@@ -65,7 +65,8 @@ export default defineEventHandler(async (event) => {
         const cfInfo = getCloudflareRequestInfo(event)
         const responseTime = Date.now() - startTime
 
-        const kvCounters = createAPIRequestKVCounters(`/api/tokens/${uuid}`, "GET", 200, cfInfo, [
+        const userAgent = getHeader(event, "user-agent") || ""
+        const kvCounters = createAPIRequestKVCounters(`/api/tokens/${uuid}`, "GET", 200, cfInfo, userAgent, [
           { key: "tokens:lookups:total" },
           { key: `tokens:${uuid}:lookups` },
           { key: "tokens:usage:requests", value: usage.usage_count }
@@ -105,7 +106,8 @@ export default defineEventHandler(async (event) => {
         const cfInfo = getCloudflareRequestInfo(event)
         const responseTime = Date.now() - startTime
 
-        const kvCounters = createAPIRequestKVCounters(`/api/tokens/${uuid}/revoke`, "GET", 200, cfInfo, [
+        const userAgent = getHeader(event, "user-agent") || ""
+        const kvCounters = createAPIRequestKVCounters(`/api/tokens/${uuid}/revoke`, "GET", 200, cfInfo, userAgent, [
           { key: "tokens:revocations:total" },
           { key: "tokens:revocations:legacy-get" },
           { key: `tokens:${uuid}:revocations` }
@@ -166,7 +168,8 @@ export default defineEventHandler(async (event) => {
         const cfInfo = getCloudflareRequestInfo(event)
         const responseTime = Date.now() - startTime
 
-        const kvCounters = createAPIRequestKVCounters(`/api/tokens/${uuid}/metrics`, "GET", 200, cfInfo, [
+        const userAgent = getHeader(event, "user-agent") || ""
+        const kvCounters = createAPIRequestKVCounters(`/api/tokens/${uuid}/metrics`, "GET", 200, cfInfo, userAgent, [
           { key: "tokens:metrics:queries:total" },
           { key: `tokens:${uuid}:metrics:queries` },
           { key: "tokens:metrics:requests", value: totalRequests },
@@ -195,7 +198,8 @@ export default defineEventHandler(async (event) => {
       const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
       const endpoint = `/api/tokens/${uuid || "unknown"}${path ? `/${path}` : ""}`
 
-      const kvCounters = createAPIRequestKVCounters(endpoint, "GET", statusCode, cfInfo, [
+      const userAgent = getHeader(event, "user-agent") || ""
+      const kvCounters = createAPIRequestKVCounters(endpoint, "GET", statusCode, cfInfo, userAgent, [
         { key: "tokens:management:errors:total" },
         { key: `tokens:management:errors:${statusCode}` },
         { key: path ? `tokens:${path}:errors` : "tokens:lookup:errors" }

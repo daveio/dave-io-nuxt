@@ -183,7 +183,8 @@ export default defineEventHandler(async (event) => {
     try {
       const cfInfo = getCloudflareRequestInfo(event)
 
-      const kvCounters = createAPIRequestKVCounters("/api/routeros/putio", "GET", 200, cfInfo, [
+      const userAgent = getHeader(event, "user-agent") || ""
+      const kvCounters = createAPIRequestKVCounters("/api/routeros/putio", "GET", 200, cfInfo, userAgent, [
         { key: "routeros:putio:requests:total" },
         { key: `routeros:putio:cache:${data.cacheHit ? "hits" : "misses"}` },
         { key: "routeros:putio:ipv4-ranges", value: data.ipv4Ranges.length },

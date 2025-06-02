@@ -21,7 +21,8 @@ export default defineEventHandler(async (event) => {
     const env = getCloudflareEnv(event)
     const cfInfo = getCloudflareRequestInfo(event)
 
-    const kvCounters = createAPIRequestKVCounters("/api/health", "GET", 200, cfInfo, [
+    const userAgent = getHeader(event, "user-agent") || ""
+    const kvCounters = createAPIRequestKVCounters("/api/health", "GET", 200, cfInfo, userAgent, [
       { key: "health:checks:total" },
       { key: `health:environments:${healthData.environment}` },
       { key: `health:runtimes:${healthData.runtime}` }

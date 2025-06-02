@@ -68,7 +68,8 @@ export default defineEventHandler(async (event) => {
         const cfInfo = getCloudflareRequestInfo(event)
         const responseTime = Date.now() - startTime
 
-        const kvCounters = createAPIRequestKVCounters("/api/routeros/cache", "GET", 503, cfInfo, [
+        const userAgent = getHeader(event, "user-agent") || ""
+        const kvCounters = createAPIRequestKVCounters("/api/routeros/cache", "GET", 503, cfInfo, userAgent, [
           { key: "routeros:cache:errors:service-unavailable" },
           { key: "routeros:cache:availability:kv", increment: env?.DATA ? 1 : 0 }
         ])
@@ -91,7 +92,8 @@ export default defineEventHandler(async (event) => {
       const cfInfo = getCloudflareRequestInfo(event)
       const _responseTime = Date.now() - startTime
 
-      const kvCounters = createAPIRequestKVCounters("/api/routeros/cache", "GET", 200, cfInfo, [
+      const userAgent = getHeader(event, "user-agent") || ""
+      const kvCounters = createAPIRequestKVCounters("/api/routeros/cache", "GET", 200, cfInfo, userAgent, [
         { key: "routeros:cache:checks:total" },
         { key: `routeros:cache:status:${stats.isStale ? "stale" : "fresh"}` },
         { key: "routeros:cache:ipv4-count", value: stats.ipv4Count },
@@ -138,7 +140,8 @@ export default defineEventHandler(async (event) => {
       // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
       const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
 
-      const kvCounters = createAPIRequestKVCounters("/api/routeros/cache", "GET", statusCode, cfInfo, [
+      const userAgent = getHeader(event, "user-agent") || ""
+      const kvCounters = createAPIRequestKVCounters("/api/routeros/cache", "GET", statusCode, cfInfo, userAgent, [
         { key: "routeros:cache:errors:total" },
         { key: `routeros:cache:errors:${statusCode}` }
       ])

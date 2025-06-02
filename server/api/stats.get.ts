@@ -16,7 +16,8 @@ export default defineEventHandler(async (event) => {
       try {
         const cfInfo = getCloudflareRequestInfo(event)
 
-        const kvCounters = createAPIRequestKVCounters("/api/stats", "GET", 503, cfInfo, [
+        const userAgent = getHeader(event, "user-agent") || ""
+        const kvCounters = createAPIRequestKVCounters("/api/stats", "GET", 503, cfInfo, userAgent, [
           { key: "stats:errors:service-unavailable" },
           { key: "stats:availability:kv", increment: env?.DATA ? 1 : 0 }
         ])
@@ -79,7 +80,8 @@ export default defineEventHandler(async (event) => {
     try {
       const cfInfo = getCloudflareRequestInfo(event)
 
-      const kvCounters = createAPIRequestKVCounters("/api/stats", "GET", 200, cfInfo, [
+      const userAgent = getHeader(event, "user-agent") || ""
+      const kvCounters = createAPIRequestKVCounters("/api/stats", "GET", 200, cfInfo, userAgent, [
         { key: "stats:retrievals:total" },
         { key: "stats:metrics:users:total", value: userCount },
         { key: "stats:metrics:users:active", value: activeUsers },

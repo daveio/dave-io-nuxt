@@ -1,7 +1,7 @@
 import { requireAPIAuth } from "~/server/utils/auth-helpers"
 import { batchKVGet, getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
 import { formatMetricsAsPrometheus, formatMetricsAsYAML, handleResponseFormat } from "~/server/utils/formatters"
-import { createAPIRequestKVCounters, writeKVMetrics, getKVMetrics } from "~/server/utils/kv-metrics"
+import { createAPIRequestKVCounters, getKVMetrics, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { createApiError, isApiError, logRequest } from "~/server/utils/response"
 import { TokenMetricsSchema } from "~/server/utils/schemas"
 
@@ -60,7 +60,13 @@ export default defineEventHandler(async (event) => {
       try {
         const cfInfo = getCloudflareRequestInfo(event)
 
-        const kvCounters = createAPIRequestKVCounters("/api/metrics", "GET", 503, cfInfo, getHeader(event, "user-agent"))
+        const kvCounters = createAPIRequestKVCounters(
+          "/api/metrics",
+          "GET",
+          503,
+          cfInfo,
+          getHeader(event, "user-agent")
+        )
 
         if (env?.DATA) {
           await writeKVMetrics(env.DATA, kvCounters)
@@ -131,7 +137,13 @@ export default defineEventHandler(async (event) => {
       const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
 
       if (env?.DATA) {
-        const kvCounters = createAPIRequestKVCounters("/api/metrics", "GET", statusCode, cfInfo, getHeader(event, "user-agent"))
+        const kvCounters = createAPIRequestKVCounters(
+          "/api/metrics",
+          "GET",
+          statusCode,
+          cfInfo,
+          getHeader(event, "user-agent")
+        )
 
         await writeKVMetrics(env.DATA, kvCounters)
       }

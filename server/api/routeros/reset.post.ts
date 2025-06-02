@@ -64,7 +64,8 @@ export default defineEventHandler(async (event) => {
       const cfInfo = getCloudflareRequestInfo(event)
       const _responseTime = Date.now() - startTime
 
-      const kvCounters = createAPIRequestKVCounters("/api/routeros/reset", "POST", 200, cfInfo, [
+      const userAgent = getHeader(event, "user-agent") || ""
+      const kvCounters = createAPIRequestKVCounters("/api/routeros/reset", "POST", 200, cfInfo, userAgent, [
         { key: "routeros:reset:total" },
         { key: "routeros:reset:success" },
         { key: "routeros:reset:keys-deleted", value: keysDeleted },
@@ -114,7 +115,8 @@ export default defineEventHandler(async (event) => {
       // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
       const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
 
-      const kvCounters = createAPIRequestKVCounters("/api/routeros/reset", "POST", statusCode, cfInfo, [
+      const userAgent = getHeader(event, "user-agent") || ""
+      const kvCounters = createAPIRequestKVCounters("/api/routeros/reset", "POST", statusCode, cfInfo, userAgent, [
         { key: "routeros:reset:errors:total" },
         { key: authSuccess ? "routeros:reset:errors:processing" : "routeros:reset:errors:auth-failed" }
       ])

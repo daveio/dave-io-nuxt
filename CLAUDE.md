@@ -217,10 +217,22 @@ Reference implementation for production-ready serverless APIs with TypeScript, t
 ## KV Metrics System
 
 **Storage**: Single KV-based metrics storage for performance and simplicity
-**Key Structure**: Hierarchical kebab-case (`metrics:requests:total`, `metrics:auth:by-country:us`)
-**Counters**: Increment-based metrics with automatic normalization and aggregation
+**Key Structure**: Simplified hierarchical patterns (`redirect:[slug]`, `metrics:[resource]:hit:ok`)
+**Counters**: Resource-based tracking with hit/auth/visitor classification
 **Helpers**: Standardized counter creation functions for different event types
 **Performance**: Fast reads for dashboard queries, optimized for Cloudflare Workers edge compute
+
+### New KV Hierarchy
+
+**Redirect Storage**: `redirect:[slug]` stores target URLs
+**Redirect Metrics**: `metrics:redirect:[slug]` tracks click counts
+**API Metrics**: `metrics:[resource]:hit:ok/error/total` tracks request success/failure
+**Auth Metrics**: `metrics:[resource]:auth:succeeded/failed` tracks authentication events
+**Visitor Metrics**: `metrics:[resource]:visitor:human/bot/unknown` tracks visitor classification
+
+**Resource Extraction**: First URL segment after `/api/` (e.g., `/api/auth` → `auth` resource)
+**User Agent Classification**: Automatic bot/human/unknown classification based on user agent patterns
+**Performance**: Eliminates legacy time-based buckets and complex key normalization
 
 ## Next Steps
 

@@ -31,10 +31,7 @@ export default defineEventHandler(async (event) => {
     let redirectData: RedirectData | undefined
 
     try {
-      const [url, clicksStr] = await Promise.all([
-        kv.get(redirectUrlKey),
-        kv.get(`metrics:redirect:${slug}`)
-      ])
+      const [url, clicksStr] = await Promise.all([kv.get(redirectUrlKey), kv.get(`metrics:redirect:${slug}`)])
 
       if (url) {
         redirectData = {

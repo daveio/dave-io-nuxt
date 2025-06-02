@@ -86,7 +86,8 @@ export default defineEventHandler(async (event) => {
       const cfInfo = getCloudflareRequestInfo(event)
       const responseTime = Date.now() - startTime
 
-      const kvCounters = createAPIRequestKVCounters(`/api/tokens/${uuid}/usage`, "GET", 200, cfInfo, [
+      const userAgent = getHeader(event, "user-agent") || ""
+      const kvCounters = createAPIRequestKVCounters(`/api/tokens/${uuid}/usage`, "GET", 200, cfInfo, userAgent, [
         { key: "tokens:usage:queries:total" },
         { key: `tokens:usage:${uuid}:queries` },
         { key: "tokens:usage:request-counts", value: usage.requestCount },
@@ -128,11 +129,13 @@ export default defineEventHandler(async (event) => {
       // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
       const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
 
+      const userAgent = getHeader(event, "user-agent") || ""
       const kvCounters = createAPIRequestKVCounters(
         `/api/tokens/${uuid || "unknown"}/usage`,
         "GET",
         statusCode,
         cfInfo,
+        userAgent,
         [
           { key: "tokens:usage:queries:total" },
           { key: "tokens:usage:errors:total" },

@@ -29,7 +29,8 @@ export default defineEventHandler(async (event) => {
     const cfInfo = getCloudflareRequestInfo(event)
     const kv = getKVNamespace(env)
 
-    const kvCounters = createAPIRequestKVCounters("/api/_worker-info", "GET", 200, cfInfo, [
+    const userAgent = getHeader(event, "user-agent") || ""
+    const kvCounters = createAPIRequestKVCounters("/api/_worker-info", "GET", 200, cfInfo, userAgent, [
       { key: "worker-info:requests:total" },
       { key: `worker-info:runtimes:${workerInfo.runtime.replace(/[^a-z0-9]/g, "-")}` },
       { key: `worker-info:presets:${workerInfo.preset}` },
