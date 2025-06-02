@@ -1,5 +1,71 @@
 # `dave.io`: Nuxt Edition 🌟
 
+```mermaid
+---
+config:
+  theme: neo-dark
+  layout: elk
+id: f8a5ff3b-03b9-42ef-a901-b1537198c6ea
+title: dave.io/api KV
+description: |
+  This diagram illustrates the structure of Cloudflare KV used for metrics and redirects.
+  It includes main categories, keys, and their relationships, such as authentication metrics,
+  redirect metrics, and specific data points like clicks and errors.
+---
+flowchart LR
+    %% Root KV Store
+    ROOT["Cloudflare KV Store"]
+
+    %% Main Categories
+    ROOT --> METRICS["metrics"]
+    ROOT --> REDIRECT["redirect"]
+
+    %% Redirect Keys
+    REDIRECT --> REDIRECT_WAT{{"[slug]"}}
+
+    %% Auth Metrics
+    METRICS --> AUTH["auth"]
+    AUTH --> AUTH_TOTAL{{"total"}}
+    AUTH --> AUTH_FAILED{{"failed"}}
+
+    AUTH --> AUTH_BY_COUNTRY["by-country"]
+    AUTH_BY_COUNTRY --> AUTH_US["us"]
+
+    AUTH_FAILED --> AUTH_FAILED_BY_COUNTRY["by-country"]
+    AUTH_FAILED_BY_COUNTRY --> AUTH_FAILED_US{{"[slug]"}}
+
+    AUTH --> AUTH_BY_ENDPOINT["by-endpoint"]
+    AUTH_BY_ENDPOINT --> AUTH_ENDPOINT["[slug]"]
+    AUTH_ENDPOINT --> AUTH_ENDPOINT_TOTAL{{"total"}}
+    AUTH_ENDPOINT --> AUTH_ENDPOINT_FAILED{{"failed"}}
+
+    AUTH --> AUTH_ERRORS["errors"]
+    AUTH_ERRORS --> AUTH_VERIFY_FAILED["verification-failed"]
+
+    AUTH --> AUTH_TOKEN_VERIF["token-verifications"]
+    AUTH_TOKEN_VERIF --> AUTH_TOKEN_TOTAL{{"total"}}
+    AUTH_TOKEN_VERIF --> AUTH_TOKEN_FAILED{{"failed"}}
+
+    %% Redirect Metrics
+    METRICS --> REDIRECT_METRICS["redirect"]
+
+    REDIRECT_METRICS --> REDIRECT_BY_COUNTRY["by-country"]
+    REDIRECT_BY_COUNTRY --> REDIRECT_GB["gb"]
+
+    REDIRECT_METRICS --> REDIRECT_BY_DOMAIN["by-domain"]
+    REDIRECT_BY_DOMAIN --> REDIRECT_DAS["www-destroyallsoftware-com"]
+
+    REDIRECT_METRICS --> REDIRECT_DAILY["daily"]
+    REDIRECT_DAILY --> REDIRECT_20250601["2025-06-01"]
+
+    REDIRECT_METRICS --> REDIRECT_TOTAL["total"]
+    REDIRECT_TOTAL --> REDIRECT_CLICKS["clicks"]
+
+    REDIRECT_METRICS --> REDIRECT_WAT_METRICS["wat"]
+    REDIRECT_WAT_METRICS --> WAT_CLICKS["clicks"]
+    REDIRECT_WAT_METRICS --> WAT_UPDATED["updated-at"]
+```
+
 Welcome to the most spectacularly over-engineered personal website you'll encounter today.
 
 This isn't just a website; it's a full-blown API fortress masquerading as a humble Nuxt application.
@@ -46,7 +112,7 @@ JWT-based fortress protecting my digital empire with dual authentication methods
 #### 🔧 Token Generation
 
 ```bash
-# Metrics dashboard access  
+# Metrics dashboard access
 bun jwt create --sub "api:metrics" --description "Metrics access" --expiry "30d"
 
 # AI service access
@@ -594,7 +660,7 @@ All metrics are stored in KV using a hierarchical key structure for fast retriev
 ```bash
 # Core API metrics for the /api/metrics endpoint
 metrics:requests:total              # "12345" - Total API requests
-metrics:requests:successful         # "12000" - Successful responses  
+metrics:requests:successful         # "12000" - Successful responses
 metrics:requests:failed            # "345"   - Failed responses
 metrics:requests:rate_limited      # "100"   - Rate limited requests
 
@@ -637,7 +703,7 @@ const kvCounters = createAPIRequestKVCounters(endpoint, method, statusCode, cfIn
   { key: "custom:increment:counter", increment: 1 }
 ])
 
-// Authentication event counters  
+// Authentication event counters
 const authCounters = createAuthKVCounters(endpoint, success, tokenSubject, cfInfo, [
   { key: "auth:custom:metric" }
 ])
