@@ -1,5 +1,29 @@
 # CLAUDE.md - AI Agent Instructions
 
+## ⚠️ CRITICAL DEVELOPMENT RULE: IMPLEMENT tests
+
+**EVERYTHING MUST HAVE A TEST**. This is non-negotiable. If you write a function, you must also write a test for it. This ensures that the function works as intended and prevents regressions in the future.
+
+Small functions can be ignored if they are trivial, but anything with logic or side effects must be tested.
+
+Tests should cover all edge cases and error conditions. Use Vitest via `bun run test` for unit tests, and ensure they run successfully before committing your changes.
+
+Frontend can often not be tested effectively; that is acceptable. Backend APIs MUST be tested.
+
+## ⚠️ CRITICAL DEVELOPMENT RULE: KEEP DOCUMENTATION IN SYNC
+
+**`CLAUDE.md` and `README.md` MUST BE KEPT IN SYNC**, though written in different styles for different consumers.
+
+## ⚠️ CRITICAL DEVELOPMENT RULE: USE THE CHECKS
+
+**USE THE QUALITY VERIFICATION TOOLS**. Run them before you consider your work finished, and ensure they pass. **DO NOT SKIP THEM**.
+
+If you must skip them due to scoping or resource limitation, add a TODO to come back to it. Remember to always use the term "TODO" in TODO comments.
+
+- `bun run lint` - linting with Trunk and Biome
+- `bun run typecheck` - TypeScript type checking
+- `bun run test` - unit tests with Vitest
+
 ## ⚠️ CRITICAL DEVELOPMENT RULE: COMMIT AFTER CHANGES
 
 **COMMIT AFTER EVERY SIGNIFICANT BLOCK OF WORK**.
@@ -43,7 +67,7 @@ If `git add -A . && oco --fgm --yes` fails, run `git add -A . && git commit -am 
 
 ## ⚠️ CRITICAL DEVELOPMENT RULE: NO DEFERRED IMPLEMENTATIONS
 
-**NOTHING SHALL BE LEFT "FOR LATER" WITHOUT EXPLICIT TODO COMMENTS**. If an implementation is incomplete, placeholder, or deferred, it MUST include a comment containing `TODO`.
+**NOTHING SHALL BE LEFT "FOR LATER" WITHOUT EXPLICIT TODO COMMENTS**. If an implementation is incomplete, placeholder, or deferred, it MUST include a comment containing `TODO`. This includes tests.
 
 **FORBIDDEN PATTERNS:**
 
