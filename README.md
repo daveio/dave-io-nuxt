@@ -33,16 +33,15 @@ JWT-based fortress protecting my digital empire with dual authentication methods
 
 #### 🔓 Public Endpoints (No JWT Required)
 
-- `/api/health`, `/api/ping`, `/api/_worker-info`, `/api/stats` - Core system endpoints
+- `/api/internal/health`, `/api/internal/ping`, `/api/internal/worker` - Core system endpoints
 - `/api/go/{slug}` and `/go/{slug}` - URL redirection service (gh, tw, li)
 
 #### 🔒 Protected Endpoints (JWT Required)
 
-- **`/api/auth`** - Token validation (any valid JWT)
-- **`/api/metrics`** - API metrics (`api:metrics`, `api`, `admin`, or `*`)
+- **`/api/internal/auth`** - Token validation (any valid JWT)
+- **`/api/internal/metrics`** - API metrics (`api:metrics`, `api`, `admin`, or `*`)
 - **`/api/ai/alt`** (GET/POST) - Alt-text generation (`ai:alt`, `ai`, `admin`, or `*`)
 - **`/api/tokens/{uuid}/*`** - Token management (`api:tokens`, `api`, `admin`, or `*`)
-- **`/api/routeros/reset`** - RouterOS admin (`routeros:admin`, `routeros`, `admin`, or `*`)
 #### 🔧 Token Generation
 
 ```bash
@@ -87,14 +86,6 @@ bun jwt create --interactive
 - `/go/li` → LinkedIn (for professional pretenses)
 - Click tracking with KV metrics integration
 
-### 🛠️ RouterOS Integration (Because I love Networking)
-
-**TODO**: The RouterOS endpoint will shortly be removed.
-
-- MikroTik router script generation
-- `/api/routeros/putio` for automated download management
-- Cache management and statistics
-- Because normal people don't integrate their personal website with their router
 
 ### 📱 Dashboard Data Feeds
 
@@ -176,51 +167,51 @@ All protected endpoints require a JWT token. You can provide it via:
 
 ### Core Endpoints (The Essentials)
 
-#### `GET /api/health`
+#### `GET /api/internal/health`
 
 The only endpoint that doesn't judge you for not having authentication.
 
 ```bash
-curl http://localhost:3000/api/health
+curl http://localhost:3000/api/internal/health
 ```
 
-#### `GET /api/ping`
+#### `GET /api/internal/ping`
 
 Simple ping endpoint that logs KV metrics and shows off Cloudflare headers like a peacock.
 
 ```bash
-curl http://localhost:3000/api/ping
+curl http://localhost:3000/api/internal/ping
 ```
 
-#### `GET /api/_worker-info`
+#### `GET /api/internal/worker`
 
 Internal Worker runtime information (because transparency is trendy).
 
 ```bash
-curl http://localhost:3000/api/_worker-info
+curl http://localhost:3000/api/internal/worker
 ```
 
-#### `GET /api/auth`
+#### `GET /api/internal/auth`
 
 Token introspection and validation. Perfect for existential questions about your JWT's purpose in life.
 
 ```bash
-curl -H "Authorization: Bearer <token>" http://localhost:3000/api/auth
+curl -H "Authorization: Bearer <token>" http://localhost:3000/api/internal/auth
 ```
 
-#### `GET /api/metrics`
+#### `GET /api/internal/metrics`
 
 Get comprehensive API metrics in your preferred format (because choice matters).
 
 ```bash
 # JSON (the sensible default)
-curl -H "Authorization: Bearer <token>" http://localhost:3000/api/metrics
+curl -H "Authorization: Bearer <token>" http://localhost:3000/api/internal/metrics
 
 # YAML (for the hipsters)
-curl -H "Authorization: Bearer <token>" http://localhost:3000/api/metrics?format=yaml
+curl -H "Authorization: Bearer <token>" http://localhost:3000/api/internal/metrics?format=yaml
 
 # Prometheus (for the monitoring-obsessed)
-curl -H "Authorization: Bearer <token>" http://localhost:3000/api/metrics?format=prometheus
+curl -H "Authorization: Bearer <token>" http://localhost:3000/api/internal/metrics?format=prometheus
 ```
 
 #### `GET/POST /api/ai/alt`
@@ -243,31 +234,6 @@ curl -X POST -H "Authorization: Bearer <token>" \
   http://localhost:3000/api/ai/alt
 ```
 
-### RouterOS Endpoints (For the Network Nerds)
-
-#### `GET /api/routeros/putio`
-
-Generate MikroTik router scripts for automated file management.
-
-```bash
-curl -H "Authorization: Bearer <token>" http://localhost:3000/api/routeros/putio
-```
-
-#### `GET /api/routeros/cache`
-
-Check RouterOS cache status.
-
-```bash
-curl -H "Authorization: Bearer <token>" http://localhost:3000/api/routeros/cache
-```
-
-#### `POST /api/routeros/reset`
-
-Reset RouterOS cache (the nuclear option).
-
-```bash
-curl -X POST -H "Authorization: Bearer <token>" http://localhost:3000/api/routeros/reset
-```
 
 ### Dashboard Endpoints (Because Data Is Beautiful)
 
@@ -285,13 +251,6 @@ curl -H "Authorization: Bearer <token>" http://localhost:3000/api/dashboard/hack
 
 ### Statistics & Redirects
 
-#### `GET /api/stats`
-
-Get basic API statistics (the lite version of metrics).
-
-```bash
-curl http://localhost:3000/api/stats
-```
 
 #### `GET /go/{slug}`
 
@@ -521,11 +480,13 @@ curl https://your-production-url.com/api/health
 ```plaintext
 ├── server/                  # The backend kingdom
 │   ├── api/                 # API endpoints (the crown jewels)
-│   │   ├── auth.get.ts      # JWT validation
-│   │   ├── health.get.ts    # Health check
-│   │   ├── ping.get.ts      # Simple ping
-│   │   ├── metrics.get.ts   # API metrics
-│   │   ├── stats.get.ts     # Basic stats
+│   │   ├── internal/        # Internal system endpoints
+│   │   │   ├── auth.get.ts  # JWT validation
+│   │   │   ├── health.get.ts # Health check
+│   │   │   ├── ping.get.ts  # Simple ping
+│   │   │   ├── metrics.get.ts # API metrics
+│   │   │   ├── headers.get.ts # Request headers
+│   │   │   └── worker.get.ts # Worker info
 │   │   ├── ai/              # AI endpoints
 │   │   │   ├── alt.get.ts   # Alt-text (GET)
 │   │   │   └── alt.post.ts  # Alt-text (POST)
@@ -533,10 +494,6 @@ curl https://your-production-url.com/api/health
 │   │   │   └── [name].get.ts # Named dashboards
 │   │   ├── go/              # URL redirects
 │   │   │   └── [slug].get.ts # Redirect handler
-│   │   ├── routeros/        # RouterOS integration
-│   │   │   ├── cache.get.ts # Cache status
-│   │   │   ├── putio.get.ts # Put.io scripts
-│   │   │   └── reset.post.ts # Cache reset
 │   │   └── tokens/          # Token management
 │   │       └── [uuid]/      # Token operations
 │   ├── utils/               # Server utilities (the workhorses)

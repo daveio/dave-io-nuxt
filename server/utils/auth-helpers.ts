@@ -50,7 +50,6 @@ export const requireAPIAuth = (event: H3Event, resource?: string) => requireAuth
 
 export const requireAIAuth = (event: H3Event, resource?: string) => requireAuth(event, "ai", resource)
 
-export const requireRouterOSAuth = (event: H3Event, resource?: string) => requireAuth(event, "routeros", resource)
 
 export const requireDashboardAuth = (event: H3Event, resource?: string) => requireAuth(event, "dashboard", resource)
 

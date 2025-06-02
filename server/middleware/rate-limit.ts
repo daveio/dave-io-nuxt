@@ -371,8 +371,6 @@ const DEFAULT_RATE_LIMITS: Record<string, RateLimitConfig> = {
   // Token management - strict
   "/api/tokens": RATE_LIMIT_PRESETS.STRICT,
 
-  // RouterOS endpoints - moderate
-  "/api/routeros": RATE_LIMIT_PRESETS.MODERATE,
 
   // Redirects - high volume (public facing)
   "/go": RATE_LIMIT_PRESETS.HIGH_VOLUME,

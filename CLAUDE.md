@@ -87,34 +87,32 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 **Dual Methods**: Bearer tokens (`Authorization: Bearer <jwt>`) + URL params (`?token=<jwt>`)
 **JWT Structure**: `{sub, iat, exp?, jti?, maxRequests?}`
 **Hierarchical Permissions**: `category:resource` format. Parent permissions grant child access. `admin`/`*` = full access.
-**Categories**: `api`, `ai`, `routeros`, `dashboard`, `admin`, `*`
+**Categories**: `api`, `ai`, `dashboard`, `admin`, `*`
 
 ## Endpoints
 
-**Public** (7/21): `/api/health`, `/api/ping`, `/api/_worker-info`, `/api/stats`, `/go/{slug}`
-**Protected** (14/21): All others require JWT with appropriate scope
+**Public** (4/18): `/api/internal/health`, `/api/internal/ping`, `/api/internal/worker`, `/go/{slug}`
+**Protected** (14/18): All others require JWT with appropriate scope
 **Key Protected**:
 
-- `/api/auth` - Token validation (any token)
-- `/api/metrics` - API metrics (`api:metrics`+)
+- `/api/internal/auth` - Token validation (any token)
+- `/api/internal/metrics` - API metrics (`api:metrics`+)
 - `/api/ai/alt` - Alt-text generation (`ai:alt`+)
 - `/api/tokens/{uuid}/*` - Token management (`api:tokens`+)
-- `/api/routeros/*` - RouterOS integration (`routeros:*`+)
 
 **Token Management**: Use `bin/jwt.ts` for create/verify/list/revoke operations
 
 ## Key APIs
 
-**Core**: `/api/health`, `/api/ping`, `/api/auth`, `/api/metrics` (json/yaml/prometheus)
+**Core**: `/api/internal/health`, `/api/internal/ping`, `/api/internal/auth`, `/api/internal/metrics` (json/yaml/prometheus)
 **AI**: `/api/ai/alt` (GET url param, POST body/upload)
-**RouterOS**: `/api/routeros/cache`, `/api/routeros/putio`, `/api/routeros/reset`
 **Tokens**: `/api/tokens/{uuid}/usage`, `/api/tokens/{uuid}/revoke`
 **Redirects**: `/go/{slug}` (gh/tw/li)
 
 ## Metrics
 
 **Storage**: KV-based metrics for fast dashboard queries
-**Counters**: Request tracking, redirect clicks, auth events, AI operations, RouterOS stats
+**Counters**: Request tracking, redirect clicks, auth events, AI operations
 **Functionality**: Real-time KV storage with hierarchical keys, automatic aggregation
 
 ## Response Format
@@ -191,7 +189,7 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 
 **Config**: `nuxt.config.ts`, `wrangler.jsonc`, `vitest.config.ts`, `biome.json`
 **Core**: `server/utils/{auth,schemas,response}.ts`, `server/middleware/{error,shell-scripts}.ts`
-**Examples**: `server/api/{auth,metrics}.get.ts`, `server/api/ai/alt.{get,post}.ts`
+**Examples**: `server/api/internal/{auth,metrics}.get.ts`, `server/api/ai/alt.{get,post}.ts`
 
 ## Migration Context
 

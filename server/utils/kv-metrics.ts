@@ -18,10 +18,6 @@ interface KVMetrics {
   failedRequests: number
   rateLimitedRequests: number
   redirectClicks: number
-  routeros: {
-    cacheHits: number
-    cacheMisses: number
-  }
   redirectsBySlug: Record<string, number>
 }
 
@@ -67,8 +63,6 @@ export async function getKVMetrics(kv: KVNamespace): Promise<KVMetrics> {
   let successfulRequests = 0
   let failedRequests = 0
   let redirectClicks = 0
-  let routerOSCacheHits = 0
-  let routerOSCacheMisses = 0
 
   // Aggregate metrics from all resources
   for (const key of resourceKeys.keys) {
@@ -81,12 +75,6 @@ export async function getKVMetrics(kv: KVNamespace): Promise<KVMetrics> {
       successfulRequests += count
     } else if (key.name.includes(":hit:error")) {
       failedRequests += count
-    } else if (key.name === "metrics:redirect") {
-      // This is handled separately below
-    } else if (key.name === "metrics:routeros:hit:total" && key.name.includes("cache-hits")) {
-      routerOSCacheHits += count
-    } else if (key.name === "metrics:routeros:hit:total" && key.name.includes("cache-misses")) {
-      routerOSCacheMisses += count
     }
   }
 
@@ -109,10 +97,6 @@ export async function getKVMetrics(kv: KVNamespace): Promise<KVMetrics> {
     failedRequests,
     rateLimitedRequests: 0, // TODO: Implement rate limit tracking in new hierarchy
     redirectClicks,
-    routeros: {
-      cacheHits: routerOSCacheHits,
-      cacheMisses: routerOSCacheMisses
-    },
     redirectsBySlug
   }
 }
