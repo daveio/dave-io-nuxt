@@ -91,9 +91,59 @@ describe("KV Import/Export", () => {
                 "302": 2,
                 "404": 2
               }
+            },
+            go: {
+              ok: 25,
+              error: 1,
+              times: {
+                "last-hit": 1704065000000,
+                "last-error": 1704050000000,
+                "last-ok": 1704065000000
+              },
+              visitor: {
+                human: 20,
+                bot: 5,
+                unknown: 1
+              },
+              group: {
+                "1xx": 0,
+                "2xx": 24,
+                "3xx": 1,
+                "4xx": 1,
+                "5xx": 0
+              },
+              status: {
+                "302": 24,
+                "404": 1
+              }
             }
           },
-          redirect: {}
+          redirect: {
+            gh: {
+              ok: 15,
+              error: 0,
+              times: {
+                "last-hit": 1704064000000,
+                "last-error": 0,
+                "last-ok": 1704064000000
+              },
+              visitor: {
+                human: 12,
+                bot: 3,
+                unknown: 0
+              },
+              group: {
+                "1xx": 0,
+                "2xx": 0,
+                "3xx": 15,
+                "4xx": 0,
+                "5xx": 0
+              },
+              status: {
+                "302": 15
+              }
+            }
+          }
         },
         redirect: {
           gh: "https://github.com/daveio",
@@ -159,7 +209,16 @@ metrics:
     ai:
       <<: *sample_metrics
       ok: 50
-  redirect: {}
+    go:
+      <<: *sample_metrics
+      ok: 25
+  redirect:
+    gh:
+      <<: *sample_metrics
+      ok: 15
+    blog:
+      <<: *sample_metrics
+      ok: 10
   <<: *sample_metrics
 
 redirect:
@@ -179,6 +238,9 @@ redirect:
         const data = parsedData as any
         expect(data.metrics.resources.internal.ok).toBe(100)
         expect(data.metrics.resources.ai.ok).toBe(50)
+        expect(data.metrics.resources.go.ok).toBe(25)
+        expect(data.metrics.redirect.gh.ok).toBe(15)
+        expect(data.metrics.redirect.blog.ok).toBe(10)
         expect(data.redirect.gh).toBe("https://github.com/daveio")
       } catch (error) {
         // YAML parsing should work with anchors

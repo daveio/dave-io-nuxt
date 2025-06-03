@@ -358,12 +358,13 @@ Reference implementation for production-ready serverless APIs with TypeScript, t
 
 ## KV Metrics System
 
-**BREAKING CHANGE**: New hierarchical schema implemented replacing flat key structure.
+**BREAKING CHANGE**: New hierarchical schema implemented replacing flat key structure. All legacy KV counter functions removed.
 
 **Storage**: Single structured JSON object at `metrics` key for performance and simplicity
 **Schema**: Nested hierarchical structure with top-level, resource-specific, and redirect-specific metrics
 **Data Format**: YAML-based export/import with anchor support for configuration management
 **Performance**: Fast single-key reads for dashboard queries, optimized for Cloudflare Workers edge compute
+**Middleware**: Automatic metrics tracking via `recordAPIMetrics()` and `recordAPIErrorMetrics()` functions
 
 ### New KV Schema Structure
 
@@ -381,7 +382,7 @@ Reference implementation for production-ready serverless APIs with TypeScript, t
   visitor: { human: number, bot: number, unknown: number },
   group: { "1xx": number, "2xx": number, "3xx": number, "4xx": number, "5xx": number },
   status: { "200": number, "404": number, "500": number, ... },
-  // Resource-specific metrics (internal, ai, etc.)
+  // Resource-specific metrics (internal, ai, go, etc.)
   resources: {
     [resource]: { /* same structure as top-level */ }
   },
@@ -402,10 +403,17 @@ Reference implementation for production-ready serverless APIs with TypeScript, t
 }
 ```
 
-**Resource Extraction**: First URL segment after `/api/` (e.g., `/api/internal/auth` → `internal` resource)
+**Resource Extraction**: First URL segment after `/api/` (e.g., `/api/internal/auth` → `internal` resource). Special case: `/go` endpoints tracked as `go` resource
 **User Agent Classification**: Automatic bot/human/unknown classification based on user agent patterns
 **Metrics Updates**: Atomic updates to single JSON objects via `updateAPIRequestMetrics()` and `updateRedirectMetrics()`
 **YAML Export**: Structured YAML with anchor support for configuration management
+
+### Migration from Legacy Schema
+
+**REMOVED**: All legacy KV counter functions (`createAPIRequestKVCounters`, `createAuthKVCounters`, `createAIKVCounters`, `createRedirectKVCounters`, `writeKVMetrics`)
+**REPLACED**: Individual KV key writes with structured JSON updates to single `metrics` key
+**ADDED**: `/go` resource tracking (previously excluded from metrics)
+**IMPROVED**: Consistent metrics across all endpoints via middleware functions
 
 ## Next Steps
 

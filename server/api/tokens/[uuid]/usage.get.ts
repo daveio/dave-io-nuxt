@@ -1,8 +1,6 @@
-import { getHeader } from "h3"
 import { recordAPIErrorMetrics, recordAPIMetrics } from "~/server/middleware/metrics"
 import { requireAPIAuth } from "~/server/utils/auth-helpers"
-import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
-import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
+import { getCloudflareEnv } from "~/server/utils/cloudflare"
 import { createApiError, createApiResponse, isApiError, logRequest } from "~/server/utils/response"
 import { getValidatedUUID } from "~/server/utils/validation"
 
@@ -57,7 +55,7 @@ async function getTokenUsageFromKV(uuid: string, kv?: KVNamespace): Promise<Toke
 }
 
 export default defineEventHandler(async (event) => {
-  const startTime = Date.now()
+  const _startTime = Date.now()
   let _authToken: string | null = null
   let uuid: string | undefined
 
@@ -78,25 +76,8 @@ export default defineEventHandler(async (event) => {
     // Get token usage from KV storage
     const usage = await getTokenUsageFromKV(uuid, env.DATA)
 
-    // Write successful KV metrics using standardized system
-    try {
-      const cfInfo = getCloudflareRequestInfo(event)
-      const _responseTime = Date.now() - startTime
-
-      const userAgent = getHeader(event, "user-agent") || ""
-      const kvCounters = createAPIRequestKVCounters(`/api/tokens/${uuid}/usage`, "GET", 200, cfInfo, userAgent, [
-        { key: "metrics:tokens:usage:queries:total" },
-        { key: `metrics:tokens:usage:${uuid}:queries` },
-        { key: "metrics:tokens:usage:request-counts", value: usage.requestCount },
-        { key: "metrics:tokens:usage:revoked-count", increment: usage.isRevoked ? 1 : 0 }
-      ])
-
-      if (env?.DATA) {
-        await writeKVMetrics(env.DATA, kvCounters)
-      }
-    } catch (metricsError) {
-      console.error("Failed to write token usage success KV metrics:", metricsError)
-    }
+    // Record successful token usage request
+    await recordAPIMetrics(event, 200)
 
     // Log successful request
     logRequest(event, "tokens/{uuid}/usage", "GET", 200, {
@@ -118,7 +99,6 @@ export default defineEventHandler(async (event) => {
       isRevoked: false
     })
 
-    // Write KV metrics for failed requests
     // Record error metrics
     await recordAPIErrorMetrics(event, error)
 

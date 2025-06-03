@@ -22,18 +22,20 @@ import { resolve } from "node:path"
 import type Cloudflare from "cloudflare"
 import { Command } from "commander"
 import yaml from "js-yaml"
+import JSON5 from "json5"
 import { getTimestamp, keyMatchesPatterns, tryParseJson } from "./shared/cli-utils"
 import { getWranglerConfig, validateCloudflareConfig } from "./shared/cloudflare"
 
 const EXPORT_DIR = "data/kv"
 
 // Configure the key patterns to include in exports (using regular expressions)
+// Updated for new hierarchical schema structure
 const EXPORT_KEY_PATTERNS = [
-  /^dashboard:demo:items$/, // Exact match for "dashboard:demo:items"
-  /^redirect:.*$/, // All keys starting with "redirect:"
-  /^metrics:.*$/, // All metrics keys
-  /^auth:.*$/, // All auth-related keys
-  /^routeros:.*$/ // All RouterOS cache keys
+  /^metrics$/, // Single structured metrics object
+  /^redirect$/, // Single structured redirect mappings object
+  /^dashboard:.*$/, // Dashboard cache data
+  /^auth:.*$/, // Auth-related keys (legacy, may be removed)
+  /^routeros:.*$/ // RouterOS cache keys (legacy, may be removed)
 ]
 
 // Get KV namespace ID from wrangler.jsonc or fallback
@@ -91,28 +93,44 @@ function convertToNestedStructure(flatData: Record<string, unknown>): Record<str
   // Use Object.create(null) to avoid prototype pollution
   const nested = Object.create(null) as Record<string, unknown>
 
+  // Prototype pollution protection
+  const isPrototypePollutionKey = (key: string): boolean => {
+    return key === "__proto__" || key === "constructor" || key === "prototype"
+  }
+
   for (const [key, value] of Object.entries(flatData)) {
-    const parts = key.split(":").filter((part) => part.length > 0) // Filter out empty parts
-    if (parts.length === 0) continue
+    if (isPrototypePollutionKey(key)) {
+      continue
+    } // Skip dangerous keys entirely
+
+    const parts = key.split(":").filter((part) => part.length > 0 && !isPrototypePollutionKey(part))
+    if (parts.length === 0) {
+      continue
+    }
 
     let current = nested
 
-    // Navigate/create the nested structure
+    // Navigate/create the nested structure safely
     for (let i = 0; i < parts.length - 1; i++) {
       const part = parts[i]
-      if (part && !Object.hasOwn(current, part)) {
+      if (part && !isPrototypePollutionKey(part) && !Object.hasOwn(current, part)) {
         current[part] = Object.create(null) as Record<string, unknown>
       }
-      if (part && current[part]) {
-        current = current[part] as Record<string, unknown>
+      if (part && !isPrototypePollutionKey(part) && current[part] && typeof current[part] === "object") {
+        const nextCurrent = current[part]
+        if (nextCurrent && typeof nextCurrent === "object" && !Array.isArray(nextCurrent)) {
+          current = nextCurrent as Record<string, unknown>
+        } else {
+          break // Exit if we can't navigate further
+        }
       } else if (part) {
         break // Exit if we can't navigate further
       }
     }
 
-    // Set the final value
+    // Set the final value safely
     const finalKey = parts[parts.length - 1]
-    if (finalKey) {
+    if (finalKey && !isPrototypePollutionKey(finalKey)) {
       current[finalKey] = value
     }
   }
@@ -125,7 +143,9 @@ function convertToFlatStructure(nestedData: Record<string, unknown>, prefix = ""
   const flat: Record<string, unknown> = {}
 
   for (const [key, value] of Object.entries(nestedData)) {
-    if (!key) continue // Skip empty keys
+    if (!key) {
+      continue
+    } // Skip empty keys
 
     const fullKey = prefix ? `${prefix}:${key}` : key
 
@@ -243,15 +263,10 @@ async function exportKV(exportAll = false, dryRun = false) {
     // Convert flat structure to nested structure for YAML
     const nestedKvData = convertToNestedStructure(flatKvData)
 
-    // Convert to YAML with integer parsing and anchor support
-    const yamlOutput = yaml.dump(nestedKvData, {
-      indent: 2,
-      lineWidth: 120,
-      noRefs: false, // Allow YAML references/anchors
-      quotingType: '"',
-      sortKeys: true, // Sort keys for consistent output
-      replacer: (_key, value) => {
-        // Convert numeric strings to integers where appropriate
+    // Convert numeric strings to actual numbers for better YAML output
+    const processedData = JSON5.parse(
+      JSON5.stringify(nestedKvData, (_key, value) => {
+        // Convert numeric strings to numbers where appropriate
         if (typeof value === "string") {
           // Check if it's a pure integer
           if (/^-?\d+$/.test(value)) {
@@ -269,7 +284,16 @@ async function exportKV(exportAll = false, dryRun = false) {
           }
         }
         return value
-      }
+      })
+    )
+
+    // Convert to YAML with proper numeric handling and anchor support
+    const yamlOutput = yaml.dump(processedData, {
+      indent: 2,
+      lineWidth: 120,
+      noRefs: false, // Allow YAML references/anchors
+      quotingType: '"',
+      sortKeys: true // Sort keys for consistent output
     })
 
     if (dryRun) {
@@ -380,7 +404,7 @@ async function importKV(
       console.log("\n🔍 Keys that would be imported:")
       for (const key of importKeys.slice(0, 20)) {
         const value = importData[key]
-        const valueStr = typeof value === "string" ? value : JSON.stringify(value)
+        const valueStr = typeof value === "string" ? value : JSON5.stringify(value, null, 0)
         const preview = valueStr.substring(0, 50) + (valueStr.length > 50 ? "..." : "")
         console.log(`  - ${key}: ${preview}`)
       }
@@ -437,7 +461,8 @@ async function importKV(
 
     for (const [key, value] of Object.entries(importData)) {
       try {
-        const valueStr = typeof value === "string" ? value : JSON.stringify(value)
+        // Use JSON5 for better JSON serialization
+        const valueStr = typeof value === "string" ? value : JSON5.stringify(value, null, 0)
         await cloudflare.kv.namespaces.values.update(kvNamespaceId, key, {
           account_id: config.accountId,
           value: valueStr,
@@ -600,12 +625,12 @@ Environment Variables:
 Note: In development, this uses simulated KV data. In production deployment,
 this would connect to the actual Cloudflare KV namespace.
 
-Export Patterns:
-  - dashboard:demo:items (demo dashboard data)
-  - redirect:* (URL redirections)
-  - metrics:* (API metrics)
-  - auth:* (authentication data)
-  - routeros:* (RouterOS cache)
+Export Patterns (Updated for hierarchical schema):
+  - metrics (single structured JSON object with all metrics)
+  - redirect (single JSON object with all redirect mappings)
+  - dashboard:* (dashboard cache data)
+  - auth:* (legacy authentication data)
+  - routeros:* (legacy RouterOS cache)
 `
 )
 

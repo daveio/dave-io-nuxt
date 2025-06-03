@@ -1,7 +1,8 @@
+import { recordAPIErrorMetrics, recordAPIMetrics } from "~/server/middleware/metrics"
 import { requireAPIAuth } from "~/server/utils/auth-helpers"
-import { batchKVGet, getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
+import { getCloudflareEnv } from "~/server/utils/cloudflare"
 import { formatMetricsAsPrometheus, formatMetricsAsYAML, handleResponseFormat } from "~/server/utils/formatters"
-import { createAPIRequestKVCounters, getKVMetrics, writeKVMetrics } from "~/server/utils/kv-metrics"
+import { getKVMetrics } from "~/server/utils/kv-metrics"
 import { createApiError, isApiError, logRequest } from "~/server/utils/response"
 import { TokenMetricsSchema } from "~/server/utils/schemas"
 
@@ -10,7 +11,6 @@ async function getMetricsFromKV(kv?: KVNamespace): Promise<{
   successful_requests: number
   failed_requests: number
   redirect_clicks: number
-  last_24h: { total: number; successful: number; failed: number; redirects: number }
 }> {
   if (!kv) {
     throw new Error("KV storage is required for metrics")
@@ -35,13 +35,7 @@ async function getMetricsFromKV(kv?: KVNamespace): Promise<{
       total_requests: totalRequests,
       successful_requests: successfulRequests,
       failed_requests: failedRequests,
-      redirect_clicks: redirectClicks,
-      last_24h: {
-        total: 0, // NOTE: 24h metrics calculation not implemented yet
-        successful: 0,
-        failed: 0,
-        redirects: 0
-      }
+      redirect_clicks: redirectClicks
     }
 
     return metricsData
@@ -65,24 +59,8 @@ export default defineEventHandler(async (event) => {
     // Get environment bindings using helper
     const env = getCloudflareEnv(event)
     if (!env.DATA) {
-      // Write KV metrics for service unavailable
-      try {
-        const cfInfo = getCloudflareRequestInfo(event)
-
-        const kvCounters = createAPIRequestKVCounters(
-          "/api/internal/metrics",
-          "GET",
-          503,
-          cfInfo,
-          getHeader(event, "user-agent")
-        )
-
-        if (env?.DATA) {
-          await writeKVMetrics(env.DATA, kvCounters)
-        }
-      } catch (kvError) {
-        console.error("Failed to write metrics error KV metrics:", kvError)
-      }
+      const error = createApiError(503, "KV storage not available")
+      await recordAPIErrorMetrics(event, error)
 
       // Log error request
       logRequest(event, "metrics", "GET", 503, {
@@ -91,7 +69,7 @@ export default defineEventHandler(async (event) => {
         kvAvailable: !!env?.DATA
       })
 
-      throw createApiError(503, "KV storage not available")
+      throw error
     }
 
     // Get metrics data from KV
@@ -107,24 +85,8 @@ export default defineEventHandler(async (event) => {
     // Get requested format for metrics response
     const requestedFormat = (getQuery(event).format as string) || "json"
 
-    // Write successful KV metrics with rich data
-    try {
-      const cfInfo = getCloudflareRequestInfo(event)
-
-      const kvCounters = createAPIRequestKVCounters(
-        "/api/internal/metrics",
-        "GET",
-        200,
-        cfInfo,
-        getHeader(event, "user-agent")
-      )
-
-      if (env?.DATA) {
-        await writeKVMetrics(env.DATA, kvCounters)
-      }
-    } catch (metricsError) {
-      console.error("Failed to write metrics success KV metrics:", metricsError)
-    }
+    // Record successful metrics request
+    await recordAPIMetrics(event, 200)
 
     // Log successful request
     const responseTime = Date.now() - startTime
@@ -144,27 +106,8 @@ export default defineEventHandler(async (event) => {
   } catch (error: unknown) {
     console.error("Metrics error:", error)
 
-    // Write KV metrics for failed requests
-    try {
-      const env = getCloudflareEnv(event)
-      const cfInfo = getCloudflareRequestInfo(event)
-      // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists
-      const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
-
-      if (env?.DATA) {
-        const kvCounters = createAPIRequestKVCounters(
-          "/api/internal/metrics",
-          "GET",
-          statusCode,
-          cfInfo,
-          getHeader(event, "user-agent")
-        )
-
-        await writeKVMetrics(env.DATA, kvCounters)
-      }
-    } catch (kvError) {
-      console.error("Failed to write metrics error KV metrics:", kvError)
-    }
+    // Record failed metrics request
+    await recordAPIErrorMetrics(event, error)
 
     // Log error request
     // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists

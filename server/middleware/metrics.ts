@@ -41,3 +41,8 @@ export async function recordAPIErrorMetrics(event: H3Event, error: unknown): Pro
 
   await recordAPIMetrics(event, statusCode)
 }
+
+// Default export for Nuxt middleware (no-op since we use the functions directly)
+export default defineEventHandler(async () => {
+  // This middleware is not automatically applied - functions are called directly
+})

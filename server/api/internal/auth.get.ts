@@ -1,6 +1,5 @@
+import { recordAPIErrorMetrics, recordAPIMetrics } from "~/server/middleware/metrics"
 import { extractToken, getUserFromPayload, verifyJWT } from "~/server/utils/auth"
-import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
-import { createAuthKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
 import { createApiError, isApiError, logRequest } from "~/server/utils/response"
 import { AuthSuccessResponseSchema } from "~/server/utils/schemas"
 
@@ -32,25 +31,8 @@ export default defineEventHandler(async (event) => {
     const user = getUserFromPayload(payload)
     authToken = payload.sub
 
-    // Write KV metrics for successful auth
-    try {
-      const env = getCloudflareEnv(event)
-      const cfInfo = getCloudflareRequestInfo(event)
-
-      const kvCounters = createAuthKVCounters("auth", true, payload.sub, cfInfo, [
-        { key: "auth:token-verifications:total" },
-        { key: "auth:token-verifications:success" },
-        { key: `auth:users:active:${payload.sub}` },
-        { key: `auth:tokens:verified:${payload.jti || "unknown"}` }
-      ])
-
-      if (env?.DATA) {
-        await writeKVMetrics(env.DATA, kvCounters)
-      }
-    } catch (error) {
-      console.error("Failed to write auth KV metrics:", error)
-      // Continue with response even if metrics fails
-    }
+    // Record metrics for successful auth
+    await recordAPIMetrics(event, 200)
 
     // Log successful request
     const responseTime = Date.now() - startTime
@@ -84,24 +66,8 @@ export default defineEventHandler(async (event) => {
   } catch (error: unknown) {
     console.error("Authentication error:", error)
 
-    // Write KV metrics for failed auth
-    try {
-      const env = getCloudflareEnv(event)
-      const cfInfo = getCloudflareRequestInfo(event)
-
-      const kvCounters = createAuthKVCounters("auth", false, authToken || undefined, cfInfo, [
-        { key: "auth:token-verifications:total" },
-        { key: "auth:token-verifications:failed" },
-        { key: "auth:errors:verification-failed" }
-      ])
-
-      if (env?.DATA) {
-        await writeKVMetrics(env.DATA, kvCounters)
-      }
-    } catch (kvError) {
-      console.error("Failed to write auth failure KV metrics:", kvError)
-      // Continue with error response even if metrics fails
-    }
+    // Record metrics for failed auth
+    await recordAPIErrorMetrics(event, error)
 
     // Log error request
     // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists

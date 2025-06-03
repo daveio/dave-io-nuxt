@@ -1,6 +1,6 @@
+import { recordAPIErrorMetrics, recordAPIMetrics } from "~/server/middleware/metrics"
 import { requireAIAuth } from "~/server/utils/auth-helpers"
-import { getCloudflareEnv, getCloudflareRequestInfo, getKVNamespace } from "~/server/utils/cloudflare"
-import { createAIKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
+import { getCloudflareEnv } from "~/server/utils/cloudflare"
 import { createApiError, createApiResponse, isApiError, logRequest } from "~/server/utils/response"
 import { validateImageURL } from "~/server/utils/validation"
 
@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
       throw createApiError(503, "AI service not available")
     }
 
-    let aiSuccess = false
+    let _aiSuccess = false
     let _aiErrorType: string | undefined
 
     try {
@@ -52,35 +52,18 @@ export default defineEventHandler(async (event) => {
         altText = `${altText.substring(0, 297)}...`
       }
 
-      aiSuccess = true
+      _aiSuccess = true
     } catch (error) {
       console.error("AI processing failed:", error)
-      aiSuccess = false
+      _aiSuccess = false
       _aiErrorType = error instanceof Error ? error.name : "UnknownError"
       throw createApiError(500, "Failed to process image with AI")
     }
 
     const processingTime = Date.now() - processingStart
 
-    // Write KV metrics
-    try {
-      const cfInfo = getCloudflareRequestInfo(event)
-      const kv = getKVNamespace(env)
-
-      const kvCounters = createAIKVCounters(
-        "alt-text",
-        aiSuccess,
-        processingTime,
-        imageBuffer.byteLength,
-        auth.payload?.sub,
-        cfInfo
-      )
-
-      await writeKVMetrics(kv, kvCounters)
-    } catch (error) {
-      console.error("Failed to write AI metrics:", error)
-      // Continue with response even if metrics fails
-    }
+    // Record successful AI request
+    await recordAPIMetrics(event, 200)
 
     // Log successful request
     logRequest(event, "ai/alt", "GET", 200, {
@@ -104,6 +87,9 @@ export default defineEventHandler(async (event) => {
   } catch (error: unknown) {
     console.error("AI alt text error:", error)
 
+    // Record failed AI request
+    await recordAPIErrorMetrics(event, error)
+
     // Log error request
     // biome-ignore lint/suspicious/noExplicitAny: Type assertion needed for error handling
     const statusCode = isApiError(error) ? (error as any).statusCode || 500 : 500
@@ -113,20 +99,6 @@ export default defineEventHandler(async (event) => {
       processingTime: 0,
       success: false
     })
-
-    // Write failure KV metrics if we have enough context
-    try {
-      const env = getCloudflareEnv(event)
-      const cfInfo = getCloudflareRequestInfo(event)
-      const kv = getKVNamespace(env)
-      const _statusCode = isApiError(error) ? error.statusCode || 500 : 500
-
-      const kvCounters = createAIKVCounters("alt-text", false, 0, 0, undefined, cfInfo)
-
-      await writeKVMetrics(kv, kvCounters)
-    } catch (metricsError) {
-      console.error("Failed to write failure metrics:", metricsError)
-    }
 
     // Re-throw API errors
     if (isApiError(error)) {

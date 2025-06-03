@@ -182,13 +182,7 @@ describe("API Schemas", () => {
           total_requests: 1000,
           successful_requests: 950,
           failed_requests: 50,
-          redirect_clicks: 25,
-          last_24h: {
-            total: 100,
-            successful: 95,
-            failed: 5,
-            redirects: 3
-          }
+          redirect_clicks: 25
         },
         timestamp: "2025-01-01T00:00:00.000Z"
       }
@@ -198,8 +192,6 @@ describe("API Schemas", () => {
       if (result.success) {
         expect(result.data.data.total_requests).toBe(1000)
         expect(result.data.data.redirect_clicks).toBe(25)
-        expect(result.data.data.last_24h.total).toBe(100)
-        expect(result.data.data.last_24h.redirects).toBe(3)
       }
     })
   })

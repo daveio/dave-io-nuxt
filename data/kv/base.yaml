@@ -1,9 +1,7 @@
-# NOTE: while you're working, also update `bin/kv.ts` to write integers as
-# integers in the YAML, not strings, and handle anchors/references if it
-# doesn't already. We don't want to WRITE anchors/references, but we should
-# be able to READ them.
+# Base KV data structure for initialization - using new hierarchical schema
+# This file can be imported with: bun run kv import data/kv/base-new.yaml --wipe
 
-_anchors: # _anchors is for YAML anchor definitions only. Exclude from direct output.
+_anchors: # _anchors is for YAML anchor definitions only. Excluded from direct output.
   redirects: &redirects
     blog: https://blog.dave.io
     bluesky: https://bsky.app/profile/dave.io
@@ -33,52 +31,73 @@ _anchors: # _anchors is for YAML anchor definitions only. Exclude from direct ou
     wat: https://destroyallsoftware.com/talks/wat
     tumblr: https://tumblr.com/blog/daveio
     todo: https://daveio.notion.site/185b7795690c80399615eb0f5d5033c0
-  sample_metrics: &sample_metrics # Shared metrics template
-    # the `ok` and `error` counters should be usable to calculate total hits.
-    # (ok + error) == (sum of visitor.*) == (sum of group.*) == (sum of status.*)
-    ok: 0 # total hits which succeeded
-    error: 0 # total hits which errored
-    times: # all unix time, integer
+
+  zero_metrics: &zero_metrics # Empty metrics template for initialization
+    ok: 0
+    error: 0
+    times:
       last-hit: 0
       last-error: 0
       last-ok: 0
-    visitor: # hits by visitor type
+    visitor:
       human: 0
       bot: 0
       unknown: 0
-    group: # hits by response code group (1xx, 2xx, etc)
+    group:
       1xx: 0
       2xx: 0
       3xx: 0
       4xx: 0
       5xx: 0
-      # ... more groups as they occur
-    status: # hits by specific response code
-      304: 0
-      404: 0
-      307: 0
-      405: 0
-      500: 0
-      # ... more status codes as they occur
+    status: {}
+
+  resource_metrics: &resource_metrics # Common resources with zero counters
+    go: *zero_metrics       # /go (redirects)
+    internal: *zero_metrics # /api/internal
+    ai: *zero_metrics       # /api/ai
+    tokens: *zero_metrics   # /api/tokens
+    dashboard: *zero_metrics # /api/dashboard
+
+  redirect_metrics: &redirect_metrics # All redirects with zero counters
+    blog: *zero_metrics
+    bluesky: *zero_metrics
+    blit: *zero_metrics
+    bsky: *zero_metrics
+    github: *zero_metrics
+    fetlife: *zero_metrics
+    facebook: *zero_metrics
+    cv: *zero_metrics
+    dreamwidth: *zero_metrics
+    gnupg: *zero_metrics
+    journal: *zero_metrics
+    gpg: *zero_metrics
+    key: *zero_metrics
+    instagram: *zero_metrics
+    pillowfort: *zero_metrics
+    linkedin: *zero_metrics
+    mastodon: *zero_metrics
+    nerd-fonts: *zero_metrics
+    pgp: *zero_metrics
+    sexmap: *zero_metrics
+    public-key: *zero_metrics
+    these-days: *zero_metrics
+    soundcloud: *zero_metrics
+    radio: *zero_metrics
+    threads: *zero_metrics
+    wat: *zero_metrics
+    tumblr: *zero_metrics
+    todo: *zero_metrics
+
+# KV data structure
 metrics:
-  resources:
-    # these are the resources that are tracked, and their metrics.
-    # a resource is `/api/ENDPOINT_NAME` and everything beneath.
-    # for example the resource for `/api/internal/worker` is `internal`.
-    # each resource should have its own section.
-    go: # add `go` for `/go`, ie redirects. we previously excluded it
-      <<: *sample_metrics
-    internal:
-      <<: *sample_metrics
-    ai:
-      <<: *sample_metrics
-    # ... other resources
-  redirect:
-    wat:
-      <<: *sample_metrics
-    blog:
-      <<: *sample_metrics
-    # ... other redirects
-  <<: *sample_metrics # shared counters for entire Worker including `/go`
-redirect:
-  <<: *redirects
+  # Top-level metrics (entire worker)
+  <<: *zero_metrics
+
+  # Resource-specific metrics
+  resources: *resource_metrics
+
+  # Redirect-specific metrics
+  redirect: *redirect_metrics
+
+# Redirect mappings (slug -> URL)
+redirect: *redirects

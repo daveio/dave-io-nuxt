@@ -108,23 +108,13 @@ export default defineEventHandler(async (event) => {
         env.DATA.get(`metrics:tokens:${uuid}:requests:failed`).then((v) => Number.parseInt(v || "0"))
       ])
 
-      const [last24hTotal, last24hSuccessful, last24hFailed] = await Promise.all([
-        env.DATA.get(`metrics:tokens:${uuid}:24h:total`).then((v) => Number.parseInt(v || "0")),
-        env.DATA.get(`metrics:tokens:${uuid}:24h:successful`).then((v) => Number.parseInt(v || "0")),
-        env.DATA.get(`metrics:tokens:${uuid}:24h:failed`).then((v) => Number.parseInt(v || "0"))
-      ])
-
       const metrics = TokenMetricsSchema.parse({
         success: true,
         data: {
           total_requests: totalRequests,
           successful_requests: successfulRequests,
           failed_requests: failedRequests,
-          last_24h: {
-            total: last24hTotal,
-            successful: last24hSuccessful,
-            failed: last24hFailed
-          }
+          redirect_clicks: 0
         },
         timestamp: new Date().toISOString()
       })
