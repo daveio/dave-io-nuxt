@@ -236,6 +236,7 @@ export async function fetchAllKeysKV(useLocal = false): Promise<string[]> {
     const keyObjects = JSON.parse(output) as Array<{ name: string }>
     return keyObjects.map((obj) => obj.name)
   } catch (error) {
+    // trunk-ignore(semgrep/javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring): Safe format string
     console.error(`❌ Failed to fetch keys from ${useLocal ? "local" : "remote"} wrangler KV:`, error)
     throw error
   }

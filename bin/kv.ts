@@ -126,6 +126,7 @@ async function wipeKVNamespace(dryRun = false, useLocal = false, skipConfirmatio
     console.log(`\n✅ Wipe completed! ${successCount} deleted, ${errorCount} errors`)
     return errorCount === 0
   } catch (error) {
+    // trunk-ignore(semgrep/javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring): Safe format string
     console.error(`❌ Failed to wipe ${useLocal ? "local" : "remote"} KV data:`, error)
     return false
   }
@@ -239,6 +240,7 @@ async function getAllKVData(exportAll = false, useLocal = false) {
 
     return await fetchKeyValues(keys, useLocal)
   } catch (error) {
+    // trunk-ignore(semgrep/javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring): Safe format string
     console.error(`❌ Failed to fetch keys from ${useLocal ? "local" : "remote"} wrangler KV:`, error)
     throw error
   }
