@@ -600,122 +600,100 @@ Found a bug? Want to add a feature? I welcome contributions, but be warned: I ha
 
 ## KV Metrics Schema (The Data Nerd's Paradise)
 
-**🚨 BREAKING CHANGE**: New structured JSON schema replaces flat key hierarchy!
+**Current Implementation**: Simple flat key hierarchy with individual string/integer values for maximum simplicity.
 
-My implementation now uses structured JSON objects in Cloudflare KV for blazing-fast metrics that would make data scientists weep with joy.
+My implementation uses straightforward flat KV keys with simple values, prioritizing code simplicity over query performance (because sometimes the simple solution is the right solution).
 
-### New KV Storage Architecture
+### KV Store Structure Overview
 
-All metrics are stored as structured JSON objects using just two KV keys for maximum performance:
+For a visual representation of the complete KV data structure and key hierarchy:
 
-```json
-// Key: "metrics" - Single JSON object containing all metrics
-{
-  // Worker-wide metrics
-  "ok": 1000,
-  "error": 50,
-  "times": {
-    "last-hit": 1704067200000,
-    "last-error": 1704060000000,
-    "last-ok": 1704067200000
-  },
-  "visitor": {
-    "human": 800,
-    "bot": 200,
-    "unknown": 50
-  },
-  "group": {
-    "1xx": 0,
-    "2xx": 950,
-    "3xx": 30,
-    "4xx": 15,
-    "5xx": 5
-  },
-  "status": {
-    "200": 900,
-    "302": 30,
-    "404": 15,
-    "500": 5
-  },
+- **📊 [Interactive Mermaid Diagram](KV.mmd)** - Source diagram with live editing capabilities
+- **🖼️ [Vector Graphic (SVG)](KV.svg)** - Scalable diagram for documentation
+- **📸 [Raster Image (PNG)](KV.png)** - Static diagram for quick reference
 
-  // Resource-specific metrics
-  "resources": {
-    "internal": {
-      "ok": 500,
-      "error": 20,
-      // ... same structure as above
-    },
-    "ai": {
-      "ok": 200,
-      "error": 10,
-      // ... same structure as above
-    }
-  },
+![KV Store Structure & Key Hierarchy Diagram](KV.svg){width=800 height=600}
 
-  // Redirect-specific metrics
-  "redirect": {
-    "gh": {
-      "ok": 150,
-      "error": 5,
-      // ... same structure as above
-    },
-    "blog": {
-      "ok": 100,
-      "error": 2,
-      // ... same structure as above
-    }
-  }
-}
+### Current KV Storage Architecture
 
-// Key: "redirect" - Single JSON object containing all redirect mappings
-{
-  "gh": "https://github.com/daveio",
-  "blog": "https://blog.dave.io",
-  "tw": "https://twitter.com/daveio",
-  "li": "https://linkedin.com/in/dcwilliams"
-}
+All metrics are stored as individual KV keys with simple values (strings, integers) using a flat hierarchical structure:
+
+```plaintext
+// Individual KV keys with simple values
+metrics:requests:total = "1050"
+metrics:requests:ok = "1000"
+metrics:requests:error = "50"
+metrics:requests:last-hit = "1704067200000"
+metrics:requests:last-error = "1704060000000"
+metrics:requests:last-ok = "1704067200000"
+
+metrics:visitor:human = "800"
+metrics:visitor:bot = "200"
+metrics:visitor:unknown = "50"
+
+metrics:status:200 = "900"
+metrics:status:302 = "30"
+metrics:status:404 = "15"
+metrics:status:500 = "5"
+
+// Resource-specific metrics
+metrics:internal:ok = "500"
+metrics:internal:error = "20"
+metrics:internal:last-hit = "1704067000000"
+
+metrics:ai:ok = "200"
+metrics:ai:error = "10"
+metrics:ai:last-hit = "1704066000000"
+
+// Redirect mappings
+redirect:gh = "https://github.com/daveio"
+redirect:blog = "https://blog.dave.io"
+redirect:tw = "https://twitter.com/daveio"
+
+// Redirect metrics
+metrics:redirect:gh:ok = "150"
+metrics:redirect:gh:error = "5"
+metrics:redirect:blog:ok = "100"
+metrics:redirect:blog:error = "2"
 ```
 
-**PERFORMANCE BOOST**: Single-key reads replace complex key queries for 10x faster dashboard loading!
+**Trade-offs**: Simple flat keys prioritize code maintainability over query performance. Multiple KV lookups required for dashboard aggregation.
 
-### New Metrics Architecture Benefits
+> **TODO**: Add metrics to measure KV lookup timing impacts. Track time taken for each operation and all operations. Quantify the performance cost of flat key structure vs structured JSON approach.
 
-1. **🚀 Lightning Fast**: Single JSON object reads vs hundreds of individual key lookups
-2. **🎯 Atomic Updates**: Consistent data with no race conditions
-3. **📊 Rich Analytics**: Comprehensive metrics including timing, visitor classification, and status codes
-4. **🏗️ Structured Schema**: TypeScript-validated data structure for reliability
-5. **🔧 Easy Aggregation**: Calculate totals by summing nested values
-6. **💾 Efficient Storage**: Structured JSON uses less KV namespace space
+### Current Architecture Benefits
 
-### Migration from Legacy Schema
+1. **🔧 Simple to Debug**: Individual keys are easy to inspect and modify manually
+2. **📝 Readable Code**: Straightforward key-value operations without JSON parsing
+3. **🎯 Atomic Operations**: Each metric update is independent and atomic
+4. **🔍 Easy Filtering**: Pattern-based key filtering for exports and analysis
+5. **💡 Low Complexity**: No schema versioning or migration concerns
+6. **🛠️ Tool Friendly**: KV management tools can easily inspect individual values
 
-The new schema completely replaces the old flat key structure:
+### Performance Considerations
 
-**OLD** (hundreds of keys):
-- `metrics:internal:hit:ok` → Individual counter
-- `metrics:internal:visitor:human` → Individual counter
-- `redirect:gh` → Individual URL string
+The flat key approach trades query performance for operational simplicity:
 
-**NEW** (2 keys total):
-- `metrics` → Single structured JSON with all data
-- `redirect` → Single JSON object with all mappings
+- **Dashboard Loading**: Requires multiple KV `get()` calls for metric aggregation
+- **Batch Operations**: No single-key reads for comprehensive data
+- **Network Overhead**: More round trips to KV storage for complex queries
+- **Edge Performance**: Acceptable for current traffic levels, may need optimization at scale
 
 ### Function Updates
 
-Updated helper functions now work with structured data:
+Current helper functions work with individual KV keys:
 
 ```typescript
-// New structured metrics updates
-await updateAPIRequestMetrics(kv, endpoint, method, statusCode, cfInfo, userAgent)
-await updateRedirectMetrics(kv, slug, statusCode, userAgent)
+// Individual key updates
+await incrementKVCounter(kv, `metrics:${endpoint}:ok`)
+await setKVValue(kv, `metrics:${endpoint}:last-hit`, Date.now().toString())
 
-// Fast structured metrics retrieval
-const metrics = await getKVMetrics(kv)
-console.log(`Total requests: ${metrics.ok + metrics.error}`)
-console.log(`Success rate: ${(metrics.ok / (metrics.ok + metrics.error) * 100).toFixed(1)}%`)
+// Pattern-based retrieval for aggregation
+const allMetrics = await getKVKeysByPattern(kv, 'metrics:*')
+console.log(`Total API requests: ${calculateTotalFromKeys(allMetrics)}`)
 ```
 
-The new structured approach delivers enterprise-grade analytics with edge-speed performance!
+The current flat approach delivers reliable metrics with operational simplicity, accepting the performance trade-off for maintainability!
 
 ## License
 

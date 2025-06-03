@@ -1,7 +1,7 @@
 ---
 config:
   theme: neo-dark
-  layout: dagre
+  layout: elk
   htmlLabels: true
   markdownAutoWrap: true
 id: ee3114f7-6c54-4dcc-a315-24c20d9a7d28
@@ -11,707 +11,236 @@ flowchart TD
     %% Root KV Store
     ROOT[["🗄️ **Cloudflare KV Store**<br/>_Complete initialization structure_<br/>**Source:** _init.yaml"]]
 
-    %% YAML Anchors Section
+    %% Main horizontal sections
+    ROOT --> YAML_ANCHORS
+    ROOT --> KV_DATA
+
+    %% YAML Anchors Section - Horizontal Layout
     subgraph YAML_ANCHORS["🔗 YAML Anchors (_anchors) - Template Definitions"]
-        direction TB
+        direction LR
 
         ANCHORS_ROOT["`**_anchors**
         _YAML anchor definitions only_
         **Excluded from direct output**`"]
 
-        subgraph REDIRECTS_ANCHOR["📍 &redirects Anchor Template"]
+        ANCHORS_ROOT --> REDIRECT_TEMPLATES
+        ANCHORS_ROOT --> METRICS_TEMPLATES
+
+        subgraph REDIRECT_TEMPLATES["📍 Redirect Templates"]
             direction TB
             REDIRECTS_ANCHOR_DEF["`**&redirects**
             _Redirect URL mappings template_`"]
 
-            %% Social Media Redirects
-            subgraph SOCIAL_REDIRECTS["👥 Social Media Redirects"]
+            subgraph SOCIAL_DEV_ROW["👥💻 Social & Dev Redirects"]
+                direction LR
                 BLUESKY_R["`**bluesky:** https://bsky.app/profile/dave.io`"]
-                BSKY_R["`**bsky:** https://dave.io/go/bluesky`"]
                 FACEBOOK_R["`**facebook:** https://facebook.com/dave.io`"]
-                INSTAGRAM_R["`**instagram:** https://instagram.com/daveio`"]
-                LINKEDIN_R["`**linkedin:** https://linkedin.com/in/dcwilliams`"]
-                MASTODON_R["`**mastodon:** https://basilisk.gallery/@dave`"]
-                THREADS_R["`**threads:** https://threads.com/@daveio`"]
-                TUMBLR_R["`**tumblr:** https://tumblr.com/blog/daveio`"]
-            end
-
-            %% Developer Platform Redirects
-            subgraph DEV_REDIRECTS["💻 Developer Platform Redirects"]
                 GITHUB_R["`**github:** https://github.com/daveio`"]
-                SOUNDCLOUD_R["`**soundcloud:** https://soundcloud.com/davedotio`"]
+                LINKEDIN_R["`**linkedin:** https://linkedin.com/in/dcwilliams`"]
             end
 
-            %% Content & Blog Redirects
-            subgraph CONTENT_REDIRECTS["📝 Content & Documentation Redirects"]
+            subgraph CONTENT_CRYPTO_ROW["📝🔐 Content & Security"]
+                direction LR
                 BLOG_R["`**blog:** https://blog.dave.io`"]
-                BLIT_R["`**blit:** https://notes.dave.io/blit`"]
                 CV_R["`**cv:** https://notes.dave.io/cv`"]
-                DREAMWIDTH_R["`**dreamwidth:** https://daveio.dreamwidth.org`"]
-                JOURNAL_R["`**journal:** https://dave.io/go/dreamwidth`"]
-                TODO_R["`**todo:** https://daveio.notion.site/185b...`"]
-            end
-
-            %% Security & Crypto Redirects
-            subgraph CRYPTO_REDIRECTS["🔐 Cryptography & Security Redirects"]
-                GNUPG_R["`**gnupg:** https://dave.io/go/key`"]
-                GPG_R["`**gpg:** https://dave.io/go/key`"]
                 KEY_R["`**key:** https://keyoxide.org/729A7F...`"]
-                PGP_R["`**pgp:** https://dave.io/go/key`"]
-                PUBLIC_KEY_R["`**public-key:** https://dave.io/go/key`"]
+                GPG_R["`**gpg:** https://dave.io/go/key`"]
             end
 
-            %% Specialized Content Redirects
-            subgraph SPECIAL_REDIRECTS["🎯 Specialized Content Redirects"]
+            subgraph SPECIAL_MISC_ROW["🎯 Specialized & Misc"]
+                direction LR
                 FETLIFE_R["`**fetlife:** https://fetlife.com/users/22725`"]
-                PILLOWFORT_R["`**pillowfort:** https://pillowfort.social/daveio`"]
                 NERD_FONTS_R["`**nerd-fonts:** https://files.dave.io/nerd-fonts.zip`"]
-                SEXMAP_R["`**sexmap:** https://humansexmap.com/showmap...`"]
-                THESE_DAYS_R["`**these-days:** https://customer-scrk7cl14o51h5z9...`"]
                 WAT_R["`**wat:** https://destroyallsoftware.com/talks/wat`"]
                 RADIO_R["`**radio:** https://qrz.com/db/M6LNS`"]
             end
+
+            REDIRECTS_ANCHOR_DEF --> SOCIAL_DEV_ROW
+            REDIRECTS_ANCHOR_DEF --> CONTENT_CRYPTO_ROW
+            REDIRECTS_ANCHOR_DEF --> SPECIAL_MISC_ROW
         end
 
-        subgraph ZERO_METRICS_ANCHOR["📊 &zero_metrics Anchor Template"]
+        subgraph METRICS_TEMPLATES["📊 Metrics Templates"]
             direction TB
-            ZERO_METRICS_DEF["`**&zero_metrics**
-            _Empty metrics template initialization_`"]
 
-            subgraph ZERO_COUNTERS["🔢 Zero Counter Structure"]
-                ZERO_OK["`**ok:** 0`"]
-                ZERO_ERROR["`**error:** 0`"]
+            subgraph ZERO_RESOURCE_ROW["🔢🛠️ Base Templates"]
+                direction LR
+                ZERO_METRICS_DEF["`**&zero_metrics**
+                _Empty metrics initialization_
+                ok: 0, error: 0, last-hit: 0
+                human: 0, bot: 0, unknown: 0
+                1xx-5xx: 0, status: {}`"]
 
-                subgraph ZERO_TIMES["⏰ Time Tracking Zeros"]
-                    ZERO_LAST_HIT["`**last-hit:** 0`"]
-                    ZERO_LAST_ERROR["`**last-error:** 0`"]
-                    ZERO_LAST_OK["`**last-ok:** 0`"]
-                end
-
-                subgraph ZERO_VISITOR["👥 Visitor Classification Zeros"]
-                    ZERO_HUMAN["`**human:** 0`"]
-                    ZERO_BOT["`**bot:** 0`"]
-                    ZERO_UNKNOWN["`**unknown:** 0`"]
-                end
-
-                subgraph ZERO_HTTP_GROUPS["🌐 HTTP Status Group Zeros"]
-                    ZERO_1XX["`**1xx:** 0 _Informational_`"]
-                    ZERO_2XX["`**2xx:** 0 _Success_`"]
-                    ZERO_3XX["`**3xx:** 0 _Redirection_`"]
-                    ZERO_4XX["`**4xx:** 0 _Client Error_`"]
-                    ZERO_5XX["`**5xx:** 0 _Server Error_`"]
-                end
-
-                ZERO_STATUS["`**status:** {} _Empty object_`"]
+                RESOURCE_METRICS_DEF["`**&resource_metrics**
+                _Common API resources_
+                go, internal, ai, tokens, dashboard
+                **Structure:** *zero_metrics`"]
             end
-        end
 
-        subgraph RESOURCE_METRICS_ANCHOR["🛠️ &resource_metrics Anchor Template"]
-            direction TB
-            RESOURCE_METRICS_DEF["`**&resource_metrics**
-            _Common API resources with zero counters_`"]
-
-            RESOURCE_GO["`**go:** *zero_metrics _/go redirects_`"]
-            RESOURCE_INTERNAL["`**internal:** *zero_metrics _/api/internal_`"]
-            RESOURCE_AI["`**ai:** *zero_metrics _/api/ai_`"]
-            RESOURCE_TOKENS["`**tokens:** *zero_metrics _/api/tokens_`"]
-            RESOURCE_DASHBOARD["`**dashboard:** *zero_metrics _/api/dashboard_`"]
-        end
-
-        subgraph REDIRECT_METRICS_ANCHOR["📍 &redirect_metrics Anchor Template"]
-            direction TB
             REDIRECT_METRICS_DEF["`**&redirect_metrics**
-            _All redirects with zero counters_`"]
+            _All redirects with zero counters_
+            **Structure:** *zero_metrics for each redirect`"]
 
-            subgraph REDIRECT_ZERO_SOCIAL["👥 Social Media Redirect Zeros"]
-                RZ_BLUESKY["`**bluesky:** *zero_metrics`"]
-                RZ_BSKY["`**bsky:** *zero_metrics`"]
-                RZ_FACEBOOK["`**facebook:** *zero_metrics`"]
-                RZ_INSTAGRAM["`**instagram:** *zero_metrics`"]
-                RZ_LINKEDIN["`**linkedin:** *zero_metrics`"]
-                RZ_MASTODON["`**mastodon:** *zero_metrics`"]
-                RZ_THREADS["`**threads:** *zero_metrics`"]
-                RZ_TUMBLR["`**tumblr:** *zero_metrics`"]
-            end
-
-            subgraph REDIRECT_ZERO_DEV["💻 Developer Platform Redirect Zeros"]
-                RZ_GITHUB["`**github:** *zero_metrics`"]
-                RZ_SOUNDCLOUD["`**soundcloud:** *zero_metrics`"]
-            end
-
-            subgraph REDIRECT_ZERO_CONTENT["📝 Content Redirect Zeros"]
-                RZ_BLOG["`**blog:** *zero_metrics`"]
-                RZ_BLIT["`**blit:** *zero_metrics`"]
-                RZ_CV["`**cv:** *zero_metrics`"]
-                RZ_DREAMWIDTH["`**dreamwidth:** *zero_metrics`"]
-                RZ_JOURNAL["`**journal:** *zero_metrics`"]
-                RZ_TODO["`**todo:** *zero_metrics`"]
-            end
-
-            subgraph REDIRECT_ZERO_CRYPTO["🔐 Crypto Redirect Zeros"]
-                RZ_GNUPG["`**gnupg:** *zero_metrics`"]
-                RZ_GPG["`**gpg:** *zero_metrics`"]
-                RZ_KEY["`**key:** *zero_metrics`"]
-                RZ_PGP["`**pgp:** *zero_metrics`"]
-                RZ_PUBLIC_KEY["`**public-key:** *zero_metrics`"]
-            end
-
-            subgraph REDIRECT_ZERO_SPECIAL["🎯 Specialized Redirect Zeros"]
-                RZ_FETLIFE["`**fetlife:** *zero_metrics`"]
-                RZ_PILLOWFORT["`**pillowfort:** *zero_metrics`"]
-                RZ_NERD_FONTS["`**nerd-fonts:** *zero_metrics`"]
-                RZ_SEXMAP["`**sexmap:** *zero_metrics`"]
-                RZ_THESE_DAYS["`**these-days:** *zero_metrics`"]
-                RZ_WAT["`**wat:** *zero_metrics`"]
-                RZ_RADIO["`**radio:** *zero_metrics`"]
-            end
+            ZERO_RESOURCE_ROW --> REDIRECT_METRICS_DEF
         end
     end
 
-    %% Main KV Data Structure
+    %% Main KV Data Structure - Horizontal Layout
     subgraph KV_DATA["🗄️ KV Data Structure - Actual Storage Keys"]
-        direction TB
+        direction LR
 
-        subgraph METRICS_STRUCTURE["📊 metrics: - Top-level Metrics Structure"]
+        METRICS_SIDE --> REDIRECT_SIDE
+
+        subgraph METRICS_SIDE["📊 Metrics Storage"]
             direction TB
+
             METRICS_BASE["`**metrics**
             _Top-level worker metrics_
-            **Inherits:** <<*zero_metrics`"]
+            **Inherits:** *zero_metrics`"]
 
-            subgraph METRICS_RESOURCES["🛠️ metrics:resources - Resource-Specific Metrics"]
+            subgraph RESOURCE_METRICS_ROW["🛠️ Resource Metrics"]
+                direction LR
+
+                subgraph API_RESOURCES["🔧 API Resources"]
+                    direction TB
+                    INTERNAL_M["`**internal**
+                    /api/internal metrics
+                    auth: success/failed
+                    visitors: human/bot`"]
+
+                    AI_M["`**ai**
+                    /api/ai metrics
+                    auth tracking
+                    usage patterns`"]
+
+                    TOKENS_M["`**tokens**
+                    /api/tokens metrics
+                    token operations`"]
+                end
+
+                subgraph WEB_RESOURCES["🌐 Web Resources"]
+                    direction TB
+                    GO_M["`**go**
+                    /go endpoint metrics
+                    redirects tracking
+                    HTTP status groups
+                    visitor classification`"]
+
+                    DASHBOARD_M["`**dashboard**
+                    /api/dashboard metrics
+                    dashboard access`"]
+                end
+
+                API_RESOURCES ~~~ WEB_RESOURCES
+            end
+
+            subgraph REDIRECT_METRICS_GRID["📍 Redirect Metrics Grid"]
                 direction TB
-                METRICS_RESOURCES_BASE["`**metrics:resources**
-                _Resource-specific metrics container_
-                **Inherits:** *resource_metrics`"]
 
-                subgraph GO_RESOURCE_METRICS["📍 /go Resource Metrics"]
-                    GO_METRICS["`**metrics:resources:go**
-                    _/go endpoint metrics_
-                    **Structure:** *zero_metrics`"]
-                    GO_HIT_OK["`**metrics:resources:go:hit:ok**
-                    _Successful /go requests_`"]
-                    GO_HIT_ERROR["`**metrics:resources:go:hit:error**
-                    _Failed /go requests_`"]
-                    GO_HIT_TOTAL["`**metrics:resources:go:hit:total**
-                    _Total /go requests_`"]
-                    GO_VISITOR_HUMAN["`**metrics:resources:go:visitor:human**
-                    _Human visitors to /go_`"]
-                    GO_VISITOR_BOT["`**metrics:resources:go:visitor:bot**
-                    _Bot visitors to /go_`"]
-                    GO_VISITOR_UNKNOWN["`**metrics:resources:go:visitor:unknown**
-                    _Unknown visitors to /go_`"]
-                    GO_TIMES_LAST_HIT["`**metrics:resources:go:times:last-hit**
-                    _Last /go access timestamp_`"]
-                    GO_TIMES_LAST_OK["`**metrics:resources:go:times:last-ok**
-                    _Last successful /go timestamp_`"]
-                    GO_TIMES_LAST_ERROR["`**metrics:resources:go:times:last-error**
-                    _Last /go error timestamp_`"]
-                    GO_GROUP_1XX["`**metrics:resources:go:group:1xx**
-                    _1xx responses from /go_`"]
-                    GO_GROUP_2XX["`**metrics:resources:go:group:2xx**
-                    _2xx responses from /go_`"]
-                    GO_GROUP_3XX["`**metrics:resources:go:group:3xx**
-                    _3xx responses from /go_`"]
-                    GO_GROUP_4XX["`**metrics:resources:go:group:4xx**
-                    _4xx responses from /go_`"]
-                    GO_GROUP_5XX["`**metrics:resources:go:group:5xx**
-                    _5xx responses from /go_`"]
+                subgraph RM_ROW1["Social Platforms"]
+                    direction LR
+                    R_BLUESKY_M["`**bluesky**`"]
+                    R_FACEBOOK_M["`**facebook**`"]
+                    R_GITHUB_M["`**github**`"]
+                    R_LINKEDIN_M["`**linkedin**`"]
                 end
 
-                subgraph INTERNAL_RESOURCE_METRICS["🔧 /api/internal Resource Metrics"]
-                    INTERNAL_METRICS["`**metrics:resources:internal**
-                    _/api/internal endpoint metrics_
-                    **Structure:** *zero_metrics`"]
-                    INTERNAL_HIT_OK["`**metrics:resources:internal:hit:ok**
-                    _Successful internal API requests_`"]
-                    INTERNAL_HIT_ERROR["`**metrics:resources:internal:hit:error**
-                    _Failed internal API requests_`"]
-                    INTERNAL_AUTH_SUCCESS["`**metrics:resources:internal:auth:succeeded**
-                    _Successful internal API auth_`"]
-                    INTERNAL_AUTH_FAILED["`**metrics:resources:internal:auth:failed**
-                    _Failed internal API auth_`"]
-                    INTERNAL_VISITOR_HUMAN["`**metrics:resources:internal:visitor:human**
-                    _Human users of internal API_`"]
-                    INTERNAL_VISITOR_BOT["`**metrics:resources:internal:visitor:bot**
-                    _Bot access to internal API_`"]
+                subgraph RM_ROW2["Content & Tools"]
+                    direction LR
+                    R_BLOG_M["`**blog**`"]
+                    R_CV_M["`**cv**`"]
+                    R_KEY_M["`**key**`"]
+                    R_NERD_FONTS_M["`**nerd-fonts**`"]
                 end
 
-                subgraph AI_RESOURCE_METRICS["🤖 /api/ai Resource Metrics"]
-                    AI_METRICS["`**metrics:resources:ai**
-                    _/api/ai endpoint metrics_
-                    **Structure:** *zero_metrics`"]
-                    AI_HIT_OK["`**metrics:resources:ai:hit:ok**
-                    _Successful AI API requests_`"]
-                    AI_HIT_ERROR["`**metrics:resources:ai:hit:error**
-                    _Failed AI API requests_`"]
-                    AI_AUTH_SUCCESS["`**metrics:resources:ai:auth:succeeded**
-                    _Successful AI API auth_`"]
-                    AI_AUTH_FAILED["`**metrics:resources:ai:auth:failed**
-                    _Failed AI API auth_`"]
-                    AI_VISITOR_HUMAN["`**metrics:resources:ai:visitor:human**
-                    _Human AI API usage_`"]
-                    AI_VISITOR_BOT["`**metrics:resources:ai:visitor:bot**
-                    _Bot AI API usage_`"]
-                end
-
-                subgraph TOKENS_RESOURCE_METRICS["🎫 /api/tokens Resource Metrics"]
-                    TOKENS_METRICS["`**metrics:resources:tokens**
-                    _/api/tokens endpoint metrics_
-                    **Structure:** *zero_metrics`"]
-                    TOKENS_HIT_OK["`**metrics:resources:tokens:hit:ok**
-                    _Successful token API requests_`"]
-                    TOKENS_HIT_ERROR["`**metrics:resources:tokens:hit:error**
-                    _Failed token API requests_`"]
-                    TOKENS_AUTH_SUCCESS["`**metrics:resources:tokens:auth:succeeded**
-                    _Successful token API auth_`"]
-                    TOKENS_AUTH_FAILED["`**metrics:resources:tokens:auth:failed**
-                    _Failed token API auth_`"]
-                end
-
-                subgraph DASHBOARD_RESOURCE_METRICS["📊 /api/dashboard Resource Metrics"]
-                    DASHBOARD_METRICS["`**metrics:resources:dashboard**
-                    _/api/dashboard endpoint metrics_
-                    **Structure:** *zero_metrics`"]
-                    DASHBOARD_HIT_OK["`**metrics:resources:dashboard:hit:ok**
-                    _Successful dashboard requests_`"]
-                    DASHBOARD_HIT_ERROR["`**metrics:resources:dashboard:hit:error**
-                    _Failed dashboard requests_`"]
-                    DASHBOARD_AUTH_SUCCESS["`**metrics:resources:dashboard:auth:succeeded**
-                    _Successful dashboard auth_`"]
-                    DASHBOARD_AUTH_FAILED["`**metrics:resources:dashboard:auth:failed**
-                    _Failed dashboard auth_`"]
+                subgraph RM_ROW3["Specialized Services"]
+                    direction LR
+                    R_FETLIFE_M["`**fetlife**`"]
+                    R_WAT_M["`**wat**`"]
+                    R_RADIO_M["`**radio**`"]
+                    R_DREAMWIDTH_M["`**dreamwidth**`"]
                 end
             end
 
-            subgraph REDIRECT_METRICS_STRUCTURE["📍 metrics:redirect - Redirect-Specific Metrics"]
-                direction TB
-                REDIRECT_METRICS_BASE["`**metrics:redirect**
-                _Redirect-specific metrics container_
-                **Inherits:** *redirect_metrics`"]
-
-                subgraph REDIRECT_SOCIAL_METRICS["👥 Social Media Redirect Metrics"]
-                    REDIRECT_BLUESKY_M["`**metrics:redirect:bluesky**
-                    _Bluesky redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_BSKY_M["`**metrics:redirect:bsky**
-                    _Bsky redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_FACEBOOK_M["`**metrics:redirect:facebook**
-                    _Facebook redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_INSTAGRAM_M["`**metrics:redirect:instagram**
-                    _Instagram redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_LINKEDIN_M["`**metrics:redirect:linkedin**
-                    _LinkedIn redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_MASTODON_M["`**metrics:redirect:mastodon**
-                    _Mastodon redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_THREADS_M["`**metrics:redirect:threads**
-                    _Threads redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_TUMBLR_M["`**metrics:redirect:tumblr**
-                    _Tumblr redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                end
-
-                subgraph REDIRECT_DEV_METRICS["💻 Developer Platform Redirect Metrics"]
-                    REDIRECT_GITHUB_M["`**metrics:redirect:github**
-                    _GitHub redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_SOUNDCLOUD_M["`**metrics:redirect:soundcloud**
-                    _SoundCloud redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                end
-
-                subgraph REDIRECT_CONTENT_METRICS["📝 Content Redirect Metrics"]
-                    REDIRECT_BLOG_M["`**metrics:redirect:blog**
-                    _Blog redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_BLIT_M["`**metrics:redirect:blit**
-                    _Blit redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_CV_M["`**metrics:redirect:cv**
-                    _CV redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_DREAMWIDTH_M["`**metrics:redirect:dreamwidth**
-                    _Dreamwidth redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_JOURNAL_M["`**metrics:redirect:journal**
-                    _Journal redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_TODO_M["`**metrics:redirect:todo**
-                    _Todo redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                end
-
-                subgraph REDIRECT_CRYPTO_METRICS["🔐 Crypto Redirect Metrics"]
-                    REDIRECT_GNUPG_M["`**metrics:redirect:gnupg**
-                    _GnuPG redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_GPG_M["`**metrics:redirect:gpg**
-                    _GPG redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_KEY_M["`**metrics:redirect:key**
-                    _Key redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_PGP_M["`**metrics:redirect:pgp**
-                    _PGP redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_PUBLIC_KEY_M["`**metrics:redirect:public-key**
-                    _Public key redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                end
-
-                subgraph REDIRECT_SPECIAL_METRICS["🎯 Specialized Redirect Metrics"]
-                    REDIRECT_FETLIFE_M["`**metrics:redirect:fetlife**
-                    _FetLife redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_PILLOWFORT_M["`**metrics:redirect:pillowfort**
-                    _Pillowfort redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_NERD_FONTS_M["`**metrics:redirect:nerd-fonts**
-                    _Nerd Fonts redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_SEXMAP_M["`**metrics:redirect:sexmap**
-                    _Sexmap redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_THESE_DAYS_M["`**metrics:redirect:these-days**
-                    _These Days redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_WAT_M["`**metrics:redirect:wat**
-                    _WAT redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                    REDIRECT_RADIO_M["`**metrics:redirect:radio**
-                    _Radio redirect hit count_
-                    **Structure:** *zero_metrics`"]
-                end
-            end
+            METRICS_BASE --> RESOURCE_METRICS_ROW
+            METRICS_BASE --> REDIRECT_METRICS_GRID
         end
 
-        subgraph REDIRECT_STRUCTURE["📍 redirect: - URL Redirect Mappings"]
+        subgraph REDIRECT_SIDE["📍 Active URL Redirects"]
             direction TB
+
             REDIRECT_BASE["`**redirect**
             _URL redirect mappings_
             **Inherits:** *redirects`"]
 
-            subgraph ACTUAL_SOCIAL_REDIRECTS["👥 Active Social Media Redirects"]
-                A_BLUESKY["`**redirect:bluesky**
-                https://bsky.app/profile/dave.io`"]
-                A_BSKY["`**redirect:bsky**
-                https://dave.io/go/bluesky`"]
-                A_FACEBOOK["`**redirect:facebook**
-                https://facebook.com/dave.io`"]
-                A_INSTAGRAM["`**redirect:instagram**
-                https://instagram.com/daveio`"]
-                A_LINKEDIN["`**redirect:linkedin**
-                https://linkedin.com/in/dcwilliams`"]
-                A_MASTODON["`**redirect:mastodon**
-                https://basilisk.gallery/@dave`"]
-                A_THREADS["`**redirect:threads**
-                https://threads.com/@daveio`"]
-                A_TUMBLR["`**redirect:tumblr**
-                https://tumblr.com/blog/daveio`"]
+            subgraph ACTIVE_REDIRECTS_GRID["🔗 Active Redirect URLs"]
+                direction TB
+
+                subgraph AR_ROW1["Social & Professional"]
+                    direction LR
+                    A_BLUESKY["`**bluesky**
+                    bsky.app/profile/dave.io`"]
+                    A_FACEBOOK["`**facebook**
+                    facebook.com/dave.io`"]
+                    A_GITHUB["`**github**
+                    github.com/daveio`"]
+                    A_LINKEDIN["`**linkedin**
+                    linkedin.com/in/dcwilliams`"]
+                end
+
+                subgraph AR_ROW2["Content & Documentation"]
+                    direction LR
+                    A_BLOG["`**blog**
+                    blog.dave.io`"]
+                    A_CV["`**cv**
+                    notes.dave.io/cv`"]
+                    A_BLIT["`**blit**
+                    notes.dave.io/blit`"]
+                    A_DREAMWIDTH["`**dreamwidth**
+                    daveio.dreamwidth.org`"]
+                end
+
+                subgraph AR_ROW3["Security & Keys"]
+                    direction LR
+                    A_KEY["`**key**
+                    keyoxide.org/729A7F...`"]
+                    A_GPG["`**gpg**
+                    dave.io/go/key`"]
+                    A_PGP["`**pgp**
+                    dave.io/go/key`"]
+                    A_GNUPG["`**gnupg**
+                    dave.io/go/key`"]
+                end
+
+                subgraph AR_ROW4["Specialized & Files"]
+                    direction LR
+                    A_FETLIFE["`**fetlife**
+                    fetlife.com/users/22725`"]
+                    A_NERD_FONTS["`**nerd-fonts**
+                    files.dave.io/nerd-fonts.zip`"]
+                    A_WAT["`**wat**
+                    destroyallsoftware.com/talks/wat`"]
+                    A_RADIO["`**radio**
+                    qrz.com/db/M6LNS`"]
+                end
             end
 
-            subgraph ACTUAL_DEV_REDIRECTS["💻 Active Developer Platform Redirects"]
-                A_GITHUB["`**redirect:github**
-                https://github.com/daveio`"]
-                A_SOUNDCLOUD["`**redirect:soundcloud**
-                https://soundcloud.com/davedotio`"]
-            end
-
-            subgraph ACTUAL_CONTENT_REDIRECTS["📝 Active Content Redirects"]
-                A_BLOG["`**redirect:blog**
-                https://blog.dave.io`"]
-                A_BLIT["`**redirect:blit**
-                https://notes.dave.io/blit`"]
-                A_CV["`**redirect:cv**
-                https://notes.dave.io/cv`"]
-                A_DREAMWIDTH["`**redirect:dreamwidth**
-                https://daveio.dreamwidth.org`"]
-                A_JOURNAL["`**redirect:journal**
-                https://dave.io/go/dreamwidth`"]
-                A_TODO["`**redirect:todo**
-                https://daveio.notion.site/185b...`"]
-            end
-
-            subgraph ACTUAL_CRYPTO_REDIRECTS["🔐 Active Crypto Redirects"]
-                A_GNUPG["`**redirect:gnupg**
-                https://dave.io/go/key`"]
-                A_GPG["`**redirect:gpg**
-                https://dave.io/go/key`"]
-                A_KEY["`**redirect:key**
-                https://keyoxide.org/729A7F...`"]
-                A_PGP["`**redirect:pgp**
-                https://dave.io/go/key`"]
-                A_PUBLIC_KEY["`**redirect:public-key**
-                https://dave.io/go/key`"]
-            end
-
-            subgraph ACTUAL_SPECIAL_REDIRECTS["🎯 Active Specialized Redirects"]
-                A_FETLIFE["`**redirect:fetlife**
-                https://fetlife.com/users/22725`"]
-                A_PILLOWFORT["`**redirect:pillowfort**
-                https://pillowfort.social/daveio`"]
-                A_NERD_FONTS["`**redirect:nerd-fonts**
-                https://files.dave.io/nerd-fonts.zip`"]
-                A_SEXMAP["`**redirect:sexmap**
-                https://humansexmap.com/showmap...`"]
-                A_THESE_DAYS["`**redirect:these-days**
-                https://customer-scrk7cl14o51h5z9...`"]
-                A_WAT["`**redirect:wat**
-                https://destroyallsoftware.com/talks/wat`"]
-                A_RADIO["`**redirect:radio**
-                https://qrz.com/db/M6LNS`"]
-            end
+            REDIRECT_BASE --> ACTIVE_REDIRECTS_GRID
         end
     end
 
-    %% Root Connections
-    ROOT -->|"`defines structure`"| YAML_ANCHORS
-    ROOT -->|"`implements data`"| KV_DATA
-
-    %% YAML Anchor Connections
-    ANCHORS_ROOT -->|"`contains`"| REDIRECTS_ANCHOR_DEF
-    ANCHORS_ROOT -->|"`contains`"| ZERO_METRICS_DEF
-    ANCHORS_ROOT -->|"`contains`"| RESOURCE_METRICS_DEF
-    ANCHORS_ROOT -->|"`contains`"| REDIRECT_METRICS_DEF
-
-    %% Redirect Anchor Details
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| BLUESKY_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| BSKY_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| FACEBOOK_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| INSTAGRAM_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| LINKEDIN_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| MASTODON_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| THREADS_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| TUMBLR_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| GITHUB_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| SOUNDCLOUD_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| BLOG_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| BLIT_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| CV_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| DREAMWIDTH_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| JOURNAL_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| TODO_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| GNUPG_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| GPG_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| KEY_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| PGP_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| PUBLIC_KEY_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| FETLIFE_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| PILLOWFORT_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| NERD_FONTS_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| SEXMAP_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| THESE_DAYS_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| WAT_R
-    REDIRECTS_ANCHOR_DEF -->|"`defines`"| RADIO_R
-
-    %% Zero Metrics Structure
-    ZERO_METRICS_DEF -->|"`contains`"| ZERO_OK
-    ZERO_METRICS_DEF -->|"`contains`"| ZERO_ERROR
-    ZERO_METRICS_DEF -->|"`contains`"| ZERO_LAST_HIT
-    ZERO_METRICS_DEF -->|"`contains`"| ZERO_LAST_ERROR
-    ZERO_METRICS_DEF -->|"`contains`"| ZERO_LAST_OK
-    ZERO_METRICS_DEF -->|"`contains`"| ZERO_HUMAN
-    ZERO_METRICS_DEF -->|"`contains`"| ZERO_BOT
-    ZERO_METRICS_DEF -->|"`contains`"| ZERO_UNKNOWN
-    ZERO_METRICS_DEF -->|"`contains`"| ZERO_1XX
-    ZERO_METRICS_DEF -->|"`contains`"| ZERO_2XX
-    ZERO_METRICS_DEF -->|"`contains`"| ZERO_3XX
-    ZERO_METRICS_DEF -->|"`contains`"| ZERO_4XX
-    ZERO_METRICS_DEF -->|"`contains`"| ZERO_5XX
-    ZERO_METRICS_DEF -->|"`contains`"| ZERO_STATUS
-
-    %% Resource Metrics Structure
-    RESOURCE_METRICS_DEF -->|"`references`"| RESOURCE_GO
-    RESOURCE_METRICS_DEF -->|"`references`"| RESOURCE_INTERNAL
-    RESOURCE_METRICS_DEF -->|"`references`"| RESOURCE_AI
-    RESOURCE_METRICS_DEF -->|"`references`"| RESOURCE_TOKENS
-    RESOURCE_METRICS_DEF -->|"`references`"| RESOURCE_DASHBOARD
-
-    %% Redirect Metrics Structure
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_BLUESKY
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_BSKY
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_FACEBOOK
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_INSTAGRAM
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_LINKEDIN
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_MASTODON
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_THREADS
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_TUMBLR
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_GITHUB
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_SOUNDCLOUD
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_BLOG
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_BLIT
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_CV
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_DREAMWIDTH
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_JOURNAL
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_TODO
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_GNUPG
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_GPG
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_KEY
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_PGP
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_PUBLIC_KEY
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_FETLIFE
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_PILLOWFORT
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_NERD_FONTS
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_SEXMAP
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_THESE_DAYS
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_WAT
-    REDIRECT_METRICS_DEF -->|"`references`"| RZ_RADIO
-
-    %% Main KV Structure Connections
-    METRICS_BASE -->|"`contains`"| METRICS_RESOURCES_BASE
-    METRICS_BASE -->|"`contains`"| REDIRECT_METRICS_BASE
-
-    %% Resource Metrics Detailed Connections
-    METRICS_RESOURCES_BASE -->|"`contains`"| GO_METRICS
-    METRICS_RESOURCES_BASE -->|"`contains`"| INTERNAL_METRICS
-    METRICS_RESOURCES_BASE -->|"`contains`"| AI_METRICS
-    METRICS_RESOURCES_BASE -->|"`contains`"| TOKENS_METRICS
-    METRICS_RESOURCES_BASE -->|"`contains`"| DASHBOARD_METRICS
-
-    %% GO Resource Detail Connections
-    GO_METRICS -->|"`tracks`"| GO_HIT_OK
-    GO_METRICS -->|"`tracks`"| GO_HIT_ERROR
-    GO_METRICS -->|"`tracks`"| GO_HIT_TOTAL
-    GO_METRICS -->|"`tracks`"| GO_VISITOR_HUMAN
-    GO_METRICS -->|"`tracks`"| GO_VISITOR_BOT
-    GO_METRICS -->|"`tracks`"| GO_VISITOR_UNKNOWN
-    GO_METRICS -->|"`tracks`"| GO_TIMES_LAST_HIT
-    GO_METRICS -->|"`tracks`"| GO_TIMES_LAST_OK
-    GO_METRICS -->|"`tracks`"| GO_TIMES_LAST_ERROR
-    GO_METRICS -->|"`tracks`"| GO_GROUP_1XX
-    GO_METRICS -->|"`tracks`"| GO_GROUP_2XX
-    GO_METRICS -->|"`tracks`"| GO_GROUP_3XX
-    GO_METRICS -->|"`tracks`"| GO_GROUP_4XX
-    GO_METRICS -->|"`tracks`"| GO_GROUP_5XX
-
-    %% Internal Resource Detail Connections
-    INTERNAL_METRICS -->|"`tracks`"| INTERNAL_HIT_OK
-    INTERNAL_METRICS -->|"`tracks`"| INTERNAL_HIT_ERROR
-    INTERNAL_METRICS -->|"`tracks`"| INTERNAL_AUTH_SUCCESS
-    INTERNAL_METRICS -->|"`tracks`"| INTERNAL_AUTH_FAILED
-    INTERNAL_METRICS -->|"`tracks`"| INTERNAL_VISITOR_HUMAN
-    INTERNAL_METRICS -->|"`tracks`"| INTERNAL_VISITOR_BOT
-
-    %% AI Resource Detail Connections
-    AI_METRICS -->|"`tracks`"| AI_HIT_OK
-    AI_METRICS -->|"`tracks`"| AI_HIT_ERROR
-    AI_METRICS -->|"`tracks`"| AI_AUTH_SUCCESS
-    AI_METRICS -->|"`tracks`"| AI_AUTH_FAILED
-    AI_METRICS -->|"`tracks`"| AI_VISITOR_HUMAN
-    AI_METRICS -->|"`tracks`"| AI_VISITOR_BOT
-
-    %% Tokens Resource Detail Connections
-    TOKENS_METRICS -->|"`tracks`"| TOKENS_HIT_OK
-    TOKENS_METRICS -->|"`tracks`"| TOKENS_HIT_ERROR
-    TOKENS_METRICS -->|"`tracks`"| TOKENS_AUTH_SUCCESS
-    TOKENS_METRICS -->|"`tracks`"| TOKENS_AUTH_FAILED
-
-    %% Dashboard Resource Detail Connections
-    DASHBOARD_METRICS -->|"`tracks`"| DASHBOARD_HIT_OK
-    DASHBOARD_METRICS -->|"`tracks`"| DASHBOARD_HIT_ERROR
-    DASHBOARD_METRICS -->|"`tracks`"| DASHBOARD_AUTH_SUCCESS
-    DASHBOARD_METRICS -->|"`tracks`"| DASHBOARD_AUTH_FAILED
-
-    %% Redirect Metrics Detailed Connections
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_BLUESKY_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_BSKY_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_FACEBOOK_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_INSTAGRAM_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_LINKEDIN_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_MASTODON_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_THREADS_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_TUMBLR_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_GITHUB_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_SOUNDCLOUD_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_BLOG_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_BLIT_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_CV_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_DREAMWIDTH_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_JOURNAL_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_TODO_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_GNUPG_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_GPG_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_KEY_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_PGP_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_PUBLIC_KEY_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_FETLIFE_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_PILLOWFORT_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_NERD_FONTS_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_SEXMAP_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_THESE_DAYS_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_WAT_M
-    REDIRECT_METRICS_BASE -->|"`contains`"| REDIRECT_RADIO_M
-
-    %% Redirect Structure Connections
-    REDIRECT_BASE -->|"`contains`"| A_BLUESKY
-    REDIRECT_BASE -->|"`contains`"| A_BSKY
-    REDIRECT_BASE -->|"`contains`"| A_FACEBOOK
-    REDIRECT_BASE -->|"`contains`"| A_INSTAGRAM
-    REDIRECT_BASE -->|"`contains`"| A_LINKEDIN
-    REDIRECT_BASE -->|"`contains`"| A_MASTODON
-    REDIRECT_BASE -->|"`contains`"| A_THREADS
-    REDIRECT_BASE -->|"`contains`"| A_TUMBLR
-    REDIRECT_BASE -->|"`contains`"| A_GITHUB
-    REDIRECT_BASE -->|"`contains`"| A_SOUNDCLOUD
-    REDIRECT_BASE -->|"`contains`"| A_BLOG
-    REDIRECT_BASE -->|"`contains`"| A_BLIT
-    REDIRECT_BASE -->|"`contains`"| A_CV
-    REDIRECT_BASE -->|"`contains`"| A_DREAMWIDTH
-    REDIRECT_BASE -->|"`contains`"| A_JOURNAL
-    REDIRECT_BASE -->|"`contains`"| A_TODO
-    REDIRECT_BASE -->|"`contains`"| A_GNUPG
-    REDIRECT_BASE -->|"`contains`"| A_GPG
-    REDIRECT_BASE -->|"`contains`"| A_KEY
-    REDIRECT_BASE -->|"`contains`"| A_PGP
-    REDIRECT_BASE -->|"`contains`"| A_PUBLIC_KEY
-    REDIRECT_BASE -->|"`contains`"| A_FETLIFE
-    REDIRECT_BASE -->|"`contains`"| A_PILLOWFORT
-    REDIRECT_BASE -->|"`contains`"| A_NERD_FONTS
-    REDIRECT_BASE -->|"`contains`"| A_SEXMAP
-    REDIRECT_BASE -->|"`contains`"| A_THESE_DAYS
-    REDIRECT_BASE -->|"`contains`"| A_WAT
-    REDIRECT_BASE -->|"`contains`"| A_RADIO
-
-    %% Cross-Reference Connections (YAML anchors to actual usage)
+    %% Cross-Reference Connections (dotted lines for templates)
     REDIRECTS_ANCHOR_DEF -.->|"`template for`"| REDIRECT_BASE
     ZERO_METRICS_DEF -.->|"`template for`"| METRICS_BASE
-    RESOURCE_METRICS_DEF -.->|"`template for`"| METRICS_RESOURCES_BASE
-    REDIRECT_METRICS_DEF -.->|"`template for`"| REDIRECT_METRICS_BASE
+    RESOURCE_METRICS_DEF -.->|"`template for`"| RESOURCE_METRICS_ROW
+    REDIRECT_METRICS_DEF -.->|"`template for`"| REDIRECT_METRICS_GRID
 
-    %% Redirect to Metrics Cross-References
-    A_BLUESKY -.->|"`tracked by`"| REDIRECT_BLUESKY_M
-    A_BSKY -.->|"`tracked by`"| REDIRECT_BSKY_M
-    A_FACEBOOK -.->|"`tracked by`"| REDIRECT_FACEBOOK_M
-    A_INSTAGRAM -.->|"`tracked by`"| REDIRECT_INSTAGRAM_M
-    A_LINKEDIN -.->|"`tracked by`"| REDIRECT_LINKEDIN_M
-    A_MASTODON -.->|"`tracked by`"| REDIRECT_MASTODON_M
-    A_THREADS -.->|"`tracked by`"| REDIRECT_THREADS_M
-    A_TUMBLR -.->|"`tracked by`"| REDIRECT_TUMBLR_M
-    A_GITHUB -.->|"`tracked by`"| REDIRECT_GITHUB_M
-    A_SOUNDCLOUD -.->|"`tracked by`"| REDIRECT_SOUNDCLOUD_M
-    A_BLOG -.->|"`tracked by`"| REDIRECT_BLOG_M
-    A_BLIT -.->|"`tracked by`"| REDIRECT_BLIT_M
-    A_CV -.->|"`tracked by`"| REDIRECT_CV_M
-    A_DREAMWIDTH -.->|"`tracked by`"| REDIRECT_DREAMWIDTH_M
-    A_JOURNAL -.->|"`tracked by`"| REDIRECT_JOURNAL_M
-    A_TODO -.->|"`tracked by`"| REDIRECT_TODO_M
-    A_GNUPG -.->|"`tracked by`"| REDIRECT_GNUPG_M
-    A_GPG -.->|"`tracked by`"| REDIRECT_GPG_M
-    A_KEY -.->|"`tracked by`"| REDIRECT_KEY_M
-    A_PGP -.->|"`tracked by`"| REDIRECT_PGP_M
-    A_PUBLIC_KEY -.->|"`tracked by`"| REDIRECT_PUBLIC_KEY_M
-    A_FETLIFE -.->|"`tracked by`"| REDIRECT_FETLIFE_M
-    A_PILLOWFORT -.->|"`tracked by`"| REDIRECT_PILLOWFORT_M
-    A_NERD_FONTS -.->|"`tracked by`"| REDIRECT_NERD_FONTS_M
-    A_SEXMAP -.->|"`tracked by`"| REDIRECT_SEXMAP_M
-    A_THESE_DAYS -.->|"`tracked by`"| REDIRECT_THESE_DAYS_M
-    A_WAT -.->|"`tracked by`"| REDIRECT_WAT_M
-    A_RADIO -.->|"`tracked by`"| REDIRECT_RADIO_M
+    %% Redirect to Metrics Cross-References (selected key ones)
+    A_BLUESKY -.->|"`tracked by`"| R_BLUESKY_M
+    A_GITHUB -.->|"`tracked by`"| R_GITHUB_M
+    A_BLOG -.->|"`tracked by`"| R_BLOG_M
+    A_KEY -.->|"`tracked by`"| R_KEY_M
+    A_DREAMWIDTH -.->|"`tracked by`"| R_DREAMWIDTH_M
 
     %% Styling Classes
     classDef rootClass fill:#1a1a2e,stroke:#16213e,stroke-width:4px,color:#ffffff,font-weight:bold
@@ -721,100 +250,23 @@ flowchart TD
     classDef redirectClass fill:#e65100,stroke:#ff9800,stroke-width:2px,color:#ffffff
     classDef resourceClass fill:#004d40,stroke:#009688,stroke-width:2px,color:#ffffff
     classDef socialClass fill:#8e24aa,stroke:#9c27b0,stroke-width:2px,color:#ffffff
-    classDef devClass fill:#1565c0,stroke:#2196f3,stroke-width:2px,color:#ffffff
     classDef contentClass fill:#2e7d32,stroke:#4caf50,stroke-width:2px,color:#ffffff
     classDef cryptoClass fill:#d84315,stroke:#ff5722,stroke-width:2px,color:#ffffff
-    classDef specialClass fill:#bf360c,stroke:#ff3d00,stroke-width:2px,color:#ffffff
-    classDef detailClass fill:#37474f,stroke:#607d8b,stroke-width:1px,color:#ffffff
 
     %% Apply Classes
     class ROOT rootClass
     class ANCHORS_ROOT,REDIRECTS_ANCHOR_DEF,ZERO_METRICS_DEF,RESOURCE_METRICS_DEF,REDIRECT_METRICS_DEF anchorClass
-    class METRICS_BASE,METRICS_RESOURCES_BASE,REDIRECT_METRICS_BASE,REDIRECT_BASE templateClass
-
-    %% Resource Classes
-    class GO_METRICS,INTERNAL_METRICS,AI_METRICS,TOKENS_METRICS,DASHBOARD_METRICS resourceClass
-    class RESOURCE_GO,RESOURCE_INTERNAL,RESOURCE_AI,RESOURCE_TOKENS,RESOURCE_DASHBOARD resourceClass
-
-    %% Social Media Classes
-    class BLUESKY_R,BSKY_R,FACEBOOK_R,INSTAGRAM_R,LINKEDIN_R,MASTODON_R,THREADS_R,TUMBLR_R socialClass
-    class A_BLUESKY,A_BSKY,A_FACEBOOK,A_INSTAGRAM,A_LINKEDIN,A_MASTODON,A_THREADS,A_TUMBLR socialClass
-    class REDIRECT_BLUESKY_M,REDIRECT_BSKY_M,REDIRECT_FACEBOOK_M,REDIRECT_INSTAGRAM_M,REDIRECT_LINKEDIN_M,REDIRECT_MASTODON_M,REDIRECT_THREADS_M,REDIRECT_TUMBLR_M socialClass
-    class RZ_BLUESKY,RZ_BSKY,RZ_FACEBOOK,RZ_INSTAGRAM,RZ_LINKEDIN,RZ_MASTODON,RZ_THREADS,RZ_TUMBLR socialClass
-
-    %% Developer Classes
-    class GITHUB_R,SOUNDCLOUD_R,A_GITHUB,A_SOUNDCLOUD,REDIRECT_GITHUB_M,REDIRECT_SOUNDCLOUD_M,RZ_GITHUB,RZ_SOUNDCLOUD devClass
-
-    %% Content Classes
-    class BLOG_R,BLIT_R,CV_R,DREAMWIDTH_R,JOURNAL_R,TODO_R contentClass
-    class A_BLOG,A_BLIT,A_CV,A_DREAMWIDTH,A_JOURNAL,A_TODO contentClass
-    class REDIRECT_BLOG_M,REDIRECT_BLIT_M,REDIRECT_CV_M,REDIRECT_DREAMWIDTH_M,REDIRECT_JOURNAL_M,REDIRECT_TODO_M contentClass
-    class RZ_BLOG,RZ_BLIT,RZ_CV,RZ_DREAMWIDTH,RZ_JOURNAL,RZ_TODO contentClass
-
-    %% Crypto Classes
-    class GNUPG_R,GPG_R,KEY_R,PGP_R,PUBLIC_KEY_R cryptoClass
-    class A_GNUPG,A_GPG,A_KEY,A_PGP,A_PUBLIC_KEY cryptoClass
-    class REDIRECT_GNUPG_M,REDIRECT_GPG_M,REDIRECT_KEY_M,REDIRECT_PGP_M,REDIRECT_PUBLIC_KEY_M cryptoClass
-    class RZ_GNUPG,RZ_GPG,RZ_KEY,RZ_PGP,RZ_PUBLIC_KEY cryptoClass
-
-    %% Special Classes
-    class FETLIFE_R,PILLOWFORT_R,NERD_FONTS_R,SEXMAP_R,THESE_DAYS_R,WAT_R,RADIO_R specialClass
-    class A_FETLIFE,A_PILLOWFORT,A_NERD_FONTS,A_SEXMAP,A_THESE_DAYS,A_WAT,A_RADIO specialClass
-    class REDIRECT_FETLIFE_M,REDIRECT_PILLOWFORT_M,REDIRECT_NERD_FONTS_M,REDIRECT_SEXMAP_M,REDIRECT_THESE_DAYS_M,REDIRECT_WAT_M,REDIRECT_RADIO_M specialClass
-    class RZ_FETLIFE,RZ_PILLOWFORT,RZ_NERD_FONTS,RZ_SEXMAP,RZ_THESE_DAYS,RZ_WAT,RZ_RADIO specialClass
-
-    %% Detail Classes
-    class ZERO_OK,ZERO_ERROR,ZERO_LAST_HIT,ZERO_LAST_ERROR,ZERO_LAST_OK,ZERO_HUMAN,ZERO_BOT,ZERO_UNKNOWN,ZERO_1XX,ZERO_2XX,ZERO_3XX,ZERO_4XX,ZERO_5XX,ZERO_STATUS detailClass
-    class GO_HIT_OK,GO_HIT_ERROR,GO_HIT_TOTAL,GO_VISITOR_HUMAN,GO_VISITOR_BOT,GO_VISITOR_UNKNOWN,GO_TIMES_LAST_HIT,GO_TIMES_LAST_OK,GO_TIMES_LAST_ERROR,GO_GROUP_1XX,GO_GROUP_2XX,GO_GROUP_3XX,GO_GROUP_4XX,GO_GROUP_5XX detailClass
-    class INTERNAL_HIT_OK,INTERNAL_HIT_ERROR,INTERNAL_AUTH_SUCCESS,INTERNAL_AUTH_FAILED,INTERNAL_VISITOR_HUMAN,INTERNAL_VISITOR_BOT detailClass
-    class AI_HIT_OK,AI_HIT_ERROR,AI_AUTH_SUCCESS,AI_AUTH_FAILED,AI_VISITOR_HUMAN,AI_VISITOR_BOT detailClass
-    class TOKENS_HIT_OK,TOKENS_HIT_ERROR,TOKENS_AUTH_SUCCESS,TOKENS_AUTH_FAILED detailClass
-    class DASHBOARD_HIT_OK,DASHBOARD_HIT_ERROR,DASHBOARD_AUTH_SUCCESS,DASHBOARD_AUTH_FAILED detailClass
+    class METRICS_BASE,REDIRECT_BASE templateClass
+    class INTERNAL_M,AI_M,TOKENS_M,GO_M,DASHBOARD_M resourceClass
+    class R_BLUESKY_M,R_FACEBOOK_M,R_GITHUB_M,R_LINKEDIN_M socialClass
+    class A_BLUESKY,A_FACEBOOK,A_GITHUB,A_LINKEDIN socialClass
+    class A_BLOG,A_CV,A_BLIT,A_DREAMWIDTH,R_BLOG_M,R_CV_M,R_DREAMWIDTH_M contentClass
+    class A_KEY,A_GPG,A_PGP,A_GNUPG,R_KEY_M cryptoClass
 
     %% Subgraph Styling
     style YAML_ANCHORS fill:#0d1421,stroke:#1976d2,stroke-width:4px
-    style REDIRECTS_ANCHOR fill:#1a237e,stroke:#3f51b5,stroke-width:3px
-    style ZERO_METRICS_ANCHOR fill:#1b5e20,stroke:#4caf50,stroke-width:3px
-    style RESOURCE_METRICS_ANCHOR fill:#bf360c,stroke:#ff5722,stroke-width:3px
-    style REDIRECT_METRICS_ANCHOR fill:#4a148c,stroke:#9c27b0,stroke-width:3px
-
     style KV_DATA fill:#263238,stroke:#607d8b,stroke-width:4px
-    style METRICS_STRUCTURE fill:#b71c1c,stroke:#f44336,stroke-width:3px
-    style METRICS_RESOURCES fill:#004d40,stroke:#009688,stroke-width:3px
-    style REDIRECT_METRICS_STRUCTURE fill:#e65100,stroke:#ff9800,stroke-width:3px
-    style REDIRECT_STRUCTURE fill:#bf360c,stroke:#ff3d00,stroke-width:3px
-
-    style SOCIAL_REDIRECTS fill:#6a1b9a,stroke:#9c27b0,stroke-width:2px
-    style DEV_REDIRECTS fill:#0d47a1,stroke:#2196f3,stroke-width:2px
-    style CONTENT_REDIRECTS fill:#1b5e20,stroke:#4caf50,stroke-width:2px
-    style CRYPTO_REDIRECTS fill:#bf360c,stroke:#ff5722,stroke-width:2px
-    style SPECIAL_REDIRECTS fill:#d84315,stroke:#ff3d00,stroke-width:2px
-
-    style ZERO_COUNTERS fill:#2e7d32,stroke:#4caf50,stroke-width:2px
-    style ZERO_TIMES fill:#1565c0,stroke:#2196f3,stroke-width:2px
-    style ZERO_VISITOR fill:#7b1fa2,stroke:#9c27b0,stroke-width:2px
-    style ZERO_HTTP_GROUPS fill:#d32f2f,stroke:#f44336,stroke-width:2px
-
-    style GO_RESOURCE_METRICS fill:#004d40,stroke:#009688,stroke-width:2px
-    style INTERNAL_RESOURCE_METRICS fill:#006064,stroke:#00bcd4,stroke-width:2px
-    style AI_RESOURCE_METRICS fill:#1a237e,stroke:#3f51b5,stroke-width:2px
-    style TOKENS_RESOURCE_METRICS fill:#4a148c,stroke:#9c27b0,stroke-width:2px
-    style DASHBOARD_RESOURCE_METRICS fill:#b71c1c,stroke:#f44336,stroke-width:2px
-
-    style REDIRECT_SOCIAL_METRICS fill:#6a1b9a,stroke:#9c27b0,stroke-width:2px
-    style REDIRECT_DEV_METRICS fill:#0d47a1,stroke:#2196f3,stroke-width:2px
-    style REDIRECT_CONTENT_METRICS fill:#1b5e20,stroke:#4caf50,stroke-width:2px
-    style REDIRECT_CRYPTO_METRICS fill:#bf360c,stroke:#ff5722,stroke-width:2px
-    style REDIRECT_SPECIAL_METRICS fill:#d84315,stroke:#ff3d00,stroke-width:2px
-
-    style REDIRECT_ZERO_SOCIAL fill:#4a148c,stroke:#9c27b0,stroke-width:2px
-    style REDIRECT_ZERO_DEV fill:#0d47a1,stroke:#2196f3,stroke-width:2px
-    style REDIRECT_ZERO_CONTENT fill:#1b5e20,stroke:#4caf50,stroke-width:2px
-    style REDIRECT_ZERO_CRYPTO fill:#bf360c,stroke:#ff5722,stroke-width:2px
-    style REDIRECT_ZERO_SPECIAL fill:#d84315,stroke:#ff3d00,stroke-width:2px
-
-    style ACTUAL_SOCIAL_REDIRECTS fill:#6a1b9a,stroke:#9c27b0,stroke-width:2px
-    style ACTUAL_DEV_REDIRECTS fill:#0d47a1,stroke:#2196f3,stroke-width:2px
-    style ACTUAL_CONTENT_REDIRECTS fill:#1b5e20,stroke:#4caf50,stroke-width:2px
-    style ACTUAL_CRYPTO_REDIRECTS fill:#bf360c,stroke:#ff5722,stroke-width:2px
-    style ACTUAL_SPECIAL_REDIRECTS fill:#d84315,stroke:#ff3d00,stroke-width:2px
+    style REDIRECT_TEMPLATES fill:#1a237e,stroke:#3f51b5,stroke-width:3px
+    style METRICS_TEMPLATES fill:#1b5e20,stroke:#4caf50,stroke-width:3px
+    style METRICS_SIDE fill:#b71c1c,stroke:#f44336,stroke-width:3px
+    style REDIRECT_SIDE fill:#bf360c,stroke:#ff3d00,stroke-width:3px
