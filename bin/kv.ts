@@ -21,13 +21,11 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { resolve } from "node:path"
-import type Cloudflare from "cloudflare"
 import { Command } from "commander"
 import yaml from "js-yaml"
 import JSON5 from "json5"
-import { parse as parseJSONC } from "jsonc-parser"
 import { getTimestamp, keyMatchesPatterns, tryParseJson } from "./shared/cli-utils"
-import { getWranglerConfig, validateCloudflareConfig } from "./shared/cloudflare"
+import { deleteKeyKV, fetchAllKeysKV, getKeyValueKV, getWranglerConfig, putKeyValueKV } from "./shared/cloudflare"
 
 const EXPORT_DIR = "data/kv"
 
@@ -38,82 +36,16 @@ const EXPORT_KEY_PATTERNS = [
   /^redirect:.*$/, // All redirect mapping keys
   /^dashboard:.*$/, // Dashboard cache data
   /^token:.*$/, // Token management keys
-  /^auth:.*$/, // Auth-related keys (legacy, may be removed)
-  /^routeros:.*$/ // RouterOS cache keys (legacy, may be removed)
 ]
 
-// Get KV namespace ID from wrangler.jsonc or fallback
-function getKVNamespaceId(): string {
-  const wranglerConfig = getWranglerConfig()
-  return process.env.CLOUDFLARE_KV_NAMESPACE_ID || wranglerConfig.kvNamespaceId || "184eca13ac05485d96de48c436a6f5e6"
-}
-
-// Get KV binding name from wrangler.jsonc
-function getKVBindingName(): string {
-  try {
-    const wranglerPath = resolve("wrangler.jsonc")
-    const wranglerContent = readFileSync(wranglerPath, "utf-8")
-    const wranglerConfig = parseJSONC(wranglerContent)
-
-    if (wranglerConfig.kv_namespaces && Array.isArray(wranglerConfig.kv_namespaces)) {
-      // Return the first KV binding name, or default to "DATA"
-      const kvBinding = wranglerConfig.kv_namespaces[0]
-      if (kvBinding?.binding) {
-        return kvBinding.binding
-      }
-    }
-  } catch (_error) {
-    console.warn("⚠️  Could not read KV binding from wrangler.jsonc, using default 'DATA'")
-  }
-
-  return "DATA"
-}
-
-// Execute wrangler command and return parsed output
-async function execWrangler(args: string[]): Promise<string> {
-  try {
-    const proc = Bun.spawn(["bun", "run", "wrangler", ...args], {
-      stdout: "pipe",
-      stderr: "pipe"
-    })
-
-    const output = await new Response(proc.stdout).text()
-    const error = await new Response(proc.stderr).text()
-
-    const exitCode = await proc.exited
-    if (exitCode !== 0) {
-      throw new Error(`Wrangler command failed (exit ${exitCode}): ${error || "Unknown error"}`)
-    }
-
-    return output.trim()
-  } catch (error) {
-    throw new Error(`Failed to execute wrangler: ${error}`)
-  }
-}
-
-// Local wrangler functions for --local mode
-async function fetchAllKeysLocal(): Promise<string[]> {
-  try {
-    const bindingName = getKVBindingName()
-    const output = await execWrangler(["kv", "key", "list", `--binding=${bindingName}`, "--local"])
-
-    // Parse wrangler output - it returns JSON array of key objects
-    const keyObjects = JSON.parse(output) as Array<{ name: string }>
-    return keyObjects.map((obj) => obj.name)
-  } catch (error) {
-    console.error("❌ Failed to fetch keys from local wrangler KV:", error)
-    throw error
-  }
-}
-
-async function fetchKeyValuesLocal(keys: string[]): Promise<Record<string, unknown>> {
+// Fetch key values for multiple keys
+async function fetchKeyValues(keys: string[], useLocal = false): Promise<Record<string, unknown>> {
   const kvData: Record<string, unknown> = {}
-  const bindingName = getKVBindingName()
 
   for (const key of keys) {
     try {
       console.log("📥 Fetching value for key:", key)
-      const valueStr = await execWrangler(["kv", "key", "get", key, `--binding=${bindingName}`, "--local"])
+      const valueStr = await getKeyValueKV(key, useLocal)
       kvData[key] = tryParseJson(valueStr)
     } catch (error) {
       console.error("❌ Failed to get value for key:", key, error)
@@ -123,25 +55,18 @@ async function fetchKeyValuesLocal(keys: string[]): Promise<Record<string, unkno
   return kvData
 }
 
-async function putKeyValueLocal(key: string, value: string): Promise<void> {
-  const bindingName = getKVBindingName()
-  await execWrangler(["kv", "key", "put", key, value, `--binding=${bindingName}`, "--local"])
-}
-
-async function deleteKeyLocal(key: string): Promise<void> {
-  const bindingName = getKVBindingName()
-  await execWrangler(["kv", "key", "delete", key, `--binding=${bindingName}`, "--local"])
-}
-
-async function wipeKVLocal(dryRun = false): Promise<boolean> {
+// Wipe all keys from KV namespace
+async function wipeKVNamespace(dryRun = false, useLocal = false, skipConfirmation = false): Promise<boolean> {
   try {
-    console.log(`📊 Fetching all keys from local wrangler KV${dryRun ? " [DRY RUN]" : ""}...`)
-    const keys = await fetchAllKeysLocal()
+    console.log(
+      `📊 Fetching all keys from ${useLocal ? "local" : "remote"} wrangler KV${dryRun ? " [DRY RUN]" : ""}...`
+    )
+    const keys = await fetchAllKeysKV(useLocal)
 
     console.log(`🔍 Found ${keys.length} keys${dryRun ? " that would be deleted" : " to delete"}`)
 
     if (keys.length === 0) {
-      console.log("✅ No keys to delete. Local KV is already empty.")
+      console.log(`✅ No keys to delete. ${useLocal ? "Local" : "Remote"} KV is already empty.`)
       return true
     }
 
@@ -158,16 +83,29 @@ async function wipeKVLocal(dryRun = false): Promise<boolean> {
     }
 
     // Multiple safety confirmations
-    console.log("\n⚠️  WARNING: You are about to PERMANENTLY DELETE ALL DATA in the local KV namespace.")
+    console.log(
+      `\n⚠️  WARNING: You are about to PERMANENTLY DELETE ALL DATA in the ${useLocal ? "local" : "remote"} KV namespace.`
+    )
     console.log(`This will delete ${keys.length} keys and CANNOT be undone unless you have a backup.`)
     console.log("\n🚨 This is a DESTRUCTIVE operation!")
 
-    // For safety, require explicit confirmation
-    console.log("ℹ️  Set CONFIRM_WIPE=yes environment variable to proceed with deletion")
+    // Check for confirmation via flag or environment variable
+    const envConfirm = process.env.CONFIRM_WIPE
+    const envConfirmed = envConfirm && (envConfirm === "yes" || envConfirm === "1" || envConfirm.toLowerCase() === "true")
 
-    if (process.env.CONFIRM_WIPE !== "yes") {
+    if (!skipConfirmation && !envConfirmed) {
+      console.log("ℹ️  Confirmation required. Use one of the following:")
+      console.log("  --yes or -y flag")
+      console.log("  CONFIRM_WIPE=yes (or 1, or true) environment variable")
+
       console.log("❌ Wipe cancelled - confirmation required")
       return false
+    }
+
+    if (skipConfirmation) {
+      console.log("✅ Wipe confirmed via --yes flag")
+    } else if (envConfirmed) {
+      console.log("✅ Wipe confirmed via CONFIRM_WIPE environment variable")
     }
 
     console.log("🗑️  Deleting all keys...")
@@ -176,7 +114,7 @@ async function wipeKVLocal(dryRun = false): Promise<boolean> {
 
     for (const key of keys) {
       try {
-        await deleteKeyLocal(key)
+        await deleteKeyKV(key, useLocal)
         console.log("  ✓ Deleted:", key)
         successCount++
       } catch (error) {
@@ -188,7 +126,7 @@ async function wipeKVLocal(dryRun = false): Promise<boolean> {
     console.log(`\n✅ Wipe completed! ${successCount} deleted, ${errorCount} errors`)
     return errorCount === 0
   } catch (error) {
-    console.error("❌ Failed to wipe local KV data:", error)
+    console.error(`❌ Failed to wipe ${useLocal ? "local" : "remote"} KV data:`, error)
     return false
   }
 }
@@ -202,39 +140,6 @@ program
   .description("KV Admin utility for dave-io-nuxt")
   .version("1.0.0")
   .option("--local", "Use local wrangler KV storage instead of remote Cloudflare API")
-
-// Fetch all keys from Cloudflare KV namespace
-async function fetchAllKeys(cloudflare: Cloudflare, accountId: string): Promise<string[]> {
-  const kvNamespaceId = getKVNamespaceId()
-  const response = await cloudflare.kv.namespaces.keys.list(kvNamespaceId, { account_id: accountId })
-  return response.result?.map((key: { name: string }) => key.name) || []
-}
-
-// Fetch values for a list of keys
-async function fetchKeyValues(
-  cloudflare: Cloudflare,
-  accountId: string,
-  keys: string[]
-): Promise<Record<string, unknown>> {
-  const kvData: Record<string, unknown> = {}
-  const kvNamespaceId = getKVNamespaceId()
-
-  for (const key of keys) {
-    try {
-      console.log("📥 Fetching value for key:", key)
-      const valueResponse = await cloudflare.kv.namespaces.values.get(kvNamespaceId, key, { account_id: accountId })
-
-      if (valueResponse) {
-        const valueStr = await valueResponse.text()
-        kvData[key] = tryParseJson(valueStr)
-      }
-    } catch (error) {
-      console.error("❌ Failed to get value for key:", key, error)
-    }
-  }
-
-  return kvData
-}
 
 // Filter keys based on export patterns
 function filterKeys(allKeys: string[], exportAll: boolean): string[] {
@@ -326,107 +231,22 @@ async function getAllKVData(exportAll = false, useLocal = false) {
     `📊 Fetching ${exportAll ? "all" : "selected"} keys from ${useLocal ? "local" : "remote"} KV namespace...`
   )
 
-  if (useLocal) {
-    try {
-      const allKeys = await fetchAllKeysLocal()
-      const keys = filterKeys(allKeys, exportAll)
+  try {
+    const allKeys = await fetchAllKeysKV(useLocal)
+    const keys = filterKeys(allKeys, exportAll)
 
-      console.log(
-        `🔍 Found ${keys.length} keys ${exportAll ? "" : `matching patterns (out of ${allKeys.length} total)`}`
-      )
+    console.log(`🔍 Found ${keys.length} keys ${exportAll ? "" : `matching patterns (out of ${allKeys.length} total)`}`)
 
-      return await fetchKeyValuesLocal(keys)
-    } catch (error) {
-      console.error("❌ Failed to fetch keys from local wrangler KV:", error)
-      throw error
-    }
-  } else {
-    const { client: cloudflare, config } = validateCloudflareConfig(false, true)
-
-    try {
-      const allKeys = await fetchAllKeys(cloudflare, config.accountId)
-      const keys = filterKeys(allKeys, exportAll)
-
-      console.log(
-        `🔍 Found ${keys.length} keys ${exportAll ? "" : `matching patterns (out of ${allKeys.length} total)`}`
-      )
-
-      return await fetchKeyValues(cloudflare, config.accountId, keys)
-    } catch (error) {
-      console.error("❌ Failed to fetch keys from Cloudflare KV:", error)
-      throw error
-    }
+    return await fetchKeyValues(keys, useLocal)
+  } catch (error) {
+    console.error(`❌ Failed to fetch keys from ${useLocal ? "local" : "remote"} wrangler KV:`, error)
+    throw error
   }
 }
 
 // Wipe all KV data
-async function wipeKV(dryRun = false, useLocal = false) {
-  if (useLocal) {
-    return await wipeKVLocal(dryRun)
-  }
-
-  try {
-    const { client: cloudflare, config } = validateCloudflareConfig(false, true)
-    const kvNamespaceId = getKVNamespaceId()
-
-    // Real KV wipe using Cloudflare SDK
-    console.log(`📊 Fetching all keys from Cloudflare KV${dryRun ? " [DRY RUN]" : ""}...`)
-    const response = await cloudflare.kv.namespaces.keys.list(kvNamespaceId, { account_id: config.accountId })
-    const keys = response.result?.map((key: { name: string }) => key.name) || []
-
-    console.log(`🔍 Found ${keys.length} keys${dryRun ? " that would be deleted" : " to delete"}`)
-
-    if (keys.length === 0) {
-      console.log("✅ No keys to delete. KV namespace is already empty.")
-      return true
-    }
-
-    if (dryRun) {
-      console.log("\n🔍 Keys that would be deleted:")
-      for (const key of keys.slice(0, 20)) {
-        console.log(`  - ${key}`)
-      }
-      if (keys.length > 20) {
-        console.log(`  ... and ${keys.length - 20} more keys`)
-      }
-      console.log(`\n📊 Total: ${keys.length} keys would be permanently deleted`)
-      return true
-    }
-
-    // Multiple safety confirmations
-    console.log("\n⚠️  WARNING: You are about to PERMANENTLY DELETE ALL DATA in the KV namespace.")
-    console.log(`This will delete ${keys.length} keys and CANNOT be undone unless you have a backup.`)
-    console.log("\n🚨 This is a DESTRUCTIVE operation!")
-
-    // For safety, require explicit confirmation
-    console.log("ℹ️  Set CONFIRM_WIPE=yes environment variable to proceed with deletion")
-
-    if (process.env.CONFIRM_WIPE !== "yes") {
-      console.log("❌ Wipe cancelled - confirmation required")
-      return false
-    }
-
-    console.log("🗑️  Deleting all keys...")
-    let successCount = 0
-    let errorCount = 0
-
-    for (const key of keys) {
-      try {
-        await cloudflare.kv.namespaces.values.delete(kvNamespaceId, key, { account_id: config.accountId })
-        console.log("  ✓ Deleted:", key)
-        successCount++
-      } catch (error) {
-        console.error("  ❌ Failed to delete", `${key}:`, error)
-        errorCount++
-      }
-    }
-
-    console.log(`\n✅ Wipe completed! ${successCount} deleted, ${errorCount} errors`)
-    return errorCount === 0
-  } catch (error) {
-    console.error("❌ Failed to wipe KV data:", error)
-    return false
-  }
+async function wipeKV(dryRun = false, useLocal = false, skipConfirmation = false) {
+  return await wipeKVNamespace(dryRun, useLocal, skipConfirmation)
 }
 
 // Export KV data to YAML in data/kv directory
@@ -594,13 +414,7 @@ async function importKV(
     // Handle wipe option first
     if (options.wipe || options.w) {
       console.log(`🗑️ Wiping ${options.local ? "local" : "remote"} KV namespace before import...`)
-      const wipeSuccess = options.local
-        ? await wipeKVLocal()
-        : await wipeKVInternal(
-            validateCloudflareConfig(false, true).client,
-            validateCloudflareConfig(false, true).config.accountId,
-            getKVNamespaceId()
-          )
+      const wipeSuccess = await wipeKVNamespace(false, options.local, options.yes || options.y)
       if (!wipeSuccess) {
         console.error("❌ Failed to wipe KV namespace - aborting import")
         return false
@@ -608,12 +422,7 @@ async function importKV(
     } else {
       // Check for existing keys that would be overwritten
       console.log("🔍 Checking for existing keys that would be overwritten...")
-      const existingKeys = options.local
-        ? await fetchAllKeysLocal()
-        : await fetchAllKeys(
-            validateCloudflareConfig(false, true).client,
-            validateCloudflareConfig(false, true).config.accountId
-          )
+      const existingKeys = await fetchAllKeysKV(options.local)
       const conflictingKeys = importKeys.filter((key) => existingKeys.includes(key))
 
       if (conflictingKeys.length > 0) {
@@ -646,20 +455,22 @@ async function importKV(
 
     for (const [key, value] of Object.entries(importData)) {
       try {
-        // Use JSON5 for better JSON serialization
-        const valueStr = typeof value === "string" ? value : JSON5.stringify(value, null, 0)
-
-        if (options.local) {
-          await putKeyValueLocal(key, valueStr)
+        // Convert value to simple string - avoid JSON wrapper objects
+        let valueStr: string
+        if (typeof value === "string") {
+          valueStr = value
+        } else if (typeof value === "number") {
+          valueStr = value.toString()
+        } else if (typeof value === "boolean") {
+          valueStr = value.toString()
+        } else if (value === null || value === undefined) {
+          valueStr = ""
         } else {
-          const { client: cloudflare, config } = validateCloudflareConfig(false, true)
-          const kvNamespaceId = getKVNamespaceId()
-          await cloudflare.kv.namespaces.values.update(kvNamespaceId, key, {
-            account_id: config.accountId,
-            value: valueStr
-            // biome-ignore lint/suspicious/noExplicitAny: Cloudflare SDK incorrectly requires metadata
-          } as any)
+          // For complex objects, use JSON5 but this should be rare with simple KV structure
+          valueStr = JSON5.stringify(value, null, 0)
         }
+
+        await putKeyValueKV(key, valueStr, options.local)
 
         const preview = valueStr.substring(0, 100) + (valueStr.length > 100 ? "..." : "")
         console.log("  ✓", `${key}:`, preview)
@@ -678,47 +489,15 @@ async function importKV(
   }
 }
 
-// Internal wipe function for import use (without confirmation prompts)
-async function wipeKVInternal(cloudflare: Cloudflare, accountId: string, kvNamespaceId: string): Promise<boolean> {
-  try {
-    const response = await cloudflare.kv.namespaces.keys.list(kvNamespaceId, { account_id: accountId })
-    const keys = response.result?.map((key: { name: string }) => key.name) || []
-
-    if (keys.length === 0) {
-      console.log("✅ KV namespace is already empty")
-      return true
-    }
-
-    console.log(`🗑️ Deleting ${keys.length} existing keys...`)
-    let successCount = 0
-    let errorCount = 0
-
-    for (const key of keys) {
-      try {
-        await cloudflare.kv.namespaces.values.delete(kvNamespaceId, key, { account_id: accountId })
-        successCount++
-      } catch (error) {
-        console.error("  ❌ Failed to delete", `${key}:`, error)
-        errorCount++
-      }
-    }
-
-    console.log(`✅ Wipe completed! ${successCount} deleted, ${errorCount} errors`)
-    return errorCount === 0
-  } catch (error) {
-    console.error("❌ Failed to wipe KV data:", error)
-    return false
-  }
-}
-
 // Wipe command
 program
   .command("wipe")
   .description("Wipe all KV data (DANGEROUS!)")
   .option("-d, --dry-run", "Show what would be deleted without making changes")
+  .option("-y, --yes", "Skip confirmation prompt")
   .action(async (options) => {
     const useLocal = program.opts().local
-    await wipeKV(options.dryRun, useLocal)
+    await wipeKV(options.dryRun, useLocal, options.yes)
   })
 
 // List command
@@ -732,15 +511,7 @@ program
       const useLocal = program.opts().local
       console.log(`📊 Listing ${useLocal ? "local" : "remote"} KV keys...`)
 
-      let keys: string[]
-      if (useLocal) {
-        keys = await fetchAllKeysLocal()
-      } else {
-        const { client: cloudflare, config } = validateCloudflareConfig(false, true)
-        const kvNamespaceId = getKVNamespaceId()
-        const response = await cloudflare.kv.namespaces.keys.list(kvNamespaceId, { account_id: config.accountId })
-        keys = response.result?.map((key: { name: string }) => key.name) || []
-      }
+      const keys = await fetchAllKeysKV(useLocal)
 
       let filteredKeys = keys
       if (options.pattern) {
@@ -762,17 +533,7 @@ program
 
       for (const key of filteredKeys) {
         try {
-          let value: string
-          if (useLocal) {
-            value = await execWrangler(["kv", "key", "get", key, `--binding=${getKVBindingName()}`, "--local"])
-          } else {
-            const { client: cloudflare, config } = validateCloudflareConfig(false, true)
-            const kvNamespaceId = getKVNamespaceId()
-            const valueResponse = await cloudflare.kv.namespaces.values.get(kvNamespaceId, key, {
-              account_id: config.accountId
-            })
-            value = valueResponse ? await valueResponse.text() : ""
-          }
+          const value = await getKeyValueKV(key, useLocal)
 
           const preview = value.substring(0, 50) + (value.length > 50 ? "..." : "")
           console.log("  📄", `${key}:`, preview)
@@ -820,10 +581,12 @@ Examples:
   bun run bin/kv import data/kv/kv-20241201-120000.yaml  # Import from YAML
   bun run bin/kv import kv-20241201-120000.yaml --yes    # Import with auto-confirm
   bun run bin/kv import data/kv/backup.yaml --wipe       # Wipe then import
+  bun run bin/kv import data/kv/backup.yaml --wipe --yes # Wipe then import with confirmation
   bun run bin/kv import backup.yaml --dry-run           # Preview what would be imported
   bun run bin/kv list                # List all keys
   bun run bin/kv list --pattern "^metrics:"  # List metrics keys
   bun run bin/kv wipe                # Wipe all data (dangerous!)
+  bun run bin/kv wipe --yes          # Wipe all data with confirmation
   bun run bin/kv wipe --dry-run      # Preview what would be deleted
 
   # Local KV operations (development - uses wrangler local simulator)
@@ -839,6 +602,7 @@ Environment Variables:
   CLOUDFLARE_API_TOKEN              - Cloudflare API token with KV permissions (remote only)
   CLOUDFLARE_ACCOUNT_ID             - Your Cloudflare account ID (remote only)
   KV_IMPORT_ALLOW_OVERWRITE         - Set to "1" or "true" to skip import confirmation
+  CONFIRM_WIPE                      - Set to "yes", "1", or "true" to skip wipe confirmation
 
 Note: Local mode uses wrangler's built-in KV simulator for development.
 Remote mode connects to the actual Cloudflare KV namespace via API.
@@ -848,8 +612,6 @@ Export Patterns (Updated for simple key structure):
   - redirect:* (individual redirect mapping keys)
   - dashboard:* (dashboard cache data as individual keys)
   - token:* (token management data as individual keys)
-  - auth:* (legacy authentication data)
-  - routeros:* (legacy RouterOS cache)
 `
 )
 

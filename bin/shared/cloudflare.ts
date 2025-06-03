@@ -176,3 +176,100 @@ export async function executeD1Query(
     throw error
   }
 }
+
+/**
+ * Get KV binding name from wrangler.jsonc
+ */
+export function getKVBindingName(): string {
+  try {
+    // Check the raw JSONC for kv_namespaces array
+    const wranglerPath = join(process.cwd(), "wrangler.jsonc")
+    const wranglerContent = readFileSync(wranglerPath, "utf-8")
+    const rawConfig = parseJSONC(wranglerContent)
+
+    if (rawConfig.kv_namespaces && Array.isArray(rawConfig.kv_namespaces)) {
+      const kvBinding = rawConfig.kv_namespaces[0]
+      if (kvBinding?.binding) {
+        return kvBinding.binding
+      }
+    }
+  } catch (_error) {
+    console.warn("⚠️  Could not read KV binding from wrangler.jsonc, using default 'DATA'")
+  }
+  return "DATA"
+}
+
+/**
+ * Execute wrangler command and return parsed output
+ */
+export async function execWrangler(args: string[]): Promise<string> {
+  try {
+    const proc = Bun.spawn(["bun", "run", "wrangler", ...args], {
+      stdout: "pipe",
+      stderr: "pipe"
+    })
+
+    const output = await new Response(proc.stdout).text()
+    const error = await new Response(proc.stderr).text()
+
+    const exitCode = await proc.exited
+    if (exitCode !== 0) {
+      throw new Error(`Wrangler command failed (exit ${exitCode}): ${error || "Unknown error"}`)
+    }
+
+    return output.trim()
+  } catch (error) {
+    throw new Error(`Failed to execute wrangler: ${error}`)
+  }
+}
+
+/**
+ * Fetch all keys from KV namespace using wrangler CLI
+ */
+export async function fetchAllKeysKV(useLocal = false): Promise<string[]> {
+  try {
+    const bindingName = getKVBindingName()
+    const mode = useLocal ? "--local" : "--remote"
+    const output = await execWrangler(["kv", "key", "list", `--binding=${bindingName}`, mode])
+
+    // Parse wrangler output - it returns JSON array of key objects
+    const keyObjects = JSON.parse(output) as Array<{ name: string }>
+    return keyObjects.map((obj) => obj.name)
+  } catch (error) {
+    console.error(`❌ Failed to fetch keys from ${useLocal ? "local" : "remote"} wrangler KV:`, error)
+    throw error
+  }
+}
+
+/**
+ * Put key-value pair using wrangler CLI (avoids SDK JSON wrapper issue)
+ */
+export async function putKeyValueKV(key: string, value: string, useLocal = false): Promise<void> {
+  // Check for JSON data and warn user
+  if (value.includes("{") || value.includes("}")) {
+    console.warn("⚠️  JSON data detected in value - this may cause issues with KV storage")
+    console.warn("   Consider storing as plain text or using a different approach for structured data")
+  }
+
+  const bindingName = getKVBindingName()
+  const mode = useLocal ? "--local" : "--remote"
+  await execWrangler(["kv", "key", "put", key, value, `--binding=${bindingName}`, mode])
+}
+
+/**
+ * Get key value using wrangler CLI
+ */
+export async function getKeyValueKV(key: string, useLocal = false): Promise<string> {
+  const bindingName = getKVBindingName()
+  const mode = useLocal ? "--local" : "--remote"
+  return await execWrangler(["kv", "key", "get", key, `--binding=${bindingName}`, mode])
+}
+
+/**
+ * Delete key using wrangler CLI
+ */
+export async function deleteKeyKV(key: string, useLocal = false): Promise<void> {
+  const bindingName = getKVBindingName()
+  const mode = useLocal ? "--local" : "--remote"
+  await execWrangler(["kv", "key", "delete", key, `--binding=${bindingName}`, mode])
+}

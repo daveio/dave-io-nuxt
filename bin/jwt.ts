@@ -5,7 +5,7 @@ import { SignJWT, jwtVerify } from "jose"
 import readlineSync from "readline-sync"
 import { v4 as uuidv4 } from "uuid"
 import { getJWTSecret, parseExpiration } from "./shared/cli-utils"
-import { createCloudflareClient, executeD1Query } from "./shared/cloudflare"
+import { createCloudflareClient, executeD1Query, putKeyValueKV } from "./shared/cloudflare"
 
 interface JWTRequest {
   sub: string
@@ -440,18 +440,8 @@ program
 
       console.log(`\n🚫 Revoking token ${uuid}...`)
 
-      // Set revocation flag in KV
-      const { client, config } = createCloudflareClient(false, true)
-      if (!config.kvNamespaceId) {
-        throw new Error("KV namespace ID not configured")
-      }
-      const kvNamespaceId = config.kvNamespaceId
-
-      await client.kv.namespaces.values.update(kvNamespaceId, `auth:revocation:${uuid}`, {
-        account_id: config.accountId,
-        value: "true"
-        // biome-ignore lint/suspicious/noExplicitAny: Cloudflare SDK incorrectly requires metadata
-      } as any)
+      // Set revocation flag in KV using wrangler CLI
+      await putKeyValueKV(`auth:revocation:${uuid}`, "true", false)
 
       console.log("✅ Token revoked successfully")
       console.log("   The token is now immediately invalid and cannot be used")
