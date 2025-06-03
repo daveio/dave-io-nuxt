@@ -450,7 +450,8 @@ program
       await client.kv.namespaces.values.update(kvNamespaceId, `auth:revocation:${uuid}`, {
         account_id: config.accountId,
         value: "true"
-      })
+        // biome-ignore lint/suspicious/noExplicitAny: Cloudflare SDK incorrectly requires metadata
+      } as any)
 
       console.log("✅ Token revoked successfully")
       console.log("   The token is now immediately invalid and cannot be used")

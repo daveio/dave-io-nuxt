@@ -2,7 +2,6 @@ import { recordAPIErrorMetrics, recordAPIMetrics } from "~/server/middleware/met
 import { requireAPIAuth } from "~/server/utils/auth-helpers"
 import { getCloudflareEnv } from "~/server/utils/cloudflare"
 import { formatMetricsAsPrometheus, formatMetricsAsYAML, handleResponseFormat } from "~/server/utils/formatters"
-import { getKVMetrics } from "~/server/utils/kv-metrics"
 import { createApiError, isApiError, logRequest } from "~/server/utils/response"
 import { TokenMetricsSchema } from "~/server/utils/schemas"
 
@@ -17,19 +16,17 @@ async function getMetricsFromKV(kv?: KVNamespace): Promise<{
   }
 
   try {
-    // Get metrics using new hierarchy
-    const kvMetrics = await getKVMetrics(kv)
+    // Get basic metrics using simple KV keys
+    const [okStr, errorStr] = await Promise.all([kv.get("metrics:ok"), kv.get("metrics:error")])
 
-    // Calculate totals from new structured metrics
-    const totalRequests = kvMetrics.ok + kvMetrics.error
-    const successfulRequests = kvMetrics.ok
-    const failedRequests = kvMetrics.error
+    const successfulRequests = okStr ? Number.parseInt(okStr, 10) : 0
+    const failedRequests = errorStr ? Number.parseInt(errorStr, 10) : 0
+    const totalRequests = successfulRequests + failedRequests
 
-    // Calculate redirect clicks from redirect metrics
-    let redirectClicks = 0
-    for (const redirectStats of Object.values(kvMetrics.redirect)) {
-      redirectClicks += redirectStats.ok + redirectStats.error
-    }
+    // Calculate redirect clicks from redirect-specific metrics
+    // We need to get all redirect metrics, but for now we'll use the go resource metrics as a proxy
+    const goOkStr = await kv.get("metrics:resources:go:ok")
+    const redirectClicks = goOkStr ? Number.parseInt(goOkStr, 10) : 0
 
     const metricsData = {
       total_requests: totalRequests,

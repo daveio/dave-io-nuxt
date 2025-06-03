@@ -19,22 +19,45 @@ interface DashboardResponse {
 }
 
 async function fetchHackerNews(kv: KVNamespace): Promise<{ items: DashboardItem[]; source: "cache" | "live" }> {
-  const cacheKey = "dashboard:hackernews:cache"
   const lastUpdatedKey = "dashboard:hackernews:last-updated"
   const cacheHours = 1 // 1 hour cache
   const cacheMs = cacheHours * 60 * 60 * 1000
 
   // Check if we have cached data and if it's still fresh
   try {
-    const [cachedData, lastUpdatedStr] = await Promise.all([kv.get(cacheKey), kv.get(lastUpdatedKey)])
+    const lastUpdatedStr = await kv.get(lastUpdatedKey)
 
-    if (cachedData && lastUpdatedStr) {
+    if (lastUpdatedStr) {
       const lastUpdated = Number.parseInt(lastUpdatedStr, 10)
       const now = Date.now()
 
       if (now - lastUpdated < cacheMs) {
-        const items = JSON.parse(cachedData)
-        return { items, source: "cache" }
+        // Get cached items using simple KV keys (up to 10 items)
+        const cachedItemPromises: Promise<string | null>[] = []
+        for (let i = 0; i < 10; i++) {
+          cachedItemPromises.push(kv.get(`dashboard:hackernews:item:${i}:title`))
+          cachedItemPromises.push(kv.get(`dashboard:hackernews:item:${i}:link`))
+        }
+
+        const cachedValues = await Promise.all(cachedItemPromises)
+        const items: DashboardItem[] = []
+
+        for (let i = 0; i < 10; i++) {
+          const title = cachedValues[i * 2]
+          const link = cachedValues[i * 2 + 1]
+
+          if (title) {
+            items.push({
+              title,
+              subtitle: "Hacker News",
+              linkURL: link || undefined
+            })
+          }
+        }
+
+        if (items.length > 0) {
+          return { items, source: "cache" }
+        }
       }
     }
   } catch (error) {
@@ -56,11 +79,21 @@ async function fetchHackerNews(kv: KVNamespace): Promise<{ items: DashboardItem[
       linkURL: item.link
     }))
 
-    // Cache the results using separate keys as specified
+    // Cache the results using simple KV keys
     if (items.length > 0) {
       const now = Date.now()
       try {
-        await Promise.all([kv.put(cacheKey, JSON.stringify(items)), kv.put(lastUpdatedKey, now.toString())])
+        const cacheOperations: Promise<void>[] = [kv.put(lastUpdatedKey, now.toString())]
+
+        // Store each item as separate KV keys
+        items.forEach((item, index) => {
+          cacheOperations.push(kv.put(`dashboard:hackernews:item:${index}:title`, item.title))
+          if (item.linkURL) {
+            cacheOperations.push(kv.put(`dashboard:hackernews:item:${index}:link`, item.linkURL))
+          }
+        })
+
+        await Promise.all(cacheOperations)
       } catch (error) {
         console.error("Failed to cache Hacker News data:", error)
       }

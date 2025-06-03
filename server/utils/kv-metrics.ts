@@ -10,88 +10,7 @@ interface KVCounterEntry {
 }
 
 /**
- * KV metrics structure following new hierarchical schema
- */
-interface KVMetrics {
-  // Top-level metrics (entire worker)
-  ok: number
-  error: number
-  times: {
-    "last-hit": number
-    "last-error": number
-    "last-ok": number
-  }
-  visitor: {
-    human: number
-    bot: number
-    unknown: number
-  }
-  group: {
-    "1xx": number
-    "2xx": number
-    "3xx": number
-    "4xx": number
-    "5xx": number
-  }
-  status: Record<string, number>
-
-  // Resource-specific metrics
-  resources: Record<
-    string,
-    {
-      ok: number
-      error: number
-      times: {
-        "last-hit": number
-        "last-error": number
-        "last-ok": number
-      }
-      visitor: {
-        human: number
-        bot: number
-        unknown: number
-      }
-      group: {
-        "1xx": number
-        "2xx": number
-        "3xx": number
-        "4xx": number
-        "5xx": number
-      }
-      status: Record<string, number>
-    }
-  >
-
-  // Redirect-specific metrics
-  redirect: Record<
-    string,
-    {
-      ok: number
-      error: number
-      times: {
-        "last-hit": number
-        "last-error": number
-        "last-ok": number
-      }
-      visitor: {
-        human: number
-        bot: number
-        unknown: number
-      }
-      group: {
-        "1xx": number
-        "2xx": number
-        "3xx": number
-        "4xx": number
-        "5xx": number
-      }
-      status: Record<string, number>
-    }
-  >
-}
-
-/**
- * Write metrics to KV storage only
+ * Write metrics to KV storage using simple key-value pairs
  */
 export async function writeKVMetrics(kvNamespace: KVNamespace, kvCounters: KVCounterEntry[]): Promise<void> {
   try {
@@ -120,56 +39,41 @@ export async function writeKVMetrics(kvNamespace: KVNamespace, kvCounters: KVCou
 }
 
 /**
- * Get KV metrics following new hierarchical schema
+ * Get a simple KV metric value
  */
-export async function getKVMetrics(kv: KVNamespace): Promise<KVMetrics> {
+export async function getKVMetric(kv: KVNamespace, key: string): Promise<number> {
   try {
-    // Get the structured metrics data from KV
-    const metricsData = await kv.get("metrics", "json")
-
-    if (!metricsData) {
-      // Return empty metrics structure if not found
-      return createEmptyMetrics()
-    }
-
-    return metricsData as KVMetrics
+    const value = await kv.get(key)
+    return value ? Number.parseInt(value) : 0
   } catch (error) {
-    console.error("Failed to get KV metrics:", error)
-    return createEmptyMetrics()
+    // trunk-ignore(semgrep/javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring): Safe string template
+    console.error(`Failed to get KV metric ${key}:`, error)
+    return 0
   }
 }
 
 /**
- * Create empty metrics structure
+ * Set a simple KV metric value
  */
-function createEmptyMetrics(): KVMetrics {
-  const emptyMetric = {
-    ok: 0,
-    error: 0,
-    times: {
-      "last-hit": 0,
-      "last-error": 0,
-      "last-ok": 0
-    },
-    visitor: {
-      human: 0,
-      bot: 0,
-      unknown: 0
-    },
-    group: {
-      "1xx": 0,
-      "2xx": 0,
-      "3xx": 0,
-      "4xx": 0,
-      "5xx": 0
-    },
-    status: {}
+export async function setKVMetric(kv: KVNamespace, key: string, value: number): Promise<void> {
+  try {
+    await kv.put(key, String(value))
+  } catch (error) {
+    // trunk-ignore(semgrep/javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring): Safe string template
+    console.error(`Failed to set KV metric ${key}:`, error)
   }
+}
 
-  return {
-    ...emptyMetric,
-    resources: {},
-    redirect: {}
+/**
+ * Increment a simple KV metric value
+ */
+export async function incrementKVMetric(kv: KVNamespace, key: string, increment = 1): Promise<void> {
+  try {
+    const currentValue = await getKVMetric(kv, key)
+    await setKVMetric(kv, key, currentValue + increment)
+  } catch (error) {
+    // trunk-ignore(semgrep/javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring): Safe string template
+    console.error(`Failed to increment KV metric ${key}:`, error)
   }
 }
 
@@ -216,7 +120,7 @@ function classifyVisitor(userAgent: string): "human" | "bot" | "unknown" {
 }
 
 /**
- * Update metrics for API requests in the new hierarchical schema
+ * Update metrics for API requests using simple KV keys
  */
 export async function updateAPIRequestMetrics(
   kv: KVNamespace,
@@ -233,58 +137,46 @@ export async function updateAPIRequestMetrics(
     const statusGroup = getStatusGroup(statusCode)
     const now = Date.now()
 
-    // Get current metrics
-    const metricsData = (await kv.get("metrics", "json")) || createEmptyMetrics()
-    const metrics = metricsData as KVMetrics
-
-    // Ensure resource exists
-    if (!metrics.resources[resource]) {
-      metrics.resources[resource] = {
-        ok: 0,
-        error: 0,
-        times: { "last-hit": 0, "last-error": 0, "last-ok": 0 },
-        visitor: { human: 0, bot: 0, unknown: 0 },
-        group: { "1xx": 0, "2xx": 0, "3xx": 0, "4xx": 0, "5xx": 0 },
-        status: {}
-      }
-    }
+    // Build list of KV operations to perform
+    const operations: Promise<void>[] = []
 
     // Update top-level metrics
     if (success) {
-      metrics.ok++
-      metrics.times["last-ok"] = now
+      operations.push(incrementKVMetric(kv, "metrics:ok"))
+      operations.push(setKVMetric(kv, "metrics:times:last-ok", now))
     } else {
-      metrics.error++
-      metrics.times["last-error"] = now
+      operations.push(incrementKVMetric(kv, "metrics:error"))
+      operations.push(setKVMetric(kv, "metrics:times:last-error", now))
     }
-    metrics.times["last-hit"] = now
-    metrics.visitor[visitorType]++
-    metrics.group[statusGroup]++
-    metrics.status[statusCode.toString()] = (metrics.status[statusCode.toString()] || 0) + 1
+
+    operations.push(setKVMetric(kv, "metrics:times:last-hit", now))
+    operations.push(incrementKVMetric(kv, `metrics:visitor:${visitorType}`))
+    operations.push(incrementKVMetric(kv, `metrics:group:${statusGroup}`))
+    operations.push(incrementKVMetric(kv, `metrics:status:${statusCode}`))
 
     // Update resource-specific metrics
-    const resourceMetrics = metrics.resources[resource]
     if (success) {
-      resourceMetrics.ok++
-      resourceMetrics.times["last-ok"] = now
+      operations.push(incrementKVMetric(kv, `metrics:resources:${resource}:ok`))
+      operations.push(setKVMetric(kv, `metrics:resources:${resource}:times:last-ok`, now))
     } else {
-      resourceMetrics.error++
-      resourceMetrics.times["last-error"] = now
+      operations.push(incrementKVMetric(kv, `metrics:resources:${resource}:error`))
+      operations.push(setKVMetric(kv, `metrics:resources:${resource}:times:last-error`, now))
     }
-    resourceMetrics.times["last-hit"] = now
-    resourceMetrics.visitor[visitorType]++
-    resourceMetrics.group[statusGroup]++
-    resourceMetrics.status[statusCode.toString()] = (resourceMetrics.status[statusCode.toString()] || 0) + 1
 
-    // Save updated metrics
-    await kv.put("metrics", JSON.stringify(metrics))
+    operations.push(setKVMetric(kv, `metrics:resources:${resource}:times:last-hit`, now))
+    operations.push(incrementKVMetric(kv, `metrics:resources:${resource}:visitor:${visitorType}`))
+    operations.push(incrementKVMetric(kv, `metrics:resources:${resource}:group:${statusGroup}`))
+    operations.push(incrementKVMetric(kv, `metrics:resources:${resource}:status:${statusCode}`))
+
+    // Execute all operations in parallel
+    await Promise.all(operations)
   } catch (error) {
     console.error("Failed to update API request metrics:", error)
   }
 }
 
 /**
- * Update metrics for redirect events in the new hierarchical schema
+ * Update metrics for redirect events using simple KV keys
  */
 export async function updateRedirectMetrics(
   kv: KVNamespace,
@@ -298,54 +190,54 @@ export async function updateRedirectMetrics(
     const statusGroup = getStatusGroup(statusCode)
     const now = Date.now()
 
-    // Get current metrics
-    const metricsData = (await kv.get("metrics", "json")) || createEmptyMetrics()
-    const metrics = metricsData as KVMetrics
+    // Build list of KV operations to perform
+    const operations: Promise<void>[] = []
 
-    // Ensure redirect slug exists
-    if (!metrics.redirect[slug]) {
-      metrics.redirect[slug] = {
-        ok: 0,
-        error: 0,
-        times: { "last-hit": 0, "last-error": 0, "last-ok": 0 },
-        visitor: { human: 0, bot: 0, unknown: 0 },
-        group: { "1xx": 0, "2xx": 0, "3xx": 0, "4xx": 0, "5xx": 0 },
-        status: {}
-      }
+    // Update top-level metrics
+    if (success) {
+      operations.push(incrementKVMetric(kv, "metrics:ok"))
+      operations.push(setKVMetric(kv, "metrics:times:last-ok", now))
+    } else {
+      operations.push(incrementKVMetric(kv, "metrics:error"))
+      operations.push(setKVMetric(kv, "metrics:times:last-error", now))
     }
 
-    // Update top-level metrics for /go resource
+    operations.push(setKVMetric(kv, "metrics:times:last-hit", now))
+    operations.push(incrementKVMetric(kv, `metrics:visitor:${visitorType}`))
+    operations.push(incrementKVMetric(kv, `metrics:group:${statusGroup}`))
+    operations.push(incrementKVMetric(kv, `metrics:status:${statusCode}`))
+
+    // Update "go" resource metrics
     const goResource = "go"
-    if (!metrics.resources[goResource]) {
-      metrics.resources[goResource] = {
-        ok: 0,
-        error: 0,
-        times: { "last-hit": 0, "last-error": 0, "last-ok": 0 },
-        visitor: { human: 0, bot: 0, unknown: 0 },
-        group: { "1xx": 0, "2xx": 0, "3xx": 0, "4xx": 0, "5xx": 0 },
-        status: {}
-      }
+    if (success) {
+      operations.push(incrementKVMetric(kv, `metrics:resources:${goResource}:ok`))
+      operations.push(setKVMetric(kv, `metrics:resources:${goResource}:times:last-ok`, now))
+    } else {
+      operations.push(incrementKVMetric(kv, `metrics:resources:${goResource}:error`))
+      operations.push(setKVMetric(kv, `metrics:resources:${goResource}:times:last-error`, now))
     }
 
-    // Update metrics at all levels
-    const targets = [metrics, metrics.resources[goResource], metrics.redirect[slug]]
+    operations.push(setKVMetric(kv, `metrics:resources:${goResource}:times:last-hit`, now))
+    operations.push(incrementKVMetric(kv, `metrics:resources:${goResource}:visitor:${visitorType}`))
+    operations.push(incrementKVMetric(kv, `metrics:resources:${goResource}:group:${statusGroup}`))
+    operations.push(incrementKVMetric(kv, `metrics:resources:${goResource}:status:${statusCode}`))
 
-    for (const target of targets) {
-      if (success) {
-        target.ok++
-        target.times["last-ok"] = now
-      } else {
-        target.error++
-        target.times["last-error"] = now
-      }
-      target.times["last-hit"] = now
-      target.visitor[visitorType]++
-      target.group[statusGroup]++
-      target.status[statusCode.toString()] = (target.status[statusCode.toString()] || 0) + 1
+    // Update redirect-specific metrics
+    if (success) {
+      operations.push(incrementKVMetric(kv, `metrics:redirect:${slug}:ok`))
+      operations.push(setKVMetric(kv, `metrics:redirect:${slug}:times:last-ok`, now))
+    } else {
+      operations.push(incrementKVMetric(kv, `metrics:redirect:${slug}:error`))
+      operations.push(setKVMetric(kv, `metrics:redirect:${slug}:times:last-error`, now))
     }
 
-    // Save updated metrics
-    await kv.put("metrics", JSON.stringify(metrics))
+    operations.push(setKVMetric(kv, `metrics:redirect:${slug}:times:last-hit`, now))
+    operations.push(incrementKVMetric(kv, `metrics:redirect:${slug}:visitor:${visitorType}`))
+    operations.push(incrementKVMetric(kv, `metrics:redirect:${slug}:group:${statusGroup}`))
+    operations.push(incrementKVMetric(kv, `metrics:redirect:${slug}:status:${statusCode}`))
+
+    // Execute all operations in parallel
+    await Promise.all(operations)
   } catch (error) {
     console.error("Failed to update redirect metrics:", error)
   }
@@ -360,6 +252,23 @@ function getStatusGroup(statusCode: number): "1xx" | "2xx" | "3xx" | "4xx" | "5x
   if (statusCode >= 300 && statusCode < 400) return "3xx"
   if (statusCode >= 400 && statusCode < 500) return "4xx"
   return "5xx"
+}
+
+/**
+ * Helper function to get multiple metrics at once
+ */
+export async function getKVMetrics(kv: KVNamespace, keys: string[]): Promise<Record<string, number>> {
+  try {
+    const values = await Promise.all(keys.map((key) => getKVMetric(kv, key)))
+    const result: Record<string, number> = {}
+    keys.forEach((key, index) => {
+      result[key] = values[index] ?? 0
+    })
+    return result
+  } catch (error) {
+    console.error("Failed to get multiple KV metrics:", error)
+    return {}
+  }
 }
 
 /**
@@ -419,4 +328,4 @@ export function isBot(userAgent: string): boolean {
   return classifyVisitor(userAgent) === "bot"
 }
 
-export type { KVCounterEntry, KVMetrics }
+export type { KVCounterEntry }

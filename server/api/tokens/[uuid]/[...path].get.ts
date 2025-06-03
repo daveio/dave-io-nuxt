@@ -49,15 +49,27 @@ export default defineEventHandler(async (event) => {
 
     // Handle different paths
     if (!path) {
-      // GET /api/tokens/{uuid} - Get token usage
-      const tokenKey = `token:${uuid}`
-      const tokenData = await env.DATA.get(tokenKey)
+      // GET /api/tokens/{uuid} - Get token usage using simple KV keys
+      const [usageCountStr, maxRequestsStr, createdAtStr, lastUsedStr] = await Promise.all([
+        env.DATA.get(`token:${uuid}:usage-count`),
+        env.DATA.get(`token:${uuid}:max-requests`),
+        env.DATA.get(`token:${uuid}:created-at`),
+        env.DATA.get(`token:${uuid}:last-used`)
+      ])
 
-      if (!tokenData) {
+      // Check if token exists
+      if (!createdAtStr && !maxRequestsStr) {
         throw createApiError(404, `Token not found: ${uuid}`)
       }
 
-      const usage: TokenUsageData = JSON.parse(tokenData)
+      const usage: TokenUsageData = {
+        token_id: uuid,
+        usage_count: usageCountStr ? Number.parseInt(usageCountStr, 10) : 0,
+        max_requests: maxRequestsStr ? Number.parseInt(maxRequestsStr, 10) : 0,
+        created_at: createdAtStr || new Date().toISOString(),
+        last_used: lastUsedStr || ""
+      }
+
       const validatedUsage = TokenUsageSchema.parse(usage)
 
       // Record successful metrics
@@ -67,15 +79,14 @@ export default defineEventHandler(async (event) => {
     }
     if (path === "revoke") {
       // GET /api/tokens/{uuid}/revoke - Revoke token (legacy endpoint)
-      const tokenKey = `token:${uuid}`
-      const tokenData = await env.DATA.get(tokenKey)
+      const createdAtStr = await env.DATA.get(`token:${uuid}:created-at`)
 
-      if (!tokenData) {
+      if (!createdAtStr) {
         throw createApiError(404, `Token not found: ${uuid}`)
       }
 
-      // Add the token to revocation blacklist
-      await env.DATA.put(`revoked_token:${uuid}`, "true", { expirationTtl: 86400 * 30 })
+      // Add the token to revocation using simple KV key
+      await env.DATA.put(`token:${uuid}:revoked`, "true", { expirationTtl: 86400 * 30 })
 
       console.log(`Token revoked: ${uuid}`)
 
@@ -91,15 +102,12 @@ export default defineEventHandler(async (event) => {
       return createApiResponse(revokeData, "Token revoked successfully")
     }
     if (path === "metrics") {
-      // GET /api/tokens/{uuid}/metrics - Get token metrics
-      const tokenKey = `token:${uuid}`
-      const tokenData = await env.DATA.get(tokenKey)
+      // GET /api/tokens/{uuid}/metrics - Get token metrics using simple KV keys
+      const createdAtStr = await env.DATA.get(`token:${uuid}:created-at`)
 
-      if (!tokenData) {
+      if (!createdAtStr) {
         throw createApiError(404, `Token not found: ${uuid}`)
       }
-
-      const _usage: TokenUsageData = JSON.parse(tokenData)
 
       // Get real metrics data from KV counters for this specific token
       const [totalRequests, successfulRequests, failedRequests] = await Promise.all([

@@ -349,19 +349,21 @@ bun run test:api --token "eyJhbGciOiJIUzI1NiJ9..."
 **🚨 BREAKING CHANGE**: Enhanced YAML with anchors and integer handling!
 
 ```bash
-# Export operations (YAML for the human-readable crowd)
+# Remote operations (production-ready, requires API credentials)
 bun run kv export                    # Export selected data patterns to YAML
 bun run kv export --all              # Export everything to YAML (readable chaos)
-
-# Import operations (with proper safety checks, because I care about your data)
 bun run kv import data/kv/kv-20241201-120000.yaml     # Import with confirmation
 bun run kv import kv-backup.yaml --yes                # Skip confirmation (live dangerously)
 bun run kv import backup.yaml --wipe                  # Nuclear import (wipe first)
-
-# Management operations (for the control freaks)
 bun run kv list                      # List all KV keys
 bun run kv list --pattern "metrics" # Filter by pattern
 bun run kv wipe                      # Nuclear option (requires CONFIRM_WIPE=yes)
+
+# Local operations (development mode - uses wrangler simulator)
+bun run kv --local export           # Export from local dev storage
+bun run kv --local import backup.yaml  # Import to local dev storage
+bun run kv --local list              # List local dev keys
+bun run kv --local wipe              # Wipe local dev storage (safe!)
 ```
 
 **YAML All The Things! (Now With More Structure!):**
@@ -398,6 +400,14 @@ redirect:
   gh: https://github.com/daveio
   blog: https://blog.dave.io
 ```
+
+**Local Mode Benefits (Finally, Development That Doesn't Break Production!):**
+
+- **Safe Sandbox**: Uses wrangler's built-in KV simulator - your production data stays untouched
+- **No API Keys**: No need for Cloudflare credentials during development
+- **Fast Iteration**: Test export/import cycles without hitting rate limits
+- **Team Friendly**: Share KV data via YAML files without exposing production secrets
+- **Offline Development**: Work without internet connectivity (once wrangler is set up)
 
 **Import Safety Features (Because I've Seen Things):**
 

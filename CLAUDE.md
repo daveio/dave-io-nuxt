@@ -264,6 +264,8 @@ await cloudflare.kv.namespaces.values.update(namespace, key, {
 
 **PRINCIPLE**: KV storage should be transparent and debuggable. Simple data in, simple data out.
 
+**DATA MANAGEMENT**: Update `data/kv/init.yaml` when defining new KV keys or modifying the schema structure. This file serves as the canonical reference for all KV key definitions and should be kept synchronized with code changes.
+
 ## Overview
 
 Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to enterprise-grade application with authentication, validation, testing, deployment automation.
@@ -342,7 +344,7 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 
 **JWT** (`bin/jwt.ts`): `init|create|verify|list|show|search|revoke` - D1 + KV integration
 **API Test** (`bin/api-test.ts`): Comprehensive endpoint testing
-**KV** (`bin/kv.ts`): `export|import|list|wipe` - YAML-based data management with safeguards
+**KV** (`bin/kv.ts`): `export|import|list|wipe` - YAML-based data management with safeguards. Local mode (`--local`) for development.
 **Deploy Env** (`bin/deploy-env.ts`): Secure production environment deployment - validates configuration, filters dev variables, deploys via wrangler
 
 ## Security
@@ -487,10 +489,12 @@ Reference implementation for production-ready serverless APIs with TypeScript, t
 
 **Export/Import**: YAML-based data exchange with hierarchical structure and anchor support
 **Commands**:
-- `bun run kv export [--all]` - Export to timestamped YAML in `data/kv/`
-- `bun run kv import <file> [--yes] [--wipe]` - Import from YAML with confirmation
-- `bun run kv list [--pattern]` - List keys with optional filtering
-- `bun run kv wipe` - Nuclear option with safety confirmation
+- `bun run kv export [--all] [--local]` - Export to timestamped YAML in `data/kv/`
+- `bun run kv import <file> [--yes] [--wipe] [--local]` - Import from YAML with confirmation
+- `bun run kv list [--pattern] [--local]` - List keys with optional filtering
+- `bun run kv wipe [--local]` - Nuclear option with safety confirmation
+
+**Local Development Mode**: Use `--local` flag to operate on wrangler's local KV simulator instead of remote Cloudflare API. Perfect for development and testing without affecting production data.
 
 **YAML Enhancements**:
 - **Integer Handling**: Numeric values exported as integers, not strings

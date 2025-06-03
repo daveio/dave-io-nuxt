@@ -1,4 +1,5 @@
-# Base KV data structure for initialization - using new hierarchical schema
+# KV initialisation file
+# This file should be updated as new keys are defined.
 # This file can be imported with: bun run kv import data/kv/base-new.yaml --wipe
 
 _anchors: # _anchors is for YAML anchor definitions only. Excluded from direct output.

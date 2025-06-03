@@ -131,9 +131,9 @@ export async function isTokenRevoked(event: H3Event, jti: string): Promise<boole
       return false
     }
 
-    // Check KV store for revoked tokens
-    const revoked = await env.DATA.get(`revoked_token:${jti}`)
-    return revoked !== null
+    // Check KV store for revoked tokens using simple key format
+    const revoked = await env.DATA.get(`token:${jti}:revoked`)
+    return revoked === "true"
   } catch (error) {
     console.error("Failed to check token revocation:", error)
     // Fail open - assume not revoked but log the error

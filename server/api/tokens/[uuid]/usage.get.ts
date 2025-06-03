@@ -13,39 +13,40 @@ interface TokenUsage {
   createdAt: string
 }
 
-// Get token usage from KV storage
+// Get token usage from KV storage using simple keys
 async function getTokenUsageFromKV(uuid: string, kv?: KVNamespace): Promise<TokenUsage> {
   if (!kv) {
     throw createApiError(503, "Token storage service unavailable")
   }
 
   try {
-    // Get basic token info and usage stats
-    const [tokenData, usageData, revokedData] = await Promise.all([
-      kv.get(`token:${uuid}`),
-      kv.get(`auth:count:${uuid}:requests`),
-      kv.get(`auth:revocation:${uuid}`)
+    // Get all token data using simple KV keys
+    const [maxRequestsStr, createdAtStr, usageCountStr, lastUsedStr, revokedStr] = await Promise.all([
+      kv.get(`token:${uuid}:max-requests`),
+      kv.get(`token:${uuid}:created-at`),
+      kv.get(`token:${uuid}:usage-count`),
+      kv.get(`token:${uuid}:last-used`),
+      kv.get(`token:${uuid}:revoked`)
     ])
 
-    if (!tokenData) {
+    // Check if token exists (if any of the core fields exist)
+    if (!createdAtStr && !maxRequestsStr) {
       throw createApiError(404, `Token not found: ${uuid}`)
     }
 
-    const token = JSON.parse(tokenData)
-    const requestCount = usageData ? Number.parseInt(usageData, 10) : 0
-    const isRevoked = !!revokedData
-
-    // Get last used timestamp
-    const lastUsedData = await kv.get(`auth:count:${uuid}:last-used`)
-    const lastUsed = lastUsedData || null
+    const maxRequests = maxRequestsStr ? Number.parseInt(maxRequestsStr, 10) : undefined
+    const requestCount = usageCountStr ? Number.parseInt(usageCountStr, 10) : 0
+    const isRevoked = revokedStr === "true"
+    const lastUsed = lastUsedStr || null
+    const createdAt = createdAtStr || new Date().toISOString()
 
     return {
       uuid,
       requestCount,
       lastUsed,
       isRevoked,
-      maxRequests: token.maxRequests,
-      createdAt: token.createdAt || new Date().toISOString()
+      maxRequests,
+      createdAt
     }
   } catch (error: unknown) {
     if (error && typeof error === "object" && "statusCode" in error) throw error

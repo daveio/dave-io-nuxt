@@ -25,22 +25,21 @@ export default defineEventHandler(async (event) => {
       throw createApiError(400, "Slug parameter is required")
     }
 
-    // Get redirect from new schema structure
+    // Get redirect URL and click count from simple KV keys
     let redirectData: RedirectData | undefined
 
     try {
-      // Get redirect mappings and metrics from new schema
-      const [redirectMappings, metricsData] = await Promise.all([kv.get("redirect", "json"), kv.get("metrics", "json")])
+      // Get redirect URL and metrics using simple KV keys
+      const [redirectUrl, clickCountStr] = await Promise.all([
+        kv.get(`redirect:${slug}`),
+        kv.get(`metrics:redirect:${slug}:ok`)
+      ])
 
-      const redirects = redirectMappings as Record<string, string> | null
-      // biome-ignore lint/suspicious/noExplicitAny: KV metrics data has dynamic structure
-      const metrics = metricsData as any | null
-
-      if (redirects?.[slug]) {
-        const clickCount = metrics?.redirect?.[slug]?.ok || 0
+      if (redirectUrl) {
+        const clickCount = clickCountStr ? Number.parseInt(clickCountStr) : 0
         redirectData = {
           slug: slug,
-          url: redirects[slug],
+          url: redirectUrl,
           clicks: clickCount,
           created_at: Date.now().toString(),
           updated_at: Date.now().toString()
