@@ -465,8 +465,7 @@ async function importKV(
         const valueStr = typeof value === "string" ? value : JSON5.stringify(value, null, 0)
         await cloudflare.kv.namespaces.values.update(kvNamespaceId, key, {
           account_id: config.accountId,
-          value: valueStr,
-          metadata: "{}"
+          value: valueStr
         })
         const preview = valueStr.substring(0, 100) + (valueStr.length > 100 ? "..." : "")
         console.log("  ✓", `${key}:`, preview)

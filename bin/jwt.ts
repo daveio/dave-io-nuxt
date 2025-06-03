@@ -449,8 +449,7 @@ program
 
       await client.kv.namespaces.values.update(kvNamespaceId, `auth:revocation:${uuid}`, {
         account_id: config.accountId,
-        value: "true",
-        metadata: "{}"
+        value: "true"
       })
 
       console.log("✅ Token revoked successfully")

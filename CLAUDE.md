@@ -208,6 +208,62 @@ throw new Error("User preferences not implemented yet")
 
 **PRINCIPLE**: Better to crash visibly than fail silently.
 
+### 9️⃣ **KV SIMPLE DATA STORAGE**
+
+**RATIONALE**: KV storage should contain simple, directly usable data values. Complex wrapper objects defeat the purpose of key-value storage and make debugging harder.
+
+**CORE RULE**: KV values must be simple data types. Multiple KV operations are acceptable to achieve this simplicity.
+
+**REQUIRED PATTERNS**:
+- ✅ Store simple values: strings, numbers, booleans, simple JSON objects
+- ✅ Use colon-separated hierarchical keys: `metrics:api:internal:ok`
+- ✅ Use lowercase kebab-case for all key segments: `auth:revocation:token-uuid`
+- ✅ Multiple KV reads/writes are acceptable for data organization
+- ✅ Direct KV operations: `kv.put(key, value)` in Workers, `cloudflare.kv.namespaces.values.update(id, key, {value})` in CLI
+
+**FORBIDDEN PATTERNS**:
+- ❌ Metadata wrapper objects: `{ "value": "data", "metadata": "{}" }`
+- ❌ Complex nested objects as single KV values (prefer multiple keys)
+- ❌ Using `metadata` parameter in Cloudflare SDK calls
+- ❌ CamelCase or snake_case in key names
+- ❌ Non-hierarchical flat keys when structure is needed
+
+**KEY NAMING CONVENTIONS**:
+```typescript
+// ✅ CORRECT - hierarchical, lowercase, kebab-case
+"metrics:api:internal:ok"
+"auth:revocation:abc123def456"
+"redirect:github"
+"dashboard:cache:user-stats"
+
+// ❌ WRONG - flat, mixed case, underscores
+"metricsApiInternalOk"
+"auth_revocation_abc123def456"
+"redirectGithub"
+```
+
+**KV OPERATION EXAMPLES**:
+```typescript
+// ✅ CORRECT - Workers Runtime KV
+await env.DATA.put("metrics:api:ok", "42")
+await env.DATA.put("auth:revocation:uuid", "true")
+
+// ✅ CORRECT - Cloudflare SDK (CLI tools)
+await cloudflare.kv.namespaces.values.update(namespace, key, {
+  account_id: accountId,
+  value: "42"  // No metadata parameter
+})
+
+// ❌ WRONG - metadata wrapper
+await cloudflare.kv.namespaces.values.update(namespace, key, {
+  account_id: accountId,
+  value: "42",
+  metadata: "{}"  // This creates wrapper objects
+})
+```
+
+**PRINCIPLE**: KV storage should be transparent and debuggable. Simple data in, simple data out.
+
 ## Overview
 
 Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to enterprise-grade application with authentication, validation, testing, deployment automation.
