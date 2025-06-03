@@ -1,112 +1,212 @@
 # CLAUDE.md - AI Agent Instructions
 
-## ⚠️ CRITICAL DEVELOPMENT RULE: AVOID LEGACY SUPPORT / MIGRATION LOGIC
+## 🚨 CRITICAL DEVELOPMENT RULES (MUST FOLLOW ALWAYS)
 
-**COMPATIBILITY DOES NOT NEED TO BE PRESERVED**. We are not in production. For example, fields from the JWT can be removed, KV fields can be removed without any migration code, and so on.
+These rules are MANDATORY and override all other considerations. Follow them religiously on every task.
 
-This will be removed when we go into production.
+### 1️⃣ **NO BACKWARDS COMPATIBILITY** (Pre-Production Only)
 
-Tell me about any breaking changes and add them to the documentation, but make them without thought to backwards compatibility.
+**RATIONALE**: We are NOT in production yet. Break things freely to improve code quality.
 
-## ⚠️ CRITICAL DEVELOPMENT RULE: TIME AND COST ARE NOT IMPORTANT
+**WHAT THIS MEANS**:
+- Remove fields from JWT tokens without migration
+- Delete KV storage keys without data preservation
+- Change API responses without version compatibility
+- Modify database schemas destructively
+- Refactor interfaces without legacy support
 
-**PRIORITISE QUALITY ABOVE ALL ELSE**. Don't try to optimise for how long you take, or how much you spend on AI calls. Code quality and completeness are more important.
+**REQUIRED ACTIONS**:
+- ✅ Document all breaking changes in CLAUDE.md and README.md
+- ✅ List what will break for users
+- ✅ Explain why the change improves the codebase
+- ❌ Do NOT write migration code
+- ❌ Do NOT preserve old field names or formats
 
-## ⚠️ CRITICAL DEVELOPMENT RULE: IMPLEMENT TESTS
+**REMOVAL DATE**: This rule will be removed when we enter production.
 
-**EVERYTHING MUST HAVE A TEST**. This is non-negotiable. If you write a function, you must also write a test for it. This ensures that the function works as intended and prevents regressions in the future.
+### 2️⃣ **PRIORITIZE QUALITY OVER SPEED**
 
-Small functions can be ignored if they are trivial, but anything with logic or side effects must be tested.
+**RATIONALE**: Perfect code quality is more valuable than fast delivery.
 
-Tests should cover all edge cases and error conditions. Use Vitest via `bun run test` for unit tests, and ensure they run successfully before committing your changes.
+**WHAT THIS MEANS**:
+- Spend unlimited time getting implementations right
+- Use as many AI calls as needed for research and verification
+- Choose the most robust solution, not the quickest
+- Refactor ruthlessly when you spot improvements
 
-Frontend can often not be tested effectively; that is acceptable. Backend APIs MUST be tested.
+**FORBIDDEN**:
+- ❌ "Good enough" implementations
+- ❌ Quick hacks or shortcuts
+- ❌ Worrying about API call costs
+- ❌ Rushing to completion
 
-## ⚠️ CRITICAL DEVELOPMENT RULE: KEEP DOCUMENTATION IN SYNC
+### 3️⃣ **MANDATORY TESTING**
 
-**`CLAUDE.md` and `README.md` MUST BE KEPT IN SYNC**, though written in different styles for different consumers.
+**RATIONALE**: Untested code WILL break. Tests prevent regressions and ensure correctness.
 
-`CLAUDE.md` is for AI agents and developers, while `README.md` is for end users and developers. Both should be updated with any significant changes to the codebase, APIs, or architecture.
+**RULES**:
+- **EVERYTHING with logic or side effects MUST have a test**
+- **NO EXCEPTIONS** - if you write a function, write its test
+- Tests must cover edge cases and error conditions
+- Tests must run successfully before committing
 
-`CLAUDE.md` contains rules for writing documentation.
+**WHAT TO TEST**:
+- ✅ All API endpoints (backend MANDATORY)
+- ✅ Utility functions with logic
+- ✅ Authentication and validation
+- ✅ Database operations
+- ✅ Error handling paths
 
-## ⚠️ CRITICAL DEVELOPMENT RULE: USE THE CHECKS
+**WHAT TO SKIP**:
+- ❌ Trivial getters/setters with no logic
+- ❌ Frontend components (often impractical)
+- ❌ Pure configuration objects
 
-**USE THE QUALITY VERIFICATION TOOLS**. Run them before you consider your work finished, and ensure they pass. **DO NOT SKIP THEM**.
+**TESTING COMMANDS**:
+```bash
+bun run test        # Unit tests with Vitest
+bun run test:ui     # Interactive test runner
+bun run test:api    # HTTP API integration tests
+```
 
-If you must skip them due to scoping or resource limitation, add a TODO to come back to it. Remember to always use the term "TODO" in TODO comments.
+### 4️⃣ **SYNCHRONIZED DOCUMENTATION**
 
-- `bun run lint` - linting with Trunk and Biome
-- `bun run typecheck` - TypeScript type checking
-- `bun run test` - unit tests with Vitest
+**RATIONALE**: Outdated docs are worse than no docs. They mislead and waste time.
 
-When everything is clean, try a build:
+**MANDATORY UPDATES**:
+After ANY significant change, update BOTH:
+- `CLAUDE.md` - Technical reference for AI agents and developers
+- `README.md` - User-friendly guide with examples and personality
 
-- `bun run check` - run all previous checks and attempt to build the project
-  - This is an expensive and time-consuming operation.
-  - Only run it when everything else is passing.
+**UPDATE TRIGGERS**:
+- API endpoint changes
+- New features or removed features
+- Architecture modifications
+- Authentication changes
+- Configuration changes
+- Breaking changes
 
-## ⚠️ CRITICAL DEVELOPMENT RULE: COMMIT AFTER CHANGES
+**DOCUMENTATION STYLE**:
+- CLAUDE.md: Technical, precise, structured
+- README.md: Friendly, sardonic, example-rich (reflects Dave's personality)
 
-**COMMIT AFTER EVERY SIGNIFICANT BLOCK OF WORK**.
+### 5️⃣ **QUALITY VERIFICATION WORKFLOW**
 
-Use `git add -A . && oco --fgm --yes` to commit changes after completing a feature, fixing a bug, or making significant updates. This ensures that all work is tracked and recoverable. This command will automatically generate you a commit message based on the changes made, so you don't have to worry about writing it yourself.
+**RATIONALE**: Automated checks catch bugs before they reach users.
 
-If `git add -A . && oco --fgm --yes` fails, run `git add -A . && git commit -am "[commit_message]"` to manually commit your changes. Replace `[commit_message]` with a descriptive message about the changes made. Keep to a single line. Include a single emoji at the start of the message to indicate the type of change (e.g., 🐛 for bug fixes, ✨ for new features, 🔧 for improvements).
+**MANDATORY SEQUENCE** (Do NOT skip steps):
 
-## ⚠️ CRITICAL DEVELOPMENT RULE: ABSOLUTELY NO MOCK DATA
+1. **PRIMARY CHECKS** (run these first):
+   ```bash
+   bun run lint        # Linting with Biome and Trunk
+   bun run typecheck   # TypeScript type verification
+   bun run test        # Unit test suite
+   ```
 
-**ZERO TOLERANCE FOR MOCK DATA, SIMULATIONS, OR FAKE RESPONSES**. Use ONLY real `env.AI.run()`, `env.DATA.get/put()` calls. Mocks or simulations are allowable in tests.
+2. **FULL BUILD** (only after primary checks pass):
+   ```bash
+   bun run check       # Comprehensive build + all checks
+   ```
+   - ⚠️ Expensive operation - only run when everything else passes
+   - ⚠️ This will catch final integration issues
 
-**FORBIDDEN PATTERNS:**
+**IF CHECKS FAIL**:
+- Fix the issues immediately
+- Do NOT commit broken code
+- If you must defer fixes, add specific TODO comments
 
-- ❌ `Math.random()` for any data generation
-- ❌ Hardcoded success rates, percentages, or metrics (e.g., "99.2%", "99.9%")
-- ❌ Mock time series data or fake chart data
+**BYPASS CONDITIONS** (very rare):
+- Scoping limitations require deferring work
+- Must add `// TODO: [specific description of what needs fixing]`
+
+### 6️⃣ **COMMIT HYGIENE**
+
+**RATIONALE**: Good commit history enables debugging, rollbacks, and collaboration.
+
+**WHEN TO COMMIT**:
+- After completing any feature
+- After fixing any bug
+- After any significant refactoring
+- Before starting new work
+
+**COMMIT SEQUENCE**:
+1. **Primary method** (auto-generates commit messages):
+   ```bash
+   git add -A . && oco --fgm --yes
+   ```
+
+2. **Fallback method** (if primary fails):
+   ```bash
+   git add -A . && git commit -am "[emoji] [description]"
+   ```
+   - Use descriptive emojis: 🐛 bugs, ✨ features, 🔧 improvements, 📝 docs
+   - Keep to single line
+   - Be specific about what changed
+
+**NEVER COMMIT**:
+- ❌ Failing tests
+- ❌ TypeScript errors
+- ❌ Linting violations
+- ❌ Broken builds
+
+### 7️⃣ **ZERO TOLERANCE FOR MOCK DATA**
+
+**RATIONALE**: This app prioritizes debugging visibility over user experience. Real failures are better than fake success.
+
+**CORE PRINCIPLE**: Use ONLY real service calls (`env.AI.run()`, `env.DATA.get/put()`). Crash loudly when services fail.
+
+**FORBIDDEN PATTERNS**:
+- ❌ `Math.random()` for data generation
+- ❌ Hardcoded percentages/metrics ("99.2%", "success rate: 95%")
+- ❌ Mock time series or chart data
 - ❌ Simulated delays or processing times
-- ❌ Default fallback values that mask missing real data
-- ❌ Graceful degradation that returns fake data
-- ❌ "Demo" modes with mock data
-- ❌ Any form of data simulation or estimation
-- ❌ `shouldAllowMockData()` conditional mock data
-- ❌ Try/catch blocks that return fake data instead of re-throwing errors
+- ❌ Default fallback values that mask missing data
+- ❌ "Demo" modes with fake data
+- ❌ Try/catch blocks returning fake data instead of re-throwing
 - ❌ Loading states with placeholder data that looks real
-- ❌ Computed properties that generate fake metrics
+- ❌ `shouldAllowMockData()` conditional switches
 
-**REQUIRED BEHAVIOR:**
+**REQUIRED BEHAVIOR**:
+- ✅ Real service calls with explicit error handling
+- ✅ Throw errors when real data unavailable
+- ✅ Return proper HTTP codes (500/503) when services fail
+- ✅ Log errors for debugging without masking them
+- ✅ Let components crash visibly when data missing
+- ✅ Document service limitations clearly
 
-- ✅ Real service calls with proper error handling
-- ✅ Throwing errors when real data is unavailable
-- ✅ Documenting service limitations clearly
-- ✅ Return proper HTTP error codes when services fail
-- ✅ Log errors for debugging without masking them with fake data
-- ✅ Components that crash visibly when data is missing
-- ✅ APIs that return 500/503 errors instead of mock responses
+**DETECTION WARNING**: Mock patterns often lack obvious keywords. Search for `mock|fake|simulate` won't catch subtle violations. **Manual review required** for hardcoded calculations, "safe" defaults, or fallback values.
 
-**RATIONALE:** This app is NOT mission-critical. Errors and failures are ACCEPTABLE. Surfacing problems is MORE IMPORTANT than preserving user experience. Debugging visibility trumps everything else.
+**EXCEPTION**: Mocks are acceptable in test files only.
 
-**DETECTION CHALLENGE:** Mock patterns are often NOT signposted with obvious keywords. Pattern searches like `grep -r "mock\|fake\|simulate"` will miss many violations. Manual code review is REQUIRED to identify subtle mock patterns like hardcoded calculations, fallback values, or "safe" defaults that mask real service failures.
+### 8️⃣ **NO INCOMPLETE IMPLEMENTATIONS**
 
-## ⚠️ CRITICAL DEVELOPMENT RULE: NO DEFERRED IMPLEMENTATIONS
+**RATIONALE**: Deferred work gets forgotten. Incomplete code hides problems and creates technical debt.
 
-**NOTHING SHALL BE LEFT "FOR LATER" WITHOUT EXPLICIT TODO COMMENTS**. If an implementation is incomplete, placeholder, or deferred, it MUST include a comment containing `TODO`. This includes tests.
+**CORE RULE**: Nothing gets left "for later" without explicit marking.
 
-**FORBIDDEN PATTERNS:**
-
-- ❌ Throwing generic errors without implementing real functionality
-- ❌ Empty function bodies that should be implemented
-- ❌ Placeholder comments like "implement later" without TODO
+**FORBIDDEN PATTERNS**:
+- ❌ Empty function bodies waiting for implementation
+- ❌ Generic errors without real functionality
+- ❌ Comments like "implement later" without TODO
 - ❌ Partial implementations that silently do nothing
-- ❌ Components that render empty without indicating missing implementation
+- ❌ Components rendering empty without indicating why
 
-**REQUIRED BEHAVIOR:**
+**REQUIRED BEHAVIOR**:
+- ✅ Every incomplete piece MUST have `// TODO: [specific description]`
+- ✅ TODO comments must be searchable and specific
+- ✅ Prefer explicit errors over silent incomplete behavior
+- ✅ Make incompleteness obvious to developers
 
-- ✅ Every incomplete implementation MUST have `// TODO: [specific description]`
-- ✅ TODO comments must be specific about what needs implementation
-- ✅ Prefer throwing explicit errors over silent incomplete behavior
-- ✅ Make incomplete functionality obvious and searchable
+**TODO FORMAT**:
+```typescript
+// TODO: Implement user preference caching with Redis
+throw new Error("User preferences not implemented yet")
 
-**RATIONALE:** Deferred work WILL BE FORGOTTEN unless explicitly marked. TODO comments ensure incomplete implementations are trackable and searchable. Better to crash visibly than silently do nothing.
+// TODO: Add rate limiting with sliding window algorithm
+// TODO: Validate image file types and sizes
+```
+
+**PRINCIPLE**: Better to crash visibly than fail silently.
 
 ## Overview
 
