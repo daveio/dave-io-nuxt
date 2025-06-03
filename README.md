@@ -340,12 +340,14 @@ bun run test:api --token "eyJhbGciOiJIUzI1NiJ9..."
 ### `bin/kv.ts` - KV Storage Management (The Data Whisperer)
 
 ```bash
-# Backup operations (because data loss is not an option)
-bun run kv backup                    # Backup selected data patterns
-bun run kv backup --all              # Backup everything (YOLO mode)
+# Export operations (YAML for the human-readable crowd)
+bun run kv export                    # Export selected data patterns to YAML
+bun run kv export --all              # Export everything to YAML (readable chaos)
 
-# Restore operations (for when things go sideways)
-bun run kv restore kv-2025-05-29-213826.json
+# Import operations (with proper safety checks, because I care about your data)
+bun run kv import data/kv/kv-20241201-120000.yaml     # Import with confirmation
+bun run kv import kv-backup.yaml --yes                # Skip confirmation (live dangerously)
+bun run kv import backup.yaml --wipe                  # Nuclear import (wipe first)
 
 # Management operations (for the control freaks)
 bun run kv list                      # List all KV keys
@@ -353,7 +355,27 @@ bun run kv list --pattern "metrics" # Filter by pattern
 bun run kv wipe                      # Nuclear option (requires CONFIRM_WIPE=yes)
 ```
 
-**Backup Patterns (simplified hierarchy):**
+**YAML All The Things! (Because Human-Readable Data Rules):**
+
+Say goodbye to the old JSON backup/restore dance. We've gone full YAML because:
+- **Human-Readable**: Actually readable configuration files
+- **Git-Friendly**: Proper diff support and version control
+- **Config Management**: Perfect for environment setup and data seeding
+- **No More JSON Hell**: Because nobody likes parsing bracket soup
+
+**Import Safety Features (Because I've Seen Things):**
+
+- **Overwrite Detection**: Warns you about existing keys that will be overwritten
+- **Confirmation Required**: Uses `--yes`/`-y` flags or `KV_IMPORT_ALLOW_OVERWRITE=1` environment variable
+- **Clean Slate Option**: `--wipe`/`-w` flag nukes everything first (for the perfectionist restores)
+- **Smart Path Resolution**: Handles `data/kv/filename.yaml`, `./data/kv/filename.yaml`, or absolute paths
+- **Graceful Error Handling**: Because cryptic errors are the enemy of productivity
+
+**⚠️ Breaking Change Alert:**
+
+The old `backup`/`restore` commands have been retired (they were JSON peasants anyway). Use `export`/`import` instead - it's better, more readable, and properly handles version control.
+
+**Export Patterns (simplified hierarchy):**
 
 - `redirect:*` - URL redirect mappings (slug → target URL)
 - `metrics:*` - All API metrics (resource-based hierarchy)

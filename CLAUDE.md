@@ -286,7 +286,7 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 
 **JWT** (`bin/jwt.ts`): `init|create|verify|list|show|search|revoke` - D1 + KV integration
 **API Test** (`bin/api-test.ts`): Comprehensive endpoint testing
-**KV** (`bin/kv.ts`): `backup|restore|list|wipe` - Pattern-based with safeguards
+**KV** (`bin/kv.ts`): `export|import|list|wipe` - YAML-based data management with safeguards
 **Deploy Env** (`bin/deploy-env.ts`): Secure production environment deployment - validates configuration, filters dev variables, deploys via wrangler
 
 ## Security
@@ -386,3 +386,19 @@ Reference implementation for production-ready serverless APIs with TypeScript, t
 **Architecture**: Microservices, event-driven (Queues), multi-tenancy, API versioning, WebSockets (Durable Objects)
 
 **Completed**: ✅ D1 integration, ✅ Code quality, ✅ Real AI integration, ✅ Custom domain, ✅ Rate limiting removal, ✅ JWT maxRequests field removal
+
+## KV Data Management
+
+**Export/Import**: YAML-based data exchange for easy migration and configuration management
+**Commands**:
+- `bun run kv export [--all]` - Export to timestamped YAML in `data/kv/`
+- `bun run kv import <file> [--yes] [--wipe]` - Import from YAML with confirmation
+- `bun run kv list [--pattern]` - List keys with optional filtering
+- `bun run kv wipe` - Nuclear option with safety confirmation
+
+**Import Safety**: Detects overwrites, requires confirmation via `--yes`/`-y` flags or `KV_IMPORT_ALLOW_OVERWRITE=1` environment variable
+**Wipe Option**: `--wipe`/`-w` flag clears namespace before import for clean state
+**File Format**: YAML for human readability and git-friendly version control
+**Pattern Filtering**: Export respects configured key patterns unless `--all` specified
+
+**Breaking Change**: Removed legacy `backup`/`restore` commands - use `export`/`import` instead for superior YAML-based workflow

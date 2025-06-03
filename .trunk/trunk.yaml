@@ -69,6 +69,11 @@ lint:
         - components/ExtraLinks.vue
         - nuxt.config.ts
         - server/middleware/shell-scripts.ts
+        - data/kv/*.yaml
+    - linters:
+        - gitleaks
+      paths:
+        - data/kv/*.yaml
 plugins:
   # https://docs.trunk.io/plugins
   sources:
