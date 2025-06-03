@@ -221,8 +221,7 @@ describe("Authentication System", () => {
         sub: "test-user",
         iat: 1609459200, // 2021-01-01 00:00:00 UTC
         exp: 1609545600, // 2021-01-02 00:00:00 UTC
-        jti: "test-token-id",
-        maxRequests: 1000
+        jti: "test-token-id"
       }
 
       const user = getUserFromPayload(payload)
@@ -231,7 +230,6 @@ describe("Authentication System", () => {
       expect(user.issuedAt).toEqual(new Date(1609459200 * 1000))
       expect(user.expiresAt).toEqual(new Date(1609545600 * 1000))
       expect(user.tokenId).toBe("test-token-id")
-      expect(user.maxRequests).toBe(1000)
     })
 
     it("should handle payload without expiration", () => {
@@ -247,7 +245,6 @@ describe("Authentication System", () => {
       expect(user.issuedAt).toEqual(new Date(1609459200 * 1000))
       expect(user.expiresAt).toBeNull()
       expect(user.tokenId).toBe("test-token-id")
-      expect(user.maxRequests).toBeUndefined()
     })
   })
 })

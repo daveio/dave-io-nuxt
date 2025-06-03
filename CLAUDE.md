@@ -1,8 +1,16 @@
 # CLAUDE.md - AI Agent Instructions
 
+## ⚠️ CRITICAL DEVELOPMENT RULE: AVOID LEGACY SUPPORT / MIGRATION LOGIC
+
+**COMPATIBILITY DOES NOT NEED TO BE PRESERVED**. We are not in production. For example, fields from the JWT can be removed, KV fields can be removed without any migration code, and so on.
+
+This will be removed when we go into production.
+
+Tell me about any breaking changes and add them to the documentation, but make them without thought to backwards compatibility.
+
 ## ⚠️ CRITICAL DEVELOPMENT RULE: TIME AND COST ARE NOT IMPORTANT
 
-Do a good job. Don't try to optimise for how long you take, or how much you spend on API calls. Code quality and completeness are more important.
+**PRIORITISE QUALITY ABOVE ALL ELSE**. Don't try to optimise for how long you take, or how much you spend on AI calls. Code quality and completeness are more important.
 
 ## ⚠️ CRITICAL DEVELOPMENT RULE: IMPLEMENT TESTS
 
@@ -17,6 +25,10 @@ Frontend can often not be tested effectively; that is acceptable. Backend APIs M
 ## ⚠️ CRITICAL DEVELOPMENT RULE: KEEP DOCUMENTATION IN SYNC
 
 **`CLAUDE.md` and `README.md` MUST BE KEPT IN SYNC**, though written in different styles for different consumers.
+
+`CLAUDE.md` is for AI agents and developers, while `README.md` is for end users and developers. Both should be updated with any significant changes to the codebase, APIs, or architecture.
+
+`CLAUDE.md` contains rules for writing documentation.
 
 ## ⚠️ CRITICAL DEVELOPMENT RULE: USE THE CHECKS
 
@@ -119,7 +131,7 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 ## Authentication
 
 **Dual Methods**: Bearer tokens (`Authorization: Bearer <jwt>`) + URL params (`?token=<jwt>`)
-**JWT Structure**: `{sub, iat, exp?, jti?, maxRequests?}` (maxRequests is legacy field, no longer enforced)
+**JWT Structure**: `{sub, iat, exp?, jti?}`
 **Hierarchical Permissions**: `category:resource` format. Parent permissions grant child access. `admin`/`*` = full access.
 **Categories**: `api`, `ai`, `dashboard`, `admin`, `*`
 
@@ -273,4 +285,4 @@ Reference implementation for production-ready serverless APIs with TypeScript, t
 **DevEx**: OpenAPI docs, client SDKs, Docker dev env, CI/CD, monitoring dashboard
 **Architecture**: Microservices, event-driven (Queues), multi-tenancy, API versioning, WebSockets (Durable Objects)
 
-**Completed**: ✅ D1 integration, ✅ Code quality, ✅ Real AI integration, ✅ Custom domain, ✅ Rate limiting removal
+**Completed**: ✅ D1 integration, ✅ Code quality, ✅ Real AI integration, ✅ Custom domain, ✅ Rate limiting removal, ✅ JWT maxRequests field removal

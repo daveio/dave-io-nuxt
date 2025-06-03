@@ -7,7 +7,6 @@ export interface JWTTokenPayload extends JWTPayload {
   iat: number // Issued at
   exp?: number // Expiration time
   jti?: string // JWT ID for revocation
-  maxRequests?: number // Request limit for this token
   permissions?: string[] // Hierarchical permissions array
 }
 
@@ -187,7 +186,6 @@ export async function authorizeEndpoint(
     return {
       success: true,
       payload,
-      requestCount: payload.maxRequests ? 1 : undefined,
       sub: payload.sub,
       tokenSubject: payload.sub
     }
@@ -200,7 +198,6 @@ export function getUserFromPayload(payload: JWTTokenPayload) {
     id: payload.sub,
     issuedAt: new Date(payload.iat * 1000),
     expiresAt: payload.exp ? new Date(payload.exp * 1000) : null,
-    tokenId: payload.jti,
-    maxRequests: payload.maxRequests
+    tokenId: payload.jti
   }
 }

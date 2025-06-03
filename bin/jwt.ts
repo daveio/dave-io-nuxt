@@ -10,7 +10,6 @@ import { createCloudflareClient, executeD1Query } from "./shared/cloudflare"
 interface JWTRequest {
   sub: string
   expiresIn?: string
-  maxRequests?: number
   description?: string
   noExpiry?: boolean
 }
@@ -19,7 +18,6 @@ interface TokenMetadata {
   uuid: string
   sub: string
   description?: string
-  maxRequests?: number
   createdAt: string
   expiresAt?: string
 }
@@ -36,7 +34,6 @@ async function initializeD1Schema(client: Cloudflare, accountId: string, databas
       uuid TEXT PRIMARY KEY,
       sub TEXT NOT NULL,
       description TEXT,
-      max_requests INTEGER,
       created_at TEXT NOT NULL,
       expires_at TEXT
     )
@@ -57,7 +54,6 @@ function mapD1Token(dbToken: unknown): TokenMetadata {
     uuid: token.uuid as string,
     sub: token.sub as string,
     description: token.description as string | undefined,
-    maxRequests: token.max_requests as number | undefined,
     createdAt: token.created_at as string,
     expiresAt: token.expires_at as string | undefined
   }
@@ -91,14 +87,12 @@ async function executeD1Command(sql: string, params: unknown[] = []): Promise<un
 
 // Store token metadata in D1
 async function storeTokenMetadata(metadata: TokenMetadata): Promise<void> {
-  const sql =
-    "INSERT INTO jwt_tokens (uuid, sub, description, max_requests, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)"
+  const sql = "INSERT INTO jwt_tokens (uuid, sub, description, created_at, expires_at) VALUES (?, ?, ?, ?, ?)"
 
   const params = [
     metadata.uuid,
     metadata.sub,
     metadata.description || null,
-    metadata.maxRequests || null,
     metadata.createdAt,
     metadata.expiresAt || null
   ]
@@ -126,8 +120,7 @@ async function createToken(options: JWTRequest, secret: string): Promise<{ token
     sub: options.sub,
     iat: now,
     jti: uuid,
-    ...(exp && { exp }),
-    ...(options.maxRequests && { maxRequests: options.maxRequests })
+    ...(exp && { exp })
   }
 
   // Use JOSE library (same as our auth system)
@@ -150,7 +143,6 @@ async function createToken(options: JWTRequest, secret: string): Promise<{ token
     uuid,
     sub: options.sub,
     description: options.description,
-    maxRequests: options.maxRequests,
     createdAt,
     expiresAt
   }
@@ -220,7 +212,6 @@ program
   .description("Create a new JWT token")
   .option("-s, --sub <subject>", "Subject (endpoint or user identifier) for the token")
   .option("-e, --expiry <time>", 'Token expiration (e.g., "1h", "7d", "30d") [default: 30d]')
-  .option("-m, --max-requests <number>", "Maximum number of requests allowed", (value) => Number.parseInt(value))
   .option("-d, --description <text>", "Description of the token purpose")
   .option("--no-expiry", "Create a token that never expires (requires confirmation)")
   .option("--seriously-no-expiry", "Skip confirmation for no-expiry tokens (use with caution)")
@@ -242,8 +233,6 @@ program
       const description = readlineSync.question("Enter description (optional): ") || undefined
       const expiresIn =
         readlineSync.question('Enter expiration (optional, e.g., "1h", "7d") [default: 30d]: ') || undefined
-      const maxRequestsStr = readlineSync.question("Enter max requests (optional): ")
-      const maxRequests = maxRequestsStr ? Number.parseInt(maxRequestsStr) : undefined
 
       // Handle no-expiry option in interactive mode
       let noExpiry = false
@@ -257,7 +246,7 @@ program
 
       secret = options.secret || getJWTSecret() || readlineSync.question("Enter JWT secret: ", { hideEchoBack: true })
 
-      tokenRequest = { sub, description, expiresIn, maxRequests, noExpiry }
+      tokenRequest = { sub, description, expiresIn, noExpiry }
     } else {
       if (!options.sub) {
         console.error("❌ Subject (--sub) is required")
@@ -294,7 +283,6 @@ program
         sub: options.sub,
         description: options.description,
         expiresIn: options.expiry,
-        maxRequests: options.maxRequests,
         noExpiry
       }
     }
@@ -365,7 +353,6 @@ program
         console.log(`🔑 ${token.uuid}`)
         console.log(`   Subject: ${token.sub}`)
         console.log(`   Description: ${token.description || "No description"}`)
-        console.log(`   Max Requests: ${token.maxRequests || "Unlimited"}`)
         console.log(`   Created: ${token.createdAt}`)
         console.log(`   Expires: ${token.expiresAt || "Never"} ${expiryStatus}`)
         console.log()
@@ -396,7 +383,6 @@ program
       console.log(`UUID: ${token.uuid}`)
       console.log(`Subject: ${token.sub}`)
       console.log(`Description: ${token.description || "No description"}`)
-      console.log(`Max Requests: ${token.maxRequests || "Unlimited"}`)
       console.log(`Created: ${token.createdAt}`)
       console.log(`Expires: ${token.expiresAt || "Never"}`)
 
@@ -566,7 +552,7 @@ Setup Requirements:
 Examples:
   bun jwt init                                                       # Initialize D1 schema
   bun jwt create --sub "api:metrics" --description "Metrics access"  # 30d default expiry
-  bun jwt create --sub "ai:alt" --max-requests 1000 --expiry "7d"
+  bun jwt create --sub "ai:alt" --expiry "7d"
   bun jwt create --sub "admin" --no-expiry --seriously-no-expiry     # No expiry (dangerous)
   bun jwt create --sub "api" --description "API access" --expiry "1y"
   bun jwt verify "eyJhbGciOiJIUzI1NiJ9..."

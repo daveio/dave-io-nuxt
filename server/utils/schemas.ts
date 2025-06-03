@@ -34,24 +34,21 @@ export const JWTPayloadSchema = z.object({
   sub: z.string(),
   iat: z.number(),
   exp: z.number().optional(),
-  jti: z.string().optional(),
-  maxRequests: z.number().optional()
+  jti: z.string().optional()
 })
 
 export const JWTDetailsSchema = z.object({
   sub: z.string(),
   iat: z.number(),
   exp: z.number().optional(),
-  jti: z.string().optional(),
-  maxRequests: z.number().optional()
+  jti: z.string().optional()
 })
 
 export const UserSchema = z.object({
   id: z.string(),
   issuedAt: z.string(),
   expiresAt: z.string().nullable(),
-  tokenId: z.string().optional(),
-  maxRequests: z.number().optional()
+  tokenId: z.string().optional()
 })
 
 export const AuthSuccessResponseSchema = z.object({

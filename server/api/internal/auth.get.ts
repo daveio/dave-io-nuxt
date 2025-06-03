@@ -69,15 +69,13 @@ export default defineEventHandler(async (event) => {
         sub: payload.sub,
         iat: payload.iat,
         exp: payload.exp,
-        jti: payload.jti,
-        maxRequests: payload.maxRequests
+        jti: payload.jti
       },
       user: {
         id: user.id,
         issuedAt: user.issuedAt.toISOString(),
         expiresAt: user.expiresAt?.toISOString() || null,
-        tokenId: user.tokenId,
-        maxRequests: user.maxRequests
+        tokenId: user.tokenId
       },
       timestamp: new Date().toISOString()
     })

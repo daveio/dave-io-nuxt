@@ -65,19 +65,17 @@ class APITester {
         {
           sub: "ai:alt",
           description: "Test AI token",
-          maxRequests: 100,
           expiresIn: "1h"
         },
         this.secret
       )
       this.tokens.set("ai", aiToken.token)
 
-      // Limited token with maxRequests field (legacy field, no longer enforced)
+      // Limited token for testing purposes
       const limitedToken = await createToken(
         {
           sub: "api",
           description: "Test limited token",
-          maxRequests: 5,
           expiresIn: "1h"
         },
         this.secret

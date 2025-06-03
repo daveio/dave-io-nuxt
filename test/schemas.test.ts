@@ -104,15 +104,13 @@ describe("API Schemas", () => {
         sub: "api:metrics",
         iat: 1609459200,
         exp: 1609545600,
-        jti: "test-token-id",
-        maxRequests: 1000
+        jti: "test-token-id"
       }
 
       const result = JWTPayloadSchema.safeParse(payload)
       expect(result.success).toBe(true)
       if (result.success) {
         expect(result.data.sub).toBe("api:metrics")
-        expect(result.data.maxRequests).toBe(1000)
       }
     })
 
