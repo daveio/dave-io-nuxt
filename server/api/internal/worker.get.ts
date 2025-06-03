@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Record standard API metrics
-  await recordAPIMetrics(event, 200)
+  recordAPIMetrics(event, 200)
 
   // Log successful request
   const responseTime = Date.now() - startTime

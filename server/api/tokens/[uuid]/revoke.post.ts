@@ -104,7 +104,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Record successful metrics
-    await recordAPIMetrics(event, 200)
+    recordAPIMetrics(event, 200)
 
     return createApiResponse(
       response,
@@ -114,7 +114,7 @@ export default defineEventHandler(async (event) => {
     console.error("Token revocation error:", error)
 
     // Record error metrics
-    await recordAPIErrorMetrics(event, error)
+    recordAPIErrorMetrics(event, error)
 
     if (isApiError(error)) {
       throw error

@@ -78,7 +78,7 @@ export default defineEventHandler(async (event) => {
     const usage = await getTokenUsageFromKV(uuid, env.DATA)
 
     // Record successful token usage request
-    await recordAPIMetrics(event, 200)
+    recordAPIMetrics(event, 200)
 
     // Log successful request
     logRequest(event, "tokens/{uuid}/usage", "GET", 200, {
@@ -101,7 +101,7 @@ export default defineEventHandler(async (event) => {
     })
 
     // Record error metrics
-    await recordAPIErrorMetrics(event, error)
+    recordAPIErrorMetrics(event, error)
 
     if (isApiError(error)) {
       throw error

@@ -57,7 +57,7 @@ export default defineEventHandler(async (event) => {
     const env = getCloudflareEnv(event)
     if (!env.DATA) {
       const error = createApiError(503, "KV storage not available")
-      await recordAPIErrorMetrics(event, error)
+      recordAPIErrorMetrics(event, error)
 
       // Log error request
       logRequest(event, "metrics", "GET", 503, {
@@ -83,7 +83,7 @@ export default defineEventHandler(async (event) => {
     const requestedFormat = (getQuery(event).format as string) || "json"
 
     // Record successful metrics request
-    await recordAPIMetrics(event, 200)
+    recordAPIMetrics(event, 200)
 
     // Log successful request
     const responseTime = Date.now() - startTime
@@ -104,7 +104,7 @@ export default defineEventHandler(async (event) => {
     console.error("Metrics error:", error)
 
     // Record failed metrics request
-    await recordAPIErrorMetrics(event, error)
+    recordAPIErrorMetrics(event, error)
 
     // Log error request
     // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists

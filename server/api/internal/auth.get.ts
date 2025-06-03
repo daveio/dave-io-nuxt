@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
     authToken = payload.sub
 
     // Record metrics for successful auth
-    await recordAPIMetrics(event, 200)
+    recordAPIMetrics(event, 200)
 
     // Log successful request
     const responseTime = Date.now() - startTime
@@ -67,7 +67,7 @@ export default defineEventHandler(async (event) => {
     console.error("Authentication error:", error)
 
     // Record metrics for failed auth
-    await recordAPIErrorMetrics(event, error)
+    recordAPIErrorMetrics(event, error)
 
     // Log error request
     // biome-ignore lint/suspicious/noExplicitAny: isApiError type guard ensures statusCode property exists

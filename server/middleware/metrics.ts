@@ -1,13 +1,16 @@
 import type { H3Event } from "h3"
 import { getHeader, getMethod, getRequestURL } from "h3"
 import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
-import { updateAPIRequestMetrics } from "~/server/utils/kv-metrics"
+import { updateAPIRequestMetricsAsync } from "~/server/utils/kv-metrics"
 
 /**
  * Helper to automatically record standard API metrics for an endpoint
  * This should be called in the success path of every /api endpoint
+ *
+ * Non-blocking: This function triggers metrics updates asynchronously
+ * without waiting for completion
  */
-export async function recordAPIMetrics(event: H3Event, statusCode = 200): Promise<void> {
+export function recordAPIMetrics(event: H3Event, statusCode = 200): void {
   try {
     const env = getCloudflareEnv(event)
     if (!env?.DATA) {
@@ -19,7 +22,8 @@ export async function recordAPIMetrics(event: H3Event, statusCode = 200): Promis
     const cfInfo = getCloudflareRequestInfo(event)
     const userAgent = getHeader(event, "user-agent") || ""
 
-    await updateAPIRequestMetrics(env.DATA, url.pathname, method, statusCode, cfInfo, userAgent)
+    // Fire and forget using the async version
+    updateAPIRequestMetricsAsync(env.DATA, url.pathname, method, statusCode, cfInfo, userAgent)
   } catch (error) {
     console.error("Failed to record API metrics:", error)
     // Never let metrics errors break the request
@@ -29,8 +33,11 @@ export async function recordAPIMetrics(event: H3Event, statusCode = 200): Promis
 /**
  * Helper to record API metrics in error scenarios
  * This should be called in error handlers for /api endpoints
+ *
+ * Non-blocking: This function triggers metrics updates asynchronously
+ * without waiting for completion
  */
-export async function recordAPIErrorMetrics(event: H3Event, error: unknown): Promise<void> {
+export function recordAPIErrorMetrics(event: H3Event, error: unknown): void {
   let statusCode = 500
 
   // Extract status code from error if it's an API error
@@ -39,7 +46,7 @@ export async function recordAPIErrorMetrics(event: H3Event, error: unknown): Pro
     statusCode = (error as any).statusCode || 500
   }
 
-  await recordAPIMetrics(event, statusCode)
+  recordAPIMetrics(event, statusCode)
 }
 
 // Default export for Nuxt middleware (no-op since we use the functions directly)

@@ -73,7 +73,7 @@ export default defineEventHandler(async (event) => {
       const validatedUsage = TokenUsageSchema.parse(usage)
 
       // Record successful metrics
-      await recordAPIMetrics(event, 200)
+      recordAPIMetrics(event, 200)
 
       return createApiResponse(validatedUsage, "Token usage retrieved successfully")
     }
@@ -97,7 +97,7 @@ export default defineEventHandler(async (event) => {
       }
 
       // Record successful metrics
-      await recordAPIMetrics(event, 200)
+      recordAPIMetrics(event, 200)
 
       return createApiResponse(revokeData, "Token revoked successfully")
     }
@@ -128,7 +128,7 @@ export default defineEventHandler(async (event) => {
       })
 
       // Record successful metrics
-      await recordAPIMetrics(event, 200)
+      recordAPIMetrics(event, 200)
 
       return metrics
     }
@@ -137,7 +137,7 @@ export default defineEventHandler(async (event) => {
     console.error("Token management error:", error)
 
     // Record error metrics
-    await recordAPIErrorMetrics(event, error)
+    recordAPIErrorMetrics(event, error)
 
     // Re-throw API errors
     if (isApiError(error)) {

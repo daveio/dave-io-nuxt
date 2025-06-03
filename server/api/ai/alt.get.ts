@@ -63,7 +63,7 @@ export default defineEventHandler(async (event) => {
     const processingTime = Date.now() - processingStart
 
     // Record successful AI request
-    await recordAPIMetrics(event, 200)
+    recordAPIMetrics(event, 200)
 
     // Log successful request
     logRequest(event, "ai/alt", "GET", 200, {
@@ -88,7 +88,7 @@ export default defineEventHandler(async (event) => {
     console.error("AI alt text error:", error)
 
     // Record failed AI request
-    await recordAPIErrorMetrics(event, error)
+    recordAPIErrorMetrics(event, error)
 
     // Log error request
     // biome-ignore lint/suspicious/noExplicitAny: Type assertion needed for error handling

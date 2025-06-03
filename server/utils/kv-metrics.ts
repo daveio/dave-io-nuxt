@@ -176,6 +176,22 @@ export async function updateAPIRequestMetrics(
 }
 
 /**
+ * Fire-and-forget version of updateAPIRequestMetrics
+ * This function should be used when metrics updates should not block the response
+ */
+export function updateAPIRequestMetricsAsync(
+  kv: KVNamespace,
+  endpoint: string,
+  method: string,
+  statusCode: number,
+  cfInfo: { country: string; datacenter: string },
+  userAgent?: string
+): void {
+  // Fire and forget
+  void updateAPIRequestMetrics(kv, endpoint, method, statusCode, cfInfo, userAgent)
+}
+
+/**
  * Update metrics for redirect events using simple KV keys
  */
 export async function updateRedirectMetrics(
@@ -241,6 +257,20 @@ export async function updateRedirectMetrics(
   } catch (error) {
     console.error("Failed to update redirect metrics:", error)
   }
+}
+
+/**
+ * Fire-and-forget version of updateRedirectMetrics
+ * This function should be used when metrics updates should not block the response
+ */
+export function updateRedirectMetricsAsync(
+  kv: KVNamespace,
+  slug: string,
+  statusCode: number,
+  userAgent?: string
+): void {
+  // Fire and forget
+  void updateRedirectMetrics(kv, slug, statusCode, userAgent)
 }
 
 /**

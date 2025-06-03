@@ -1,6 +1,6 @@
 import { getHeader, setHeader, setResponseStatus } from "h3"
 import { getCloudflareEnv, getCloudflareRequestInfo, getKVNamespace } from "~/server/utils/cloudflare"
-import { updateRedirectMetrics } from "~/server/utils/kv-metrics"
+import { updateRedirectMetrics, updateRedirectMetricsAsync } from "~/server/utils/kv-metrics"
 import { createApiError, isApiError, logRequest } from "~/server/utils/response"
 import { UrlRedirectSchema } from "~/server/utils/schemas"
 
@@ -57,10 +57,11 @@ export default defineEventHandler(async (event) => {
     // Validate redirect data
     const redirect = UrlRedirectSchema.parse(redirectData)
 
-    // Update redirect metrics using new hierarchical schema
+    // Update redirect metrics using new hierarchical schema asynchronously
     try {
       const userAgent = getHeader(event, "user-agent") || ""
-      await updateRedirectMetrics(kv, slug, 302, userAgent)
+      // Use updateRedirectMetricsAsync for non-blocking metrics update
+      updateRedirectMetricsAsync(kv, slug, 302, userAgent)
     } catch (error) {
       console.error("Failed to update redirect metrics:", error)
       // Continue with redirect even if metrics fails

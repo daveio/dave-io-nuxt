@@ -153,7 +153,7 @@ export default defineEventHandler(async (event) => {
     setHeader(event, "X-Data-Source", source)
 
     // Record standard API metrics
-    await recordAPIMetrics(event, 200)
+    recordAPIMetrics(event, 200)
 
     // Log successful request
     logRequest(event, "dashboard/{name}", "GET", 200, {
@@ -177,7 +177,7 @@ export default defineEventHandler(async (event) => {
     })
 
     // Record error metrics
-    await recordAPIErrorMetrics(event, error)
+    recordAPIErrorMetrics(event, error)
 
     // Re-throw API errors
     if (isApiError(error)) {

@@ -35,7 +35,7 @@ const EXPORT_KEY_PATTERNS = [
   /^metrics:.*$/, // All metrics keys (flat hierarchy)
   /^redirect:.*$/, // All redirect mapping keys
   /^dashboard:.*$/, // Dashboard cache data
-  /^token:.*$/, // Token management keys
+  /^token:.*$/ // Token management keys
 ]
 
 // Fetch key values for multiple keys
@@ -91,7 +91,8 @@ async function wipeKVNamespace(dryRun = false, useLocal = false, skipConfirmatio
 
     // Check for confirmation via flag or environment variable
     const envConfirm = process.env.CONFIRM_WIPE
-    const envConfirmed = envConfirm && (envConfirm === "yes" || envConfirm === "1" || envConfirm.toLowerCase() === "true")
+    const envConfirmed =
+      envConfirm && (envConfirm === "yes" || envConfirm === "1" || envConfirm.toLowerCase() === "true")
 
     if (!skipConfirmation && !envConfirmed) {
       console.log("ℹ️  Confirmation required. Use one of the following:")
