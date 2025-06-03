@@ -100,10 +100,14 @@ function convertToNestedStructure(flatData: Record<string, unknown>): Record<str
     // Navigate/create the nested structure
     for (let i = 0; i < parts.length - 1; i++) {
       const part = parts[i]
-      if (part && !Object.prototype.hasOwnProperty.call(current, part)) {
+      if (part && !Object.hasOwn(current, part)) {
         current[part] = Object.create(null) as Record<string, unknown>
       }
-      current = current[part] as Record<string, unknown>
+      if (part && current[part]) {
+        current = current[part] as Record<string, unknown>
+      } else if (part) {
+        break // Exit if we can't navigate further
+      }
     }
 
     // Set the final value
@@ -239,12 +243,33 @@ async function exportKV(exportAll = false, dryRun = false) {
     // Convert flat structure to nested structure for YAML
     const nestedKvData = convertToNestedStructure(flatKvData)
 
-    // Convert to YAML
+    // Convert to YAML with integer parsing and anchor support
     const yamlOutput = yaml.dump(nestedKvData, {
       indent: 2,
       lineWidth: 120,
-      noRefs: true,
-      quotingType: '"'
+      noRefs: false, // Allow YAML references/anchors
+      quotingType: '"',
+      sortKeys: true, // Sort keys for consistent output
+      replacer: (_key, value) => {
+        // Convert numeric strings to integers where appropriate
+        if (typeof value === "string") {
+          // Check if it's a pure integer
+          if (/^-?\d+$/.test(value)) {
+            const num = Number.parseInt(value, 10)
+            if (!Number.isNaN(num) && Math.abs(num) <= Number.MAX_SAFE_INTEGER) {
+              return num
+            }
+          }
+          // Check if it's a float
+          if (/^-?\d+\.\d+$/.test(value)) {
+            const num = Number.parseFloat(value)
+            if (!Number.isNaN(num) && Number.isFinite(num)) {
+              return num
+            }
+          }
+        }
+        return value
+      }
     })
 
     if (dryRun) {
@@ -316,13 +341,25 @@ async function importKV(
     console.log(`📖 Reading import file from ${filepath}${options.dryRun ? " [DRY RUN]" : ""}...`)
     const fileData = readFileSync(filepath, "utf-8")
 
-    // Parse YAML data
+    // Parse YAML data with anchor/reference support
     let nestedImportData: Record<string, unknown>
     try {
-      nestedImportData = yaml.load(fileData) as Record<string, unknown>
+      nestedImportData = yaml.load(fileData, {
+        schema: yaml.DEFAULT_SCHEMA // Support anchors and references
+      }) as Record<string, unknown>
+
       if (!nestedImportData || typeof nestedImportData !== "object") {
         throw new Error("Invalid YAML structure - expected object")
       }
+
+      // Filter out YAML anchor definitions (keys starting with _)
+      const filteredData = Object.create(null) as Record<string, unknown>
+      for (const [key, value] of Object.entries(nestedImportData)) {
+        if (!key.startsWith("_")) {
+          filteredData[key] = value
+        }
+      }
+      nestedImportData = filteredData
     } catch (parseError) {
       console.error("❌ Failed to parse YAML:", parseError)
       return false

@@ -18,13 +18,28 @@ export function getTimestamp(): string {
 }
 
 /**
- * Helper function to try parsing JSON
+ * Helper function to try parsing JSON and handle integers properly
  */
 export function tryParseJson(value: string): unknown {
+  // Handle pure integers first (before general JSON parsing)
+  if (/^-?\d+$/.test(value)) {
+    const num = Number.parseInt(value, 10)
+    if (!Number.isNaN(num) && Math.abs(num) <= Number.MAX_SAFE_INTEGER) {
+      return num
+    }
+  }
+
+  // Handle floats
+  if (/^-?\d+\.\d+$/.test(value)) {
+    const num = Number.parseFloat(value)
+    if (!Number.isNaN(num) && Number.isFinite(num)) {
+      return num
+    }
+  }
+
   const jsonPatterns = [
     /^{.*}$/, // Object: {...}
     /^\[.*\]$/, // Array: [...]
-    /^-?\d+(\.\d+)?$/, // Number: 123 or 123.45
     /^(true|false)$/, // Boolean: true or false
     /^null$/ // null
   ]

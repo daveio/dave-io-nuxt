@@ -1,6 +1,6 @@
-import { setHeader, setResponseStatus } from "h3"
+import { getHeader, setHeader, setResponseStatus } from "h3"
 import { getCloudflareEnv, getCloudflareRequestInfo, getKVNamespace } from "~/server/utils/cloudflare"
-import { createRedirectKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
+import { updateRedirectMetrics } from "~/server/utils/kv-metrics"
 import { createApiError, isApiError, logRequest } from "~/server/utils/response"
 import { UrlRedirectSchema } from "~/server/utils/schemas"
 
@@ -25,19 +25,23 @@ export default defineEventHandler(async (event) => {
       throw createApiError(400, "Slug parameter is required")
     }
 
-    // Get redirect from KV storage using new hierarchy
-    const redirectUrlKey = `redirect:${slug}`
-
+    // Get redirect from new schema structure
     let redirectData: RedirectData | undefined
 
     try {
-      const [url, clicksStr] = await Promise.all([kv.get(redirectUrlKey), kv.get(`metrics:redirect:${slug}`)])
+      // Get redirect mappings and metrics from new schema
+      const [redirectMappings, metricsData] = await Promise.all([kv.get("redirect", "json"), kv.get("metrics", "json")])
 
-      if (url) {
+      const redirects = redirectMappings as Record<string, string> | null
+      // biome-ignore lint/suspicious/noExplicitAny: KV metrics data has dynamic structure
+      const metrics = metricsData as any | null
+
+      if (redirects?.[slug]) {
+        const clickCount = metrics?.redirect?.[slug]?.ok || 0
         redirectData = {
           slug: slug,
-          url: url,
-          clicks: Number.parseInt(clicksStr || "0", 10),
+          url: redirects[slug],
+          clicks: clickCount,
           created_at: Date.now().toString(),
           updated_at: Date.now().toString()
         }
@@ -54,39 +58,19 @@ export default defineEventHandler(async (event) => {
     // Validate redirect data
     const redirect = UrlRedirectSchema.parse(redirectData)
 
-    // Update redirect click metrics using new hierarchy
-    const clickCount = (redirect.clicks || 0) + 1
-
+    // Update redirect metrics using new hierarchical schema
     try {
-      // Update click count in new hierarchy
-      await kv.put(`metrics:redirect:${slug}`, clickCount.toString())
+      const userAgent = getHeader(event, "user-agent") || ""
+      await updateRedirectMetrics(kv, slug, 302, userAgent)
     } catch (error) {
-      console.error("Failed to update redirect metrics in KV:", error)
-      // Continue with redirect even if click tracking fails
-    }
-
-    // Write KV metrics
-    try {
-      const cfInfo = getCloudflareRequestInfo(event)
-      const kv = getKVNamespace(env)
-
-      const kvCounters = createRedirectKVCounters(
-        slug,
-        redirect.url,
-        1, // Single click increment
-        cfInfo
-      )
-
-      await writeKVMetrics(kv, kvCounters)
-    } catch (error) {
-      console.error("Failed to write redirect KV metrics:", error)
+      console.error("Failed to update redirect metrics:", error)
       // Continue with redirect even if metrics fails
     }
 
     // Log redirect request
     logRequest(event, `go/${slug}`, "GET", 302, {
       target: redirect.url,
-      clicks: clickCount,
+      clicks: redirect.clicks + 1,
       cached: "hit"
     })
 

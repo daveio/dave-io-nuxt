@@ -358,24 +358,54 @@ Reference implementation for production-ready serverless APIs with TypeScript, t
 
 ## KV Metrics System
 
-**Storage**: Single KV-based metrics storage for performance and simplicity
-**Key Structure**: Simplified hierarchical patterns (`redirect:[slug]`, `metrics:[resource]:hit:ok`)
-**Counters**: Resource-based tracking with hit/auth/visitor classification
-**Helpers**: Standardized counter creation functions for different event types
-**Performance**: Fast reads for dashboard queries, optimized for Cloudflare Workers edge compute
+**BREAKING CHANGE**: New hierarchical schema implemented replacing flat key structure.
 
-### KV Hierarchy
+**Storage**: Single structured JSON object at `metrics` key for performance and simplicity
+**Schema**: Nested hierarchical structure with top-level, resource-specific, and redirect-specific metrics
+**Data Format**: YAML-based export/import with anchor support for configuration management
+**Performance**: Fast single-key reads for dashboard queries, optimized for Cloudflare Workers edge compute
 
-**Redirect Storage**: `redirect:[slug]` stores target URLs
-**Redirect Metrics**: `metrics:redirect:[slug]` tracks click counts
-**API Metrics**: `metrics:[resource]:hit:ok/error/total` tracks request success/failure
-**Auth Metrics**: `metrics:[resource]:auth:succeeded/failed` tracks authentication events
-**Visitor Metrics**: `metrics:[resource]:visitor:human/bot/unknown` tracks visitor classification
-**Dashboard Cache**: `dashboard:hackernews:cache` and `dashboard:hackernews:last-updated` for Hacker News data
+### New KV Schema Structure
 
-**Resource Extraction**: First URL segment after `/api/` (e.g., `/api/auth` → `auth` resource)
+**Top-Level Keys**:
+- `metrics` - Single JSON object containing all metrics data
+- `redirect` - Single JSON object containing all redirect mappings (slug → URL)
+
+**Metrics Structure**:
+```typescript
+{
+  // Worker-wide metrics
+  ok: number,
+  error: number,
+  times: { "last-hit": unix_time, "last-error": unix_time, "last-ok": unix_time },
+  visitor: { human: number, bot: number, unknown: number },
+  group: { "1xx": number, "2xx": number, "3xx": number, "4xx": number, "5xx": number },
+  status: { "200": number, "404": number, "500": number, ... },
+  // Resource-specific metrics (internal, ai, etc.)
+  resources: {
+    [resource]: { /* same structure as top-level */ }
+  },
+
+  // Redirect-specific metrics
+  redirect: {
+    [slug]: { /* same structure as top-level */ }
+  }
+}
+```
+
+**Redirect Mappings**:
+```typescript
+{
+  [slug]: "https://target-url.com",
+  gh: "https://github.com/daveio",
+  blog: "https://blog.dave.io"
+}
+```
+
+**Resource Extraction**: First URL segment after `/api/` (e.g., `/api/internal/auth` → `internal` resource)
 **User Agent Classification**: Automatic bot/human/unknown classification based on user agent patterns
-**Metrics Middleware**: Centralized metrics collection via helper functions for all API endpoints
+**Metrics Updates**: Atomic updates to single JSON objects via `updateAPIRequestMetrics()` and `updateRedirectMetrics()`
+**YAML Export**: Structured YAML with anchor support for configuration management
 
 ## Next Steps
 
@@ -389,16 +419,25 @@ Reference implementation for production-ready serverless APIs with TypeScript, t
 
 ## KV Data Management
 
-**Export/Import**: YAML-based data exchange for easy migration and configuration management
+**BREAKING CHANGE**: Enhanced YAML support with anchors and integer handling.
+
+**Export/Import**: YAML-based data exchange with hierarchical structure and anchor support
 **Commands**:
 - `bun run kv export [--all]` - Export to timestamped YAML in `data/kv/`
 - `bun run kv import <file> [--yes] [--wipe]` - Import from YAML with confirmation
 - `bun run kv list [--pattern]` - List keys with optional filtering
 - `bun run kv wipe` - Nuclear option with safety confirmation
 
+**YAML Enhancements**:
+- **Integer Handling**: Numeric values exported as integers, not strings
+- **Anchor Support**: Full YAML anchor/reference support for DRY configuration
+- **Structured Export**: Hierarchical nested structure matching new KV schema
+- **Anchor Filtering**: `_anchors` section excluded from import (anchor definitions only)
+
 **Import Safety**: Detects overwrites, requires confirmation via `--yes`/`-y` flags or `KV_IMPORT_ALLOW_OVERWRITE=1` environment variable
 **Wipe Option**: `--wipe`/`-w` flag clears namespace before import for clean state
-**File Format**: YAML for human readability and git-friendly version control
+**File Format**: YAML for human readability, git-friendly version control, and configuration management
 **Pattern Filtering**: Export respects configured key patterns unless `--all` specified
 
-**Breaking Change**: Removed legacy `backup`/`restore` commands - use `export`/`import` instead for superior YAML-based workflow
+**Schema Compatibility**: Imports automatically convert nested YAML structure to flat KV keys for backward compatibility
+**Data Validation**: TypeScript schemas validate imported data structure before KV storage

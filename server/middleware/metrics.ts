@@ -1,7 +1,7 @@
 import type { H3Event } from "h3"
 import { getHeader, getMethod, getRequestURL } from "h3"
 import { getCloudflareEnv, getCloudflareRequestInfo } from "~/server/utils/cloudflare"
-import { createAPIRequestKVCounters, writeKVMetrics } from "~/server/utils/kv-metrics"
+import { updateAPIRequestMetrics } from "~/server/utils/kv-metrics"
 
 /**
  * Helper to automatically record standard API metrics for an endpoint
@@ -19,9 +19,7 @@ export async function recordAPIMetrics(event: H3Event, statusCode = 200): Promis
     const cfInfo = getCloudflareRequestInfo(event)
     const userAgent = getHeader(event, "user-agent") || ""
 
-    const kvCounters = createAPIRequestKVCounters(url.pathname, method, statusCode, cfInfo, userAgent)
-
-    await writeKVMetrics(env.DATA, kvCounters)
+    await updateAPIRequestMetrics(env.DATA, url.pathname, method, statusCode, cfInfo, userAgent)
   } catch (error) {
     console.error("Failed to record API metrics:", error)
     // Never let metrics errors break the request

@@ -37,11 +37,68 @@ describe("KV Import/Export", () => {
     })
 
     it("should parse YAML correctly", async () => {
-      // Create a test YAML file
+      // Create a test YAML file with new schema structure
       const testData = {
-        "test:key1": "value1",
-        "test:key2": { nested: "value2" },
-        "test:key3": 123
+        metrics: {
+          ok: 100,
+          error: 5,
+          times: {
+            "last-hit": 1704067200000,
+            "last-error": 1704060000000,
+            "last-ok": 1704067200000
+          },
+          visitor: {
+            human: 80,
+            bot: 20,
+            unknown: 5
+          },
+          group: {
+            "1xx": 0,
+            "2xx": 95,
+            "3xx": 5,
+            "4xx": 3,
+            "5xx": 2
+          },
+          status: {
+            "200": 85,
+            "302": 5,
+            "404": 3,
+            "500": 2
+          },
+          resources: {
+            internal: {
+              ok: 50,
+              error: 2,
+              times: {
+                "last-hit": 1704067000000,
+                "last-error": 1704055000000,
+                "last-ok": 1704067000000
+              },
+              visitor: {
+                human: 40,
+                bot: 10,
+                unknown: 2
+              },
+              group: {
+                "1xx": 0,
+                "2xx": 48,
+                "3xx": 2,
+                "4xx": 2,
+                "5xx": 0
+              },
+              status: {
+                "200": 48,
+                "302": 2,
+                "404": 2
+              }
+            }
+          },
+          redirect: {}
+        },
+        redirect: {
+          gh: "https://github.com/daveio",
+          blog: "https://blog.dave.io"
+        }
       }
 
       const yamlContent = yaml.dump(testData)
@@ -70,6 +127,64 @@ describe("KV Import/Export", () => {
       // This tests the path resolution logic without needing Cloudflare
       expect(typeof importKV).toBe("function")
     })
+
+    it("should handle YAML with anchors and references", async () => {
+      // Create YAML with anchors similar to base.yaml
+      const yamlWithAnchors = `
+_anchors:
+  sample_metrics: &sample_metrics
+    ok: 0
+    error: 0
+    times:
+      last-hit: 0
+      last-error: 0
+      last-ok: 0
+    visitor:
+      human: 0
+      bot: 0
+      unknown: 0
+    group:
+      1xx: 0
+      2xx: 0
+      3xx: 0
+      4xx: 0
+      5xx: 0
+    status: {}
+
+metrics:
+  resources:
+    internal:
+      <<: *sample_metrics
+      ok: 100
+    ai:
+      <<: *sample_metrics
+      ok: 50
+  redirect: {}
+  <<: *sample_metrics
+
+redirect:
+  gh: https://github.com/daveio
+  blog: https://blog.dave.io
+`
+
+      writeFileSync(testFile, yamlWithAnchors, "utf8")
+
+      // Test that anchors are parsed correctly without Cloudflare
+      try {
+        const parsedData = yaml.load(yamlWithAnchors)
+        expect(parsedData).toBeDefined()
+        expect(typeof parsedData).toBe("object")
+
+        // biome-ignore lint/suspicious/noExplicitAny: Testing generic YAML parsing
+        const data = parsedData as any
+        expect(data.metrics.resources.internal.ok).toBe(100)
+        expect(data.metrics.resources.ai.ok).toBe(50)
+        expect(data.redirect.gh).toBe("https://github.com/daveio")
+      } catch (error) {
+        // YAML parsing should work with anchors
+        expect(error).toBeNull()
+      }
+    })
   })
 
   describe("Environment Variable Validation", () => {
@@ -95,7 +210,7 @@ describe("KV Import/Export", () => {
       if (originalEnv !== undefined) {
         process.env.KV_IMPORT_ALLOW_OVERWRITE = originalEnv
       } else {
-        delete process.env.KV_IMPORT_ALLOW_OVERWRITE
+        process.env.KV_IMPORT_ALLOW_OVERWRITE = undefined
       }
     })
   })

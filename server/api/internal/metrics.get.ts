@@ -20,13 +20,24 @@ async function getMetricsFromKV(kv?: KVNamespace): Promise<{
     // Get metrics using new hierarchy
     const kvMetrics = await getKVMetrics(kv)
 
+    // Calculate totals from new structured metrics
+    const totalRequests = kvMetrics.ok + kvMetrics.error
+    const successfulRequests = kvMetrics.ok
+    const failedRequests = kvMetrics.error
+
+    // Calculate redirect clicks from redirect metrics
+    let redirectClicks = 0
+    for (const redirectStats of Object.values(kvMetrics.redirect)) {
+      redirectClicks += redirectStats.ok + redirectStats.error
+    }
+
     const metricsData = {
-      total_requests: kvMetrics.totalRequests,
-      successful_requests: kvMetrics.successfulRequests,
-      failed_requests: kvMetrics.failedRequests,
-      redirect_clicks: kvMetrics.redirectClicks,
+      total_requests: totalRequests,
+      successful_requests: successfulRequests,
+      failed_requests: failedRequests,
+      redirect_clicks: redirectClicks,
       last_24h: {
-        total: 0,
+        total: 0, // NOTE: 24h metrics calculation not implemented yet
         successful: 0,
         failed: 0,
         redirects: 0
