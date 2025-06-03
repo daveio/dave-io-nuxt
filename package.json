@@ -62,6 +62,7 @@
     "generate": "bun run types && bun run nuxt generate",
     "jwt": "bun run bin/jwt.ts",
     "kv": "bun run bin/kv.ts",
+    "kv:list": "bun run wrangler kv key list --binding DATA --remote",
     "lint": "bun run biome check --write && bun run trunk check -a --fix",
     "packages": "bun run rimraf node_modules bun.lock && bun install",
     "postinstall": "bun run types && bun run nuxt prepare",
