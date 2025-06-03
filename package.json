@@ -71,7 +71,7 @@
     "preview:cloudflare": "bun run types && bun run build && wrangler dev",
     "preview:nuxt": "bun run types && bun run nuxt preview",
     "reset": "bun run clean && bun run packages && bun run build",
-    "reset:kv": "bun run kv import data/kv/base.yaml --wipe",
+    "reset:kv": "bun run kv import data/kv/_init.yaml --wipe",
     "test": "bun run vitest run",
     "test:watch": "bun run vitest",
     "test:api": "bun run bin/api-test.ts",

@@ -264,7 +264,7 @@ await cloudflare.kv.namespaces.values.update(namespace, key, {
 
 **PRINCIPLE**: KV storage should be transparent and debuggable. Simple data in, simple data out.
 
-**DATA MANAGEMENT**: Update `data/kv/init.yaml` when defining new KV keys or modifying the schema structure. This file serves as the canonical reference for all KV key definitions and should be kept synchronized with code changes.
+**DATA MANAGEMENT**: Update `data/kv/_init.yaml` when defining new KV keys or modifying the schema structure. This file serves as the canonical reference for all KV key definitions and should be kept synchronized with code changes.
 
 ## Overview
 
