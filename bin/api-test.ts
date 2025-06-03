@@ -72,7 +72,7 @@ class APITester {
       )
       this.tokens.set("ai", aiToken.token)
 
-      // Limited token for rate limiting tests
+      // Limited token with maxRequests field (legacy field, no longer enforced)
       const limitedToken = await createToken(
         {
           sub: "api",

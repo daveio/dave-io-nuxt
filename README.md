@@ -27,7 +27,6 @@ JWT-based fortress protecting my digital empire with dual authentication methods
 - **URL Parameters**: `?token=<jwt>` - For browsers and commitment-phobic clients
 - **Hierarchical permissions** (`api:metrics`, `ai:alt`, etc.) with "Russian nesting dolls" approach
 - **Token introspection** and validation endpoints
-- **Rate limiting per token** (because I don't trust anyone, including myself)
 - **Token revocation** support with KV-based blacklist for immediate invalidation
 - **CLI-based token management** with D1 database storage that would make enterprise admins weep with joy
 

@@ -120,46 +120,6 @@ export function validateTokenPermissions(
   return hasPermission(token.permissions, required)
 }
 
-// Request counting and rate limiting (using KV storage)
-export async function trackTokenUsage(
-  event: H3Event,
-  jti: string,
-  maxRequests?: number
-): Promise<{ allowed: boolean; currentCount: number }> {
-  if (!maxRequests) {
-    return { allowed: true, currentCount: 0 }
-  }
-
-  try {
-    // Get KV binding from event context
-    const env = event.context.cloudflare?.env as { DATA?: KVNamespace }
-    if (!env?.DATA) {
-      console.warn("KV binding not available, falling back to unlimited access")
-      return { allowed: true, currentCount: 0 }
-    }
-
-    const countKey = `token_usage:${jti}`
-
-    // Get current count from KV
-    const countStr = await env.DATA.get(countKey)
-    const currentCount = countStr ? Number.parseInt(countStr, 10) : 0
-
-    if (currentCount >= maxRequests) {
-      return { allowed: false, currentCount }
-    }
-
-    // Increment count with 1-hour expiration
-    const newCount = currentCount + 1
-    await env.DATA.put(countKey, newCount.toString(), { expirationTtl: 3600 })
-
-    return { allowed: true, currentCount: newCount }
-  } catch (error) {
-    console.error("Failed to track token usage:", error)
-    // Fail open - allow request but log the error
-    return { allowed: true, currentCount: 0 }
-  }
-}
-
 // Check if token is revoked (JTI blacklist)
 export async function isTokenRevoked(event: H3Event, jti: string): Promise<boolean> {
   if (!jti) return false
@@ -221,17 +181,6 @@ export async function authorizeEndpoint(
       return {
         success: false,
         error: `Insufficient permissions for ${fullEndpoint}`
-      }
-    }
-
-    // Check rate limiting if applicable
-    if (payload.jti && payload.maxRequests) {
-      const usage = await trackTokenUsage(event, payload.jti, payload.maxRequests)
-      if (!usage.allowed) {
-        return {
-          success: false,
-          error: `Rate limit exceeded: ${usage.currentCount}/${payload.maxRequests}`
-        }
       }
     }
 

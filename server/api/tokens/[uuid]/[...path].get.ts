@@ -102,11 +102,10 @@ export default defineEventHandler(async (event) => {
       const _usage: TokenUsageData = JSON.parse(tokenData)
 
       // Get real metrics data from KV counters for this specific token
-      const [totalRequests, successfulRequests, failedRequests, rateLimitedRequests] = await Promise.all([
+      const [totalRequests, successfulRequests, failedRequests] = await Promise.all([
         env.DATA.get(`metrics:tokens:${uuid}:requests:total`).then((v) => Number.parseInt(v || "0")),
         env.DATA.get(`metrics:tokens:${uuid}:requests:successful`).then((v) => Number.parseInt(v || "0")),
-        env.DATA.get(`metrics:tokens:${uuid}:requests:failed`).then((v) => Number.parseInt(v || "0")),
-        env.DATA.get(`metrics:tokens:${uuid}:requests:rate-limited`).then((v) => Number.parseInt(v || "0"))
+        env.DATA.get(`metrics:tokens:${uuid}:requests:failed`).then((v) => Number.parseInt(v || "0"))
       ])
 
       const [last24hTotal, last24hSuccessful, last24hFailed] = await Promise.all([
@@ -121,7 +120,6 @@ export default defineEventHandler(async (event) => {
           total_requests: totalRequests,
           successful_requests: successfulRequests,
           failed_requests: failedRequests,
-          rate_limited_requests: rateLimitedRequests,
           last_24h: {
             total: last24hTotal,
             successful: last24hSuccessful,

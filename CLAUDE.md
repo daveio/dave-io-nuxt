@@ -119,7 +119,7 @@ Nuxt 3 + Cloudflare Workers REST API platform. Migrated from simple Worker to en
 ## Authentication
 
 **Dual Methods**: Bearer tokens (`Authorization: Bearer <jwt>`) + URL params (`?token=<jwt>`)
-**JWT Structure**: `{sub, iat, exp?, jti?, maxRequests?}`
+**JWT Structure**: `{sub, iat, exp?, jti?, maxRequests?}` (maxRequests is legacy field, no longer enforced)
 **Hierarchical Permissions**: `category:resource` format. Parent permissions grant child access. `admin`/`*` = full access.
 **Categories**: `api`, `ai`, `dashboard`, `admin`, `*`
 
@@ -273,4 +273,4 @@ Reference implementation for production-ready serverless APIs with TypeScript, t
 **DevEx**: OpenAPI docs, client SDKs, Docker dev env, CI/CD, monitoring dashboard
 **Architecture**: Microservices, event-driven (Queues), multi-tenancy, API versioning, WebSockets (Durable Objects)
 
-**Completed**: ✅ D1 integration, ✅ Code quality, ✅ Real AI integration, ✅ Custom domain
+**Completed**: ✅ D1 integration, ✅ Code quality, ✅ Real AI integration, ✅ Custom domain, ✅ Rate limiting removal
