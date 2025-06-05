@@ -2,10 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "next-dave-io",
   "compatibility_date": "2025-05-29",
-  "compatibility_flags": [
-    "nodejs_compat",
-    "nodejs_compat_populate_process_env"
-  ],
+  "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
   "observability": {
     "enabled": true
   },

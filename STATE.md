@@ -1,10 +1,11 @@
 # PROJECT STATE: API Testing & Environment Deployment
 
-> **TODO**: Feed this back to Claude Code when the usage limit resets, so it can continue.
+> **TODO**: Feed this back to Claude Code when the usage limit resets, so it can continue
 
 ## COMPLETED WORK ✅
 
 ### 1. Environment Deployment Script Fixes
+
 - **✅ FIXED**: Cloudflare Workers secrets weren't being accessed correctly through Nuxt's runtime config
 - **✅ FIXED**: Modified `server/utils/auth.ts` line 155-170 to directly access `event.context.cloudflare.env.API_JWT_SECRET`
 - **✅ FIXED**: Updated `bin/env.ts` to properly distinguish between secrets and environment variables
@@ -14,6 +15,7 @@
 - **✅ DEPLOYED**: All environment variables properly deployed to production
 
 ### 2. API Test Framework Improvements
+
 - **✅ FIXED**: Updated `bin/api.ts` makeRequest method to accept `expectedStatus` parameter
 - **✅ FIXED**: Implemented proper success/failure logic based on expected HTTP status codes
 - **✅ FIXED**: Added `redirect: "manual"` to fetch options to capture actual redirect status codes
@@ -41,6 +43,7 @@
 ## CURRENT ISSUES ❌
 
 ### 1. JWT Signature Verification Problem (PRIMARY ISSUE)
+
 **STATUS**: Admin tokens (`subject: "*"`) are failing with "signature verification failed"
 
 **EVIDENCE**:
@@ -56,6 +59,7 @@
 **HYPOTHESIS**: There may be a race condition or caching issue where newly created tokens use a different secret than what's deployed, OR the admin permission validation isn't working correctly.
 
 ### 2. Failing Test Breakdown
+
 **❌ Metrics: 2/7 passed** - Admin tokens failing signature verification
 **❌ Metrics Formats: 0/3 passed** - Same signature issue
 **❌ AI Endpoints: 2/5 passed** - Same signature issue
@@ -64,6 +68,7 @@
 ## NEXT STEPS 🔄
 
 ### IMMEDIATE (HIGH PRIORITY)
+
 1. **Debug JWT signature mismatch**:
    - Compare working vs failing token signatures
    - Verify production secret matches local secret
@@ -85,18 +90,21 @@
 
 ## CODE CHANGES MADE
 
-### Modified Files:
+### Modified Files
+
 1. `server/utils/auth.ts` - Fixed Cloudflare Workers secret access
 2. `bin/env.ts` - Improved secret vs env var deployment logic
 3. `bin/api.ts` - Added expected status code handling, fixed redirects
 4. `wrangler.jsonc` - Added CLOUDFLARE_ACCOUNT_ID to vars section
 
-### Test Configuration Updates:
+### Test Configuration Updates
+
 - Admin token subject changed from `test-admin@api-test.local` to `*`
 - All test methods now specify expected HTTP status codes
 - Fetch configured with `redirect: "manual"` to capture actual redirect responses
 
 ## SUCCESS METRICS
+
 - **JWT Authentication**: ✅ WORKING (signature verification fixed for basic auth)
 - **Environment Deployment**: ✅ WORKING (all variables properly deployed)
 - **Expected Error Handling**: ✅ WORKING (28/40 tests now pass vs 11/40 before)

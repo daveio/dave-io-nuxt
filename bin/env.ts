@@ -131,7 +131,7 @@ function filterProductionVars(envVars: EnvVars, scriptMode = false): EnvVars {
  */
 async function updateWranglerConfig(key: string, value: string): Promise<void> {
   const configPath = join(process.cwd(), "wrangler.jsonc")
-  
+
   if (!existsSync(configPath)) {
     throw new Error("wrangler.jsonc not found")
   }
@@ -167,7 +167,7 @@ async function deployVariable(
     const isSecret = ["CLOUDFLARE_API_TOKEN", "API_JWT_SECRET"].includes(key)
     const target = useLocal ? "local" : "remote"
     const varType = isSecret ? "secret" : "wrangler config variable"
-    
+
     if (!scriptMode) {
       console.log(`🚀 Deploying ${varType} to ${target}${dryRun ? " [DRY RUN]" : ""}: ${key}`)
     }
@@ -215,24 +215,24 @@ async function deployVariable(
         }
       }
       return false
-    } else {
-      // For non-secrets, update wrangler.jsonc config file
+    }
+    // For non-secrets, update wrangler.jsonc config file
+    if (!scriptMode) {
+      console.log(`📝 Updating wrangler.jsonc with environment variable: ${key}`)
+    }
+
+    try {
+      await updateWranglerConfig(key, value)
       if (!scriptMode) {
-        console.log(`📝 Updating wrangler.jsonc with environment variable: ${key}`)
+        console.log(`✅ Successfully updated config: ${key}`)
       }
-      
-      try {
-        await updateWranglerConfig(key, value)
-        if (!scriptMode) {
-          console.log(`✅ Successfully updated config: ${key}`)
-        }
-        return true
-      } catch (error) {
-        if (!scriptMode) {
-          console.error(`❌ Failed to update config: ${key}`, error)
-        }
-        return false
+      return true
+    } catch (error) {
+      if (!scriptMode) {
+        /* trunk-ignore(semgrep/javascript.lang.security.audit.unsafe-formatstring.unsafe-formatstring) */
+        console.error(`❌ Failed to update config: ${key}`, error)
       }
+      return false
     }
   } catch (error) {
     if (!scriptMode) {

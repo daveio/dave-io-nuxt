@@ -154,7 +154,7 @@ export async function authorizeEndpoint(
 
     // Get JWT secret from Cloudflare environment or runtime config
     let secret: string
-    
+
     // Try to get secret from Cloudflare Workers environment first
     const env = event.context.cloudflare?.env as { API_JWT_SECRET?: string }
     if (env?.API_JWT_SECRET) {
@@ -164,7 +164,7 @@ export async function authorizeEndpoint(
       const config = useRuntimeConfig(event)
       secret = config.apiJwtSecret
     }
-    
+
     if (!secret || secret === "dev-secret-change-in-production") {
       console.warn("Using default JWT secret - this is insecure for production!")
     }

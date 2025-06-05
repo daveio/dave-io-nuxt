@@ -298,9 +298,22 @@ class APITester {
     results.push(await this.makeRequest("/api/internal/metrics", "GET", this.tokens.get("ai"), undefined, {}, 401))
 
     // Test different response formats (should return 200)
-    results.push(await this.makeRequest("/api/internal/metrics?format=json", "GET", this.tokens.get("metrics"), undefined, {}, 200))
-    results.push(await this.makeRequest("/api/internal/metrics?format=yaml", "GET", this.tokens.get("metrics"), undefined, {}, 200))
-    results.push(await this.makeRequest("/api/internal/metrics?format=prometheus", "GET", this.tokens.get("metrics"), undefined, {}, 200))
+    results.push(
+      await this.makeRequest("/api/internal/metrics?format=json", "GET", this.tokens.get("metrics"), undefined, {}, 200)
+    )
+    results.push(
+      await this.makeRequest("/api/internal/metrics?format=yaml", "GET", this.tokens.get("metrics"), undefined, {}, 200)
+    )
+    results.push(
+      await this.makeRequest(
+        "/api/internal/metrics?format=prometheus",
+        "GET",
+        this.tokens.get("metrics"),
+        undefined,
+        {},
+        200
+      )
+    )
 
     const passed = results.filter((r) => r.success).length
     const failed = results.length - passed
@@ -328,22 +341,45 @@ class APITester {
 
     // Test AI alt-text GET with image parameter (should return 200 or 400)
     results.push(
-      await this.makeRequest("/api/ai/alt?image=https://example.com/image.jpg", "GET", this.tokens.get("ai"), undefined, {}, [200, 400])
+      await this.makeRequest(
+        "/api/ai/alt?image=https://example.com/image.jpg",
+        "GET",
+        this.tokens.get("ai"),
+        undefined,
+        {},
+        [200, 400]
+      )
     )
 
     // Test AI alt-text POST with URL in body (should return 200 or 400)
     results.push(
-      await this.makeRequest("/api/ai/alt", "POST", this.tokens.get("ai"), {
-        url: "https://example.com/test.png"
-      }, {}, [200, 400])
+      await this.makeRequest(
+        "/api/ai/alt",
+        "POST",
+        this.tokens.get("ai"),
+        {
+          url: "https://example.com/test.png"
+        },
+        {},
+        [200, 400]
+      )
     )
 
     // Test AI alt-text with invalid URL (should return 400)
-    results.push(await this.makeRequest("/api/ai/alt?image=invalid-url", "GET", this.tokens.get("ai"), undefined, {}, 400))
+    results.push(
+      await this.makeRequest("/api/ai/alt?image=invalid-url", "GET", this.tokens.get("ai"), undefined, {}, 400)
+    )
 
     // Test AI alt-text with wrong permission token (should return 401)
     results.push(
-      await this.makeRequest("/api/ai/alt?image=https://example.com/image.jpg", "GET", this.tokens.get("metrics"), undefined, {}, 401)
+      await this.makeRequest(
+        "/api/ai/alt?image=https://example.com/image.jpg",
+        "GET",
+        this.tokens.get("metrics"),
+        undefined,
+        {},
+        401
+      )
     )
 
     const passed = results.filter((r) => r.success).length
@@ -409,17 +445,37 @@ class APITester {
     results.push(await this.makeRequest(`/api/tokens/${testUuid}`, "GET", this.tokens.get("admin"), undefined, {}, 404))
 
     // Test token metrics (should return 401 since this endpoint requires tokens permission)
-    results.push(await this.makeRequest(`/api/tokens/${testUuid}/metrics`, "GET", this.tokens.get("admin"), undefined, {}, 401))
+    results.push(
+      await this.makeRequest(`/api/tokens/${testUuid}/metrics`, "GET", this.tokens.get("admin"), undefined, {}, 401)
+    )
 
     // Test token revocation (should return 404 since token likely doesn't exist)
-    results.push(await this.makeRequest(`/api/tokens/${testUuid}/revoke`, "GET", this.tokens.get("admin"), undefined, {}, [200, 404]))
+    results.push(
+      await this.makeRequest(
+        `/api/tokens/${testUuid}/revoke`,
+        "GET",
+        this.tokens.get("admin"),
+        undefined,
+        {},
+        [200, 404]
+      )
+    )
 
     // Test invalid UUID format (should return 404)
-    results.push(await this.makeRequest("/api/tokens/invalid-uuid", "GET", this.tokens.get("admin"), undefined, {}, 404))
+    results.push(
+      await this.makeRequest("/api/tokens/invalid-uuid", "GET", this.tokens.get("admin"), undefined, {}, 404)
+    )
 
     // Test non-existent token (should return 404)
     results.push(
-      await this.makeRequest("/api/tokens/11111111-2222-3333-4444-555555555555", "GET", this.tokens.get("admin"), undefined, {}, 404)
+      await this.makeRequest(
+        "/api/tokens/11111111-2222-3333-4444-555555555555",
+        "GET",
+        this.tokens.get("admin"),
+        undefined,
+        {},
+        404
+      )
     )
 
     const passed = results.filter((r) => r.success).length
@@ -568,10 +624,18 @@ class APITester {
     }
 
     // Test dashboard endpoints (should return 200 if they exist, 404 if they don't)
-    results.push(await this.makeRequest("/api/dashboard/demo", "GET", this.tokens.get("admin"), undefined, {}, [200, 404]))
-    results.push(await this.makeRequest("/api/dashboard/hacker-news", "GET", this.tokens.get("admin"), undefined, {}, [200, 404]))
-    results.push(await this.makeRequest("/api/dashboard/hackernews", "GET", this.tokens.get("admin"), undefined, {}, [200, 404]))
-    results.push(await this.makeRequest("/api/dashboard/nonexistent", "GET", this.tokens.get("admin"), undefined, {}, 404))
+    results.push(
+      await this.makeRequest("/api/dashboard/demo", "GET", this.tokens.get("admin"), undefined, {}, [200, 404])
+    )
+    results.push(
+      await this.makeRequest("/api/dashboard/hacker-news", "GET", this.tokens.get("admin"), undefined, {}, [200, 404])
+    )
+    results.push(
+      await this.makeRequest("/api/dashboard/hackernews", "GET", this.tokens.get("admin"), undefined, {}, [200, 404])
+    )
+    results.push(
+      await this.makeRequest("/api/dashboard/nonexistent", "GET", this.tokens.get("admin"), undefined, {}, 404)
+    )
 
     const passed = results.filter((r) => r.success).length
     const failed = results.length - passed
@@ -595,9 +659,22 @@ class APITester {
     }
 
     // Test all metrics format endpoints via query parameters (should return 200)
-    results.push(await this.makeRequest("/api/internal/metrics?format=json", "GET", this.tokens.get("metrics"), undefined, {}, 200))
-    results.push(await this.makeRequest("/api/internal/metrics?format=yaml", "GET", this.tokens.get("metrics"), undefined, {}, 200))
-    results.push(await this.makeRequest("/api/internal/metrics?format=prometheus", "GET", this.tokens.get("metrics"), undefined, {}, 200))
+    results.push(
+      await this.makeRequest("/api/internal/metrics?format=json", "GET", this.tokens.get("metrics"), undefined, {}, 200)
+    )
+    results.push(
+      await this.makeRequest("/api/internal/metrics?format=yaml", "GET", this.tokens.get("metrics"), undefined, {}, 200)
+    )
+    results.push(
+      await this.makeRequest(
+        "/api/internal/metrics?format=prometheus",
+        "GET",
+        this.tokens.get("metrics"),
+        undefined,
+        {},
+        200
+      )
+    )
 
     const passed = results.filter((r) => r.success).length
     const failed = results.length - passed
@@ -623,17 +700,28 @@ class APITester {
     const testUuid = "550e8400-e29b-41d4-a716-446655440000"
 
     // Test token usage endpoint (should return 401 since this requires tokens permission)
-    results.push(await this.makeRequest(`/api/tokens/${testUuid}/usage`, "GET", this.tokens.get("admin"), undefined, {}, 401))
+    results.push(
+      await this.makeRequest(`/api/tokens/${testUuid}/usage`, "GET", this.tokens.get("admin"), undefined, {}, 401)
+    )
 
     // Test token revocation endpoint (should return 401 since this requires tokens permission)
     results.push(
-      await this.makeRequest(`/api/tokens/${testUuid}/revoke`, "POST", this.tokens.get("admin"), {
-        revoked: true
-      }, {}, 401)
+      await this.makeRequest(
+        `/api/tokens/${testUuid}/revoke`,
+        "POST",
+        this.tokens.get("admin"),
+        {
+          revoked: true
+        },
+        {},
+        401
+      )
     )
 
     // Test invalid UUID (should return 401 since auth fails first)
-    results.push(await this.makeRequest("/api/tokens/invalid-uuid/usage", "GET", this.tokens.get("admin"), undefined, {}, 401))
+    results.push(
+      await this.makeRequest("/api/tokens/invalid-uuid/usage", "GET", this.tokens.get("admin"), undefined, {}, 401)
+    )
 
     const passed = results.filter((r) => r.success).length
     const failed = results.length - passed
