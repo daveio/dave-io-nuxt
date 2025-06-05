@@ -33,7 +33,7 @@
         "zod": "3.25.51",
       },
       "devDependencies": {
-        "@anthropic-ai/claude-code": "1.0.10",
+        "@anthropic-ai/claude-code": "1.0.11",
         "@biomejs/biome": "1.9.4",
         "@nuxtjs/tailwindcss": "7.0.0-beta.0",
         "@openai/codex": "^0.1.2505172129",
@@ -78,7 +78,7 @@
 
     "@antfu/utils": ["@antfu/utils@8.1.1", "", {}, "sha512-Mex9nXf9vR6AhcXmMrlz/HVgYYZpVGJ6YlPgwl7UnaFpnshXs6EK/oa5Gpf3CzENMjkvEx2tQtntGnb7UtSTOQ=="],
 
-    "@anthropic-ai/claude-code": ["@anthropic-ai/claude-code@1.0.10", "", { "optionalDependencies": { "@img/sharp-darwin-arm64": "^0.33.5", "@img/sharp-darwin-x64": "^0.33.5", "@img/sharp-linux-arm": "^0.33.5", "@img/sharp-linux-arm64": "^0.33.5", "@img/sharp-linux-x64": "^0.33.5", "@img/sharp-win32-x64": "^0.33.5" }, "bin": { "claude": "cli.js" } }, "sha512-MQ4+bDwjaf5BzAlujREyhwJJuBtgnbNI7DYiEaRB+BeoMxovRYLQXyo9/WK+NIhovf8rJQNXP9q6+wHrN1BpZw=="],
+    "@anthropic-ai/claude-code": ["@anthropic-ai/claude-code@1.0.11", "", { "optionalDependencies": { "@img/sharp-darwin-arm64": "^0.33.5", "@img/sharp-darwin-x64": "^0.33.5", "@img/sharp-linux-arm": "^0.33.5", "@img/sharp-linux-arm64": "^0.33.5", "@img/sharp-linux-x64": "^0.33.5", "@img/sharp-win32-x64": "^0.33.5" }, "bin": { "claude": "cli.js" } }, "sha512-ezYfkSxCiQjReJoBJkayTpzhWRWKmfEy6Ria2TdufBmDR7Kj/iP4IY10M5JOTgB8pw7XfjYpijgnomiFZmVRbg=="],
 
     "@babel/code-frame": ["@babel/code-frame@7.27.1", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.27.1", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-cjQ7ZlQ0Mv3b47hABuTevyTuYN4i+loJKGeV9flcCgIK37cCXRh+L1bd3iBHlynerhQ7BhCkn2BPbQUL+rGqFg=="],
 
