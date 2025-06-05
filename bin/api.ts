@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { createToken } from "./jwt"
 import { getJWTSecret } from "./shared/cli-utils"
 
 const program = new Command()
@@ -27,68 +26,127 @@ class APITester {
   private baseUrl: string
   public tokens: Map<string, string> = new Map()
   private secret: string
+  private scriptMode: boolean
+  private isLocal: boolean
 
-  constructor(baseUrl = "http://localhost:3000", secret?: string) {
+  constructor(baseUrl = "https://next.dave.io", secret?: string, scriptMode = false) {
     this.baseUrl = baseUrl.replace(/\/$/, "") // Remove trailing slash
     this.secret = secret || getJWTSecret() || "dev-secret-change-in-production"
+    this.scriptMode = scriptMode
+    this.isLocal = baseUrl.includes("localhost")
   }
 
-  // Generate JWT tokens for testing
-  async generateTokens() {
-    console.log("🔐 Generating test tokens...")
+  // Initialize KV data for local testing
+  async initializeKVData() {
+    if (!this.scriptMode) {
+      console.log("🔧 Initializing KV data for testing...")
+    }
 
     try {
-      // Admin token (unlimited access)
-      const adminToken = await createToken(
-        {
-          sub: "test-admin@api-test.local",
-          description: "Test admin token with full permissions",
-          expiresIn: "1h"
-        },
-        this.secret
-      )
-      this.tokens.set("admin", adminToken.token)
+      const { spawn } = await import("bun")
 
-      // API metrics token
-      const metricsToken = await createToken(
-        {
-          sub: "api:metrics",
-          description: "Test metrics token",
-          expiresIn: "1h"
-        },
-        this.secret
-      )
-      this.tokens.set("metrics", metricsToken.token)
+      // Use kv CLI to import initial data with appropriate flag
+      const kvArgs = ["bun", "run", "bin/kv.ts", "import", "data/kv/_init.yaml", "--wipe", "--yes"]
+      if (this.isLocal) {
+        kvArgs.push("--local")
+      }
 
-      // AI alt-text token
-      const aiToken = await createToken(
-        {
-          sub: "ai:alt",
-          description: "Test AI token",
-          expiresIn: "1h"
-        },
-        this.secret
-      )
-      this.tokens.set("ai", aiToken.token)
+      const process = spawn(kvArgs, {
+        stdout: "pipe",
+        stderr: "pipe"
+      })
 
-      // Limited token for testing purposes
-      const limitedToken = await createToken(
-        {
-          sub: "api",
-          description: "Test limited token",
-          expiresIn: "1h"
-        },
-        this.secret
-      )
-      this.tokens.set("limited", limitedToken.token)
+      const result = await process.exited
 
-      console.log("✅ Generated tokens for: admin, metrics, ai, limited")
-      console.log("🔗 Token URLs for manual testing:")
-      console.log(`   Admin: ${this.baseUrl}/api/internal/auth?token=${adminToken.token}`)
-      console.log(`   Metrics: ${this.baseUrl}/api/internal/metrics?token=${metricsToken.token}`)
-      console.log(`   AI: ${this.baseUrl}/api/ai/alt?token=${aiToken.token}&url=https://example.com/image.jpg`)
+      if (result !== 0) {
+        if (!this.scriptMode) {
+          console.warn("⚠️ Failed to initialize KV data - tests may fail")
+        }
+      } else {
+        if (!this.scriptMode) {
+          console.log("✅ KV data initialized successfully")
+        }
+      }
     } catch (error) {
-      console.error("❌ Failed to generate tokens:", error)
+      if (!this.scriptMode) {
+        console.warn("⚠️ Failed to initialize KV data:", error)
+      }
+    }
+  }
+
+  // Generate JWT tokens for testing using bin/jwt.ts with --script mode
+  async generateTokens() {
+    if (!this.scriptMode) {
+      console.log("🔐 Generating test tokens...")
+    }
+
+    try {
+      // Token configurations
+      const tokenConfigs = [
+        { key: "admin", sub: "test-admin@api-test.local", description: "Test admin token with full permissions" },
+        { key: "metrics", sub: "api:metrics", description: "Test metrics token" },
+        { key: "ai", sub: "ai:alt", description: "Test AI token" },
+        { key: "limited", sub: "api", description: "Test limited token" }
+      ]
+
+      // Generate tokens using jwt CLI with --script mode
+      for (const config of tokenConfigs) {
+        const { spawn } = await import("bun")
+
+        const jwtArgs = [
+          "bun",
+          "run",
+          "bin/jwt.ts",
+          "create",
+          "--script",
+          "--sub",
+          config.sub,
+          "--description",
+          config.description,
+          "--expiry",
+          "1h",
+          "--secret",
+          this.secret
+        ]
+
+        // Add local/remote flag for KV operations
+        if (this.isLocal) {
+          jwtArgs.push("--local")
+        }
+
+        const process = spawn(jwtArgs, {
+          stdout: "pipe",
+          stderr: "pipe"
+        })
+
+        const output = await new Response(process.stdout).text()
+        const result = await process.exited
+
+        if (result !== 0) {
+          throw new Error(`Failed to generate ${config.key} token`)
+        }
+
+        const tokenData = JSON.parse(output)
+        if (!tokenData.success || !tokenData.token) {
+          throw new Error(`Invalid token response for ${config.key}`)
+        }
+
+        this.tokens.set(config.key, tokenData.token)
+      }
+
+      if (!this.scriptMode) {
+        console.log("✅ Generated tokens for: admin, metrics, ai, limited")
+        console.log("🔗 Token URLs for manual testing:")
+        console.log(`   Admin: ${this.baseUrl}/api/internal/auth?token=${this.tokens.get("admin")}`)
+        console.log(`   Metrics: ${this.baseUrl}/api/internal/metrics?token=${this.tokens.get("metrics")}`)
+        console.log(
+          `   AI: ${this.baseUrl}/api/ai/alt?token=${this.tokens.get("ai")}&url=https://example.com/image.jpg`
+        )
+      }
+    } catch (error) {
+      if (!this.scriptMode) {
+        console.error("❌ Failed to generate tokens:", error)
+      }
       throw error
     }
   }
@@ -161,7 +219,9 @@ class APITester {
     const results: TestResult[] = []
     const startTime = Date.now()
 
-    console.log("\n🔐 Testing Authentication Endpoints...")
+    if (!this.scriptMode) {
+      console.log("\n🔐 Testing Authentication Endpoints...")
+    }
 
     // Test auth endpoint without token
     results.push(await this.makeRequest("/api/internal/auth"))
@@ -193,7 +253,9 @@ class APITester {
     const results: TestResult[] = []
     const startTime = Date.now()
 
-    console.log("\n📊 Testing Metrics Endpoints...")
+    if (!this.scriptMode) {
+      console.log("\n📊 Testing Metrics Endpoints...")
+    }
 
     // Test metrics without auth (should fail)
     results.push(await this.makeRequest("/api/internal/metrics"))
@@ -229,7 +291,9 @@ class APITester {
     const results: TestResult[] = []
     const startTime = Date.now()
 
-    console.log("\n🤖 Testing AI Endpoints...")
+    if (!this.scriptMode) {
+      console.log("\n🤖 Testing AI Endpoints...")
+    }
 
     // Test AI alt-text without auth (should fail)
     results.push(await this.makeRequest("/api/ai/alt"))
@@ -271,7 +335,9 @@ class APITester {
     const results: TestResult[] = []
     const startTime = Date.now()
 
-    console.log("\n🔗 Testing Redirect Endpoints...")
+    if (!this.scriptMode) {
+      console.log("\n🔗 Testing Redirect Endpoints...")
+    }
 
     // Test GitHub redirect
     results.push(await this.makeRequest("/go/gh"))
@@ -302,7 +368,9 @@ class APITester {
     const results: TestResult[] = []
     const startTime = Date.now()
 
-    console.log("\n🎫 Testing Token Management Endpoints...")
+    if (!this.scriptMode) {
+      console.log("\n🎫 Testing Token Management Endpoints...")
+    }
 
     const testUuid = "550e8400-e29b-41d4-a716-446655440000"
 
@@ -343,7 +411,9 @@ class APITester {
     const results: TestResult[] = []
     const startTime = Date.now()
 
-    console.log("\n❤️ Testing Health Endpoint...")
+    if (!this.scriptMode) {
+      console.log("\n❤️ Testing Health Endpoint...")
+    }
 
     results.push(await this.makeRequest("/api/internal/health"))
 
@@ -359,12 +429,38 @@ class APITester {
     }
   }
 
+  // Test internal endpoints (ping, headers, worker)
+  async testInternal(): Promise<TestSuite> {
+    const results: TestResult[] = []
+    const startTime = Date.now()
+
+    if (!this.scriptMode) {
+      console.log("\n🔧 Testing Internal Endpoints...")
+    }
+
+    // Test ping endpoint (should be public)
+    results.push(await this.makeRequest("/api/internal/ping"))
+
+    // Test headers endpoint (should be public)
+    results.push(await this.makeRequest("/api/internal/headers"))
+
+    // Test worker endpoint (should be public)
+    results.push(await this.makeRequest("/api/internal/worker"))
+
+    const passed = results.filter((r) => r.success).length
+    const failed = results.length - passed
+
+    return {
+      name: "Internal",
+      results,
+      passed,
+      failed,
+      duration: Date.now() - startTime
+    }
+  }
+
   // Print test results
   printResults(suites: TestSuite[]) {
-    console.log(`\n${"=".repeat(80)}`)
-    console.log("🧪 API TEST RESULTS")
-    console.log("=".repeat(80))
-
     let totalPassed = 0
     let totalFailed = 0
     let totalDuration = 0
@@ -373,33 +469,65 @@ class APITester {
       totalPassed += suite.passed
       totalFailed += suite.failed
       totalDuration += suite.duration
+    }
 
-      const status = suite.failed === 0 ? "✅" : "❌"
-      console.log(`\n${status} ${suite.name}: ${suite.passed}/${suite.results.length} passed (${suite.duration}ms)`)
+    const success = totalFailed === 0
 
-      if (suite.failed > 0) {
-        for (const result of suite.results) {
-          if (!result.success) {
-            console.log(`   ❌ ${result.method} ${result.endpoint} - ${result.status || "ERR"} (${result.duration}ms)`)
-            if (result.error) {
-              console.log(`      Error: ${result.error}`)
+    if (this.scriptMode) {
+      // Script mode: output structured JSON
+      const output = {
+        success,
+        summary: {
+          totalTests: totalPassed + totalFailed,
+          passed: totalPassed,
+          failed: totalFailed,
+          duration: totalDuration
+        },
+        suites: suites.map((suite) => ({
+          name: suite.name,
+          passed: suite.passed,
+          failed: suite.failed,
+          duration: suite.duration,
+          results: suite.results
+        }))
+      }
+      console.log(JSON.stringify(output, null, 2))
+    } else {
+      // Interactive mode: human-friendly output
+      console.log(`\n${"=".repeat(80)}`)
+      console.log("🧪 API TEST RESULTS")
+      console.log("=".repeat(80))
+
+      for (const suite of suites) {
+        const status = suite.failed === 0 ? "✅" : "❌"
+        console.log(`\n${status} ${suite.name}: ${suite.passed}/${suite.results.length} passed (${suite.duration}ms)`)
+
+        if (suite.failed > 0) {
+          for (const result of suite.results) {
+            if (!result.success) {
+              console.log(
+                `   ❌ ${result.method} ${result.endpoint} - ${result.status || "ERR"} (${result.duration}ms)`
+              )
+              if (result.error) {
+                console.log(`      Error: ${result.error}`)
+              }
             }
           }
         }
       }
+
+      console.log(`\n${"-".repeat(80)}`)
+      console.log(`📊 SUMMARY: ${totalPassed}/${totalPassed + totalFailed} tests passed (${totalDuration}ms total)`)
+
+      if (totalFailed === 0) {
+        console.log("🎉 All tests passed!")
+      } else {
+        console.log(`😞 ${totalFailed} tests failed`)
+      }
+      console.log("=".repeat(80))
     }
 
-    console.log(`\n${"-".repeat(80)}`)
-    console.log(`📊 SUMMARY: ${totalPassed}/${totalPassed + totalFailed} tests passed (${totalDuration}ms total)`)
-
-    if (totalFailed === 0) {
-      console.log("🎉 All tests passed!")
-    } else {
-      console.log(`😞 ${totalFailed} tests failed`)
-    }
-    console.log("=".repeat(80))
-
-    return totalFailed === 0
+    return success
   }
 
   // Test dashboard endpoints
@@ -407,7 +535,9 @@ class APITester {
     const results: TestResult[] = []
     const startTime = Date.now()
 
-    console.log("\n📊 Testing Dashboard Endpoints...")
+    if (!this.scriptMode) {
+      console.log("\n📊 Testing Dashboard Endpoints...")
+    }
 
     // Test dashboard endpoints
     results.push(await this.makeRequest("/api/dashboard/demo", "GET", this.tokens.get("admin")))
@@ -432,7 +562,9 @@ class APITester {
     const results: TestResult[] = []
     const startTime = Date.now()
 
-    console.log("\n📈 Testing Metrics Format Endpoints...")
+    if (!this.scriptMode) {
+      console.log("\n📈 Testing Metrics Format Endpoints...")
+    }
 
     // Test all metrics format endpoints via query parameters
     results.push(await this.makeRequest("/api/internal/metrics?format=json", "GET", this.tokens.get("metrics")))
@@ -456,7 +588,9 @@ class APITester {
     const results: TestResult[] = []
     const startTime = Date.now()
 
-    console.log("\n🎫 Testing Enhanced Token Management...")
+    if (!this.scriptMode) {
+      console.log("\n🎫 Testing Enhanced Token Management...")
+    }
 
     const testUuid = "550e8400-e29b-41d4-a716-446655440000"
 
@@ -487,8 +621,15 @@ class APITester {
 
   // Run all tests
   async runAllTests(): Promise<boolean> {
-    console.log("🚀 Starting API Test Suite")
-    console.log(`📍 Testing against: ${this.baseUrl}`)
+    if (!this.scriptMode) {
+      console.log("🚀 Starting API Test Suite")
+      console.log(`📍 Testing against: ${this.baseUrl}`)
+    }
+
+    // Initialize KV data for local testing
+    if (this.isLocal) {
+      await this.initializeKVData()
+    }
 
     await this.generateTokens()
 
@@ -496,6 +637,7 @@ class APITester {
 
     try {
       suites.push(await this.testHealth())
+      suites.push(await this.testInternal())
       suites.push(await this.testAuth())
       suites.push(await this.testMetrics())
       suites.push(await this.testMetricsFormats())
@@ -514,22 +656,46 @@ class APITester {
 }
 
 // CLI interface
-program.name("api-test").description("HTTP API Test Suite for dave-io-nuxt").version("1.0.0")
+program.name("api").description("HTTP API Test Suite for dave-io-nuxt").version("1.0.0")
+
+// Global script mode option
+program.option("--script", "Enable script mode (non-interactive, structured output)")
+
+// Check if script mode is enabled
+function isScriptMode(): boolean {
+  return program.opts().script || false
+}
 
 program
-  .option("-u, --url <url>", "Base URL for API testing", "http://localhost:3000")
+  .option("-u, --url <url>", "Base URL for API testing")
   .option("-s, --secret <secret>", "JWT secret for token generation")
   .option("-t, --token <token>", "Use existing token instead of generating new ones")
+  .option("--local", "Test against local development server (http://localhost:3000)")
+  .option("--remote", "Test against remote production server (https://next.dave.io) [default]")
   .option("--auth-only", "Test only authentication endpoints")
   .option("--metrics-only", "Test only metrics endpoints")
   .option("--ai-only", "Test only AI endpoints")
   .option("--redirects-only", "Test only redirect endpoints")
   .option("--tokens-only", "Test only token management endpoints")
   .option("--health-only", "Test only health endpoint")
+  .option("--internal-only", "Test only internal endpoints")
   .option("--dashboard-only", "Test only dashboard endpoints")
   .option("--metrics-formats-only", "Test only metrics format endpoints")
   .action(async (options) => {
-    const tester = new APITester(options.url, options.secret)
+    const scriptMode = isScriptMode()
+
+    // Determine the test URL
+    let testUrl = options.url
+    if (!testUrl) {
+      if (options.local) {
+        testUrl = "http://localhost:3000"
+      } else {
+        // Default to remote (--remote is default)
+        testUrl = "https://next.dave.io"
+      }
+    }
+
+    const tester = new APITester(testUrl, options.secret, scriptMode)
 
     if (options.token) {
       // Use provided token for all tests
@@ -564,6 +730,9 @@ program
       } else if (options.healthOnly) {
         const suite = await tester.testHealth()
         success = tester.printResults([suite])
+      } else if (options.internalOnly) {
+        const suite = await tester.testInternal()
+        success = tester.printResults([suite])
       } else if (options.dashboardOnly) {
         if (!options.token) await tester.generateTokens()
         const suite = await tester.testDashboard()
@@ -576,7 +745,15 @@ program
         success = await tester.runAllTests()
       }
     } catch (error) {
-      console.error("❌ Test execution failed:", error)
+      if (scriptMode) {
+        const output = {
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        }
+        console.log(JSON.stringify(output, null, 2))
+      } else {
+        console.error("❌ Test execution failed:", error)
+      }
       process.exit(1)
     }
 
@@ -587,8 +764,9 @@ program.addHelpText(
   "after",
   `
 Examples:
-  bun run test:api                          # Run all tests against localhost:3000
-  bun run test:api --url https://dave.io   # Test against production
+  bun run test:api                          # Run all tests against next.dave.io (remote)
+  bun run test:api --local                  # Test against localhost:3000
+  bun run test:api --url https://custom.io # Test against custom URL
   bun run test:api --auth-only              # Test only auth endpoints
   bun run test:api --token "eyJhbGci..."    # Use existing token
   bun run test:api --secret "my-secret"     # Use custom JWT secret

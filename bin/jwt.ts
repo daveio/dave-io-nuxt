@@ -26,6 +26,21 @@ const program = new Command()
 
 program.name("jwt").description("JWT Token Management for dave-io-nuxt").version("3.0.0")
 
+// Global options
+program.option("--script", "Enable script mode (non-interactive, structured output)")
+program.option("--local", "Use local KV storage for revocation checks (D1 always remote)")
+program.option("--remote", "Use remote KV storage for revocation checks [default]")
+
+// Check if script mode is enabled
+function isScriptMode(): boolean {
+  return program.opts().script || false
+}
+
+// Check if local mode is enabled for KV operations
+function isLocalMode(): boolean {
+  return program.opts().local || false
+}
+
 // D1 schema initialization
 
 async function initializeD1Schema(client: Cloudflare, accountId: string, databaseId: string): Promise<void> {
@@ -220,8 +235,9 @@ program
   .action(async (options) => {
     let tokenRequest: JWTRequest
     let secret: string
+    const scriptMode = isScriptMode()
 
-    if (options.interactive) {
+    if (options.interactive && !scriptMode) {
       console.log("\n🔐 Interactive JWT Token Creator\n")
 
       const sub = readlineSync.question("Enter subject (endpoint or user identifier): ")
@@ -257,8 +273,8 @@ program
       let noExpiry = false
       if (options.noExpiry) {
         // --no-expiry was explicitly specified
-        if (!options.seriouslyNoExpiry) {
-          // --seriously-no-expiry was NOT specified
+        if (!options.seriouslyNoExpiry && !scriptMode) {
+          // --seriously-no-expiry was NOT specified and not in script mode
           console.log("⚠️  WARNING: You are creating a token without expiration!")
           console.log("   This is NOT RECOMMENDED for security reasons.")
           console.log("   Tokens without expiration remain valid indefinitely unless explicitly revoked.")
@@ -291,34 +307,60 @@ program
       const { token, metadata } = await createToken(tokenRequest, secret)
 
       // Store in D1 production database if possible
+      let dbStored = false
       try {
         await storeTokenMetadata(metadata)
-        console.log("✅ Token metadata stored in D1 production database")
+        dbStored = true
+        if (!scriptMode) {
+          console.log("✅ Token metadata stored in D1 production database")
+        }
       } catch (error) {
-        console.warn("⚠️  Could not store in D1 database:", error)
-        console.log("   Token was still created successfully and can be used")
-        console.log("   Tip: Run 'bun jwt init' to initialize the database schema if needed")
+        if (!scriptMode) {
+          console.warn("⚠️  Could not store in D1 database:", error)
+          console.log("   Token was still created successfully and can be used")
+          console.log("   Tip: Run 'bun jwt init' to initialize the database schema if needed")
+        }
       }
 
-      console.log("\n✅ JWT Token Created Successfully\n")
-      console.log("Token:")
-      console.log(token)
-      console.log("\nMetadata:")
-      console.log(JSON.stringify(metadata, null, 2))
+      if (scriptMode) {
+        // Script mode: output structured JSON
+        const output = {
+          success: true,
+          token,
+          metadata,
+          dbStored
+        }
+        console.log(JSON.stringify(output, null, 2))
+      } else {
+        // Interactive mode: human-friendly output
+        console.log("\n✅ JWT Token Created Successfully\n")
+        console.log("Token:")
+        console.log(token)
+        console.log("\nMetadata:")
+        console.log(JSON.stringify(metadata, null, 2))
 
-      console.log("\n💡 Usage Examples:")
-      console.log(`curl -H "Authorization: Bearer ${token}" http://localhost:3000/api/internal/auth`)
-      console.log(`curl "http://localhost:3000/api/internal/auth?token=${token}"`)
+        console.log("\n💡 Usage Examples:")
+        console.log(`curl -H "Authorization: Bearer ${token}" http://localhost:3000/api/internal/auth`)
+        console.log(`curl "http://localhost:3000/api/internal/auth?token=${token}"`)
 
-      console.log("\n📋 Test with our API:")
-      console.log(`bun run bin/api-test.ts --token "${token}"`)
+        console.log("\n📋 Test with our API:")
+        console.log(`bun run bin/api.ts --token "${token}"`)
 
-      console.log("\n🔧 Token Management:")
-      console.log(`bun jwt show ${metadata.uuid}`)
-      console.log(`bun jwt revoke ${metadata.uuid}`)
-      console.log(`bun jwt search --sub "${metadata.sub}"`)
+        console.log("\n🔧 Token Management:")
+        console.log(`bun jwt show ${metadata.uuid}`)
+        console.log(`bun jwt revoke ${metadata.uuid}`)
+        console.log(`bun jwt search --sub "${metadata.sub}"`)
+      }
     } catch (error) {
-      console.error("❌ Error creating token:", error)
+      if (scriptMode) {
+        const output = {
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        }
+        console.log(JSON.stringify(output, null, 2))
+      } else {
+        console.error("❌ Error creating token:", error)
+      }
       process.exit(1)
     }
   })
@@ -441,7 +483,8 @@ program
       console.log(`\n🚫 Revoking token ${uuid}...`)
 
       // Set revocation flag in KV using wrangler CLI
-      await putKeyValueKV(`auth:revocation:${uuid}`, "true", false)
+      const useLocal = isLocalMode()
+      await putKeyValueKV(`auth:revocation:${uuid}`, "true", useLocal)
 
       console.log("✅ Token revoked successfully")
       console.log("   The token is now immediately invalid and cannot be used")
@@ -532,7 +575,8 @@ Environment Variables:
   CLOUDFLARE_KV_NAMESPACE_ID     KV namespace ID (defaults to wrangler.jsonc binding)
 
 Database:
-  Uses production Cloudflare D1 database and KV storage via Cloudflare SDK
+  Uses production Cloudflare D1 database (always remote) and KV storage via Cloudflare SDK
+  KV operations respect --local/--remote flags (default: remote)
 
 Setup Requirements:
   1. Create a Cloudflare API token with D1 and KV read/write permissions

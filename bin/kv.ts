@@ -94,12 +94,19 @@ async function wipeKVNamespace(dryRun = false, useLocal = false, skipConfirmatio
     const envConfirmed =
       envConfirm && (envConfirm === "yes" || envConfirm === "1" || envConfirm.toLowerCase() === "true")
 
-    if (!skipConfirmation && !envConfirmed) {
+    const scriptMode = isScriptMode()
+    if (!skipConfirmation && !envConfirmed && !scriptMode) {
       console.log("ℹ️  Confirmation required. Use one of the following:")
       console.log("  --yes or -y flag")
       console.log("  CONFIRM_WIPE=yes (or 1, or true) environment variable")
 
       console.log("❌ Wipe cancelled - confirmation required")
+      return false
+    }
+
+    // In script mode, assume confirmation if not explicitly denied
+    if (scriptMode && !skipConfirmation && !envConfirmed) {
+      // Script mode requires explicit confirmation
       return false
     }
 
@@ -142,6 +149,12 @@ program
   .description("KV Admin utility for dave-io-nuxt")
   .version("1.0.0")
   .option("--local", "Use local wrangler KV storage instead of remote Cloudflare API")
+  .option("--script", "Enable script mode (non-interactive, structured output)")
+
+// Check if script mode is enabled
+function isScriptMode(): boolean {
+  return program.opts().script || false
+}
 
 // Filter keys based on export patterns
 function filterKeys(allKeys: string[], exportAll: boolean): string[] {
@@ -438,12 +451,18 @@ async function importKV(
         }
 
         // Check if user has confirmed overwrite
-        if (!checkOverwriteConfirmation(options)) {
+        const scriptMode = isScriptMode()
+        if (!checkOverwriteConfirmation(options) && !scriptMode) {
           console.log("\n❌ Import cancelled - existing keys would be overwritten")
           console.log("Use one of the following to confirm overwrite:")
           console.log("  --yes or -y flag")
           console.log("  KV_IMPORT_ALLOW_OVERWRITE=1 environment variable")
           console.log("  --wipe or -w flag to clear namespace first")
+          return false
+        }
+
+        // In script mode, require explicit confirmation
+        if (scriptMode && !checkOverwriteConfirmation(options)) {
           return false
         }
 
