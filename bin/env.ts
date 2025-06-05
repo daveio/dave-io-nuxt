@@ -14,7 +14,7 @@
  * - Ensures secure API token usage over legacy API key
  */
 
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { spawn } from "bun"
 import { Command } from "commander"
@@ -127,44 +127,113 @@ function filterProductionVars(envVars: EnvVars, scriptMode = false): EnvVars {
 }
 
 /**
+ * Update wrangler.jsonc config file with environment variables
+ */
+async function updateWranglerConfig(key: string, value: string): Promise<void> {
+  const configPath = join(process.cwd(), "wrangler.jsonc")
+  
+  if (!existsSync(configPath)) {
+    throw new Error("wrangler.jsonc not found")
+  }
+
+  const configContent = readFileSync(configPath, "utf-8")
+  const config = JSON.parse(configContent)
+
+  // Initialize vars section if it doesn't exist
+  if (!config.vars) {
+    config.vars = {}
+  }
+
+  // Set the environment variable
+  config.vars[key] = value
+
+  // Write back to file with proper formatting
+  const updatedContent = JSON.stringify(config, null, 2)
+  writeFileSync(configPath, updatedContent, "utf-8")
+}
+
+/**
  * Deploy a single environment variable using wrangler
  */
-async function deploySecret(key: string, value: string, scriptMode = false, useLocal = false): Promise<boolean> {
+async function deployVariable(
+  key: string,
+  value: string,
+  scriptMode = false,
+  useLocal = false,
+  dryRun = false
+): Promise<boolean> {
   try {
+    // Determine if this should be a secret or environment variable
+    const isSecret = ["CLOUDFLARE_API_TOKEN", "API_JWT_SECRET"].includes(key)
+    const target = useLocal ? "local" : "remote"
+    const varType = isSecret ? "secret" : "wrangler config variable"
+    
     if (!scriptMode) {
-      const target = useLocal ? "local" : "remote"
-      console.log(`🚀 Deploying secret to ${target}: ${key}`)
+      console.log(`🚀 Deploying ${varType} to ${target}${dryRun ? " [DRY RUN]" : ""}: ${key}`)
     }
 
-    const wranglerArgs = ["bun", "run", "wrangler", "secret", "put", key]
-    if (useLocal) {
-      wranglerArgs.push("--local")
-    } else {
-      wranglerArgs.push("--remote")
-    }
-
-    const process = spawn(wranglerArgs, {
-      stdin: "pipe",
-      stdout: "pipe",
-      stderr: "pipe"
-    })
-
-    // Send the secret value via STDIN
-    process.stdin?.write(value)
-    process.stdin?.end()
-
-    const result = await process.exited
-
-    if (result === 0) {
+    if (dryRun) {
       if (!scriptMode) {
-        console.log(`✅ Successfully deployed: ${key}`)
+        if (isSecret) {
+          console.log(`📋 Would deploy: ${key} = [${value.length} characters] as ${varType}`)
+        } else {
+          console.log(`📋 Would update wrangler.jsonc vars section: ${key} = ${value}`)
+        }
       }
       return true
     }
-    if (!scriptMode) {
-      console.error(`❌ Failed to deploy: ${key}`)
+
+    if (isSecret) {
+      // Deploy as secret via stdin
+      const wranglerArgs = ["bun", "run", "wrangler", "secret", "put", key]
+      // Note: wrangler secret put doesn't support --local or --remote flags
+
+      const process = spawn(wranglerArgs, {
+        stdin: "pipe",
+        stdout: "pipe",
+        stderr: "pipe"
+      })
+
+      // Send the secret value via STDIN
+      process.stdin?.write(value)
+      process.stdin?.end()
+
+      const result = await process.exited
+
+      if (result === 0) {
+        if (!scriptMode) {
+          console.log(`✅ Successfully deployed: ${key}`)
+        }
+        return true
+      }
+      if (!scriptMode) {
+        // Capture stderr for debugging
+        const stderr = await new Response(process.stderr).text()
+        console.error(`❌ Failed to deploy: ${key}`)
+        if (stderr.trim()) {
+          console.error(`Error details: ${stderr.trim()}`)
+        }
+      }
+      return false
+    } else {
+      // For non-secrets, update wrangler.jsonc config file
+      if (!scriptMode) {
+        console.log(`📝 Updating wrangler.jsonc with environment variable: ${key}`)
+      }
+      
+      try {
+        await updateWranglerConfig(key, value)
+        if (!scriptMode) {
+          console.log(`✅ Successfully updated config: ${key}`)
+        }
+        return true
+      } catch (error) {
+        if (!scriptMode) {
+          console.error(`❌ Failed to update config: ${key}`, error)
+        }
+        return false
+      }
     }
-    return false
   } catch (error) {
     if (!scriptMode) {
       console.error("❌ Error deploying variable:", key, error)
@@ -183,6 +252,7 @@ program
   .option("--env-file <path>", "Path to environment file", ".env")
   .option("--local", "Deploy to local wrangler dev environment")
   .option("--remote", "Deploy to remote production environment [default]")
+  .option("-d, --dry-run", "Show what would be deployed without making changes")
 
 // Check if script mode is enabled
 function isScriptMode(): boolean {
@@ -197,10 +267,15 @@ function isLocalMode(): boolean {
 /**
  * Main deployment function
  */
-async function deployEnvironment(envFilePath: string, scriptMode: boolean, useLocal: boolean): Promise<void> {
+async function deployEnvironment(
+  envFilePath: string,
+  scriptMode: boolean,
+  useLocal: boolean,
+  dryRun = false
+): Promise<void> {
   try {
     if (!scriptMode) {
-      console.log("🔧 Starting environment deployment...")
+      console.log(`🔧 Starting environment deployment${dryRun ? " [DRY RUN]" : ""}...`)
       console.log(`📂 Reading environment from: ${envFilePath}`)
     }
 
@@ -217,7 +292,8 @@ async function deployEnvironment(envFilePath: string, scriptMode: boolean, useLo
           success: true,
           message: "No production variables to deploy",
           deployed: 0,
-          total: 0
+          total: 0,
+          dryRun
         }
         console.log(JSON.stringify(output, null, 2))
       } else {
@@ -227,12 +303,12 @@ async function deployEnvironment(envFilePath: string, scriptMode: boolean, useLo
     }
 
     if (!scriptMode) {
-      console.log(`📦 Deploying ${Object.keys(productionVars).length} variables...`)
+      console.log(`📦 ${dryRun ? "Would deploy" : "Deploying"} ${Object.keys(productionVars).length} variables...`)
     }
 
     // Deploy each variable
     const results = await Promise.all(
-      Object.entries(productionVars).map(([key, value]) => deploySecret(key, value, scriptMode, useLocal))
+      Object.entries(productionVars).map(([key, value]) => deployVariable(key, value, scriptMode, useLocal, dryRun))
     )
 
     const successCount = results.filter(Boolean).length
@@ -241,16 +317,21 @@ async function deployEnvironment(envFilePath: string, scriptMode: boolean, useLo
     if (scriptMode) {
       const output = {
         success: successCount === totalCount,
-        deployed: successCount,
+        deployed: dryRun ? 0 : successCount,
         total: totalCount,
-        variables: Object.keys(productionVars)
+        variables: Object.keys(productionVars),
+        dryRun
       }
       console.log(JSON.stringify(output, null, 2))
     } else {
-      if (successCount === totalCount) {
-        console.log(`🎉 Successfully deployed all ${totalCount} variables!`)
+      if (dryRun) {
+        console.log(`📋 Would deploy ${totalCount} variables successfully`)
       } else {
-        console.error(`❌ Deployed ${successCount}/${totalCount} variables. Some deployments failed.`)
+        if (successCount === totalCount) {
+          console.log(`🎉 Successfully deployed all ${totalCount} variables!`)
+        } else {
+          console.error(`❌ Deployed ${successCount}/${totalCount} variables. Some deployments failed.`)
+        }
       }
     }
 
@@ -259,7 +340,8 @@ async function deployEnvironment(envFilePath: string, scriptMode: boolean, useLo
     if (scriptMode) {
       const output = {
         success: false,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
+        dryRun
       }
       console.log(JSON.stringify(output, null, 2))
     } else {
@@ -274,7 +356,7 @@ program.action(async (options) => {
   const envFilePath = join(process.cwd(), options.envFile)
   const scriptMode = isScriptMode()
   const useLocal = isLocalMode()
-  await deployEnvironment(envFilePath, scriptMode, useLocal)
+  await deployEnvironment(envFilePath, scriptMode, useLocal, options.dryRun)
 })
 
 async function main(): Promise<void> {

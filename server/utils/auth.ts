@@ -152,9 +152,19 @@ export async function authorizeEndpoint(
       return { success: false, error: "No token provided" }
     }
 
-    // Get JWT secret from runtime config
-    const config = useRuntimeConfig(event)
-    const secret = config.apiJwtSecret
+    // Get JWT secret from Cloudflare environment or runtime config
+    let secret: string
+    
+    // Try to get secret from Cloudflare Workers environment first
+    const env = event.context.cloudflare?.env as { API_JWT_SECRET?: string }
+    if (env?.API_JWT_SECRET) {
+      secret = env.API_JWT_SECRET
+    } else {
+      // Fallback to runtime config for non-Cloudflare environments
+      const config = useRuntimeConfig(event)
+      secret = config.apiJwtSecret
+    }
+    
     if (!secret || secret === "dev-secret-change-in-production") {
       console.warn("Using default JWT secret - this is insecure for production!")
     }

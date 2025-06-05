@@ -59,7 +59,7 @@
     "check": "bun run reset && bun run format && bun run lint && bun run typecheck && bun run test",
     "clean": "bun run rimraf .nuxt .output .wrangler *.d.ts",
     "deploy": "bun run types && bun run build && bun run wrangler deploy",
-    "deploy:env": "bun run bin/env.ts",
+    "env": "bun run bin/env.ts",
     "dev": "bun run types && bun run nuxt dev",
     "format": "bun run biome format --write && bun run trunk fmt -a",
     "generate": "bun run types && bun run nuxt generate",

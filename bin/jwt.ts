@@ -101,7 +101,12 @@ async function executeD1Command(sql: string, params: unknown[] = []): Promise<un
 }
 
 // Store token metadata in D1
-async function storeTokenMetadata(metadata: TokenMetadata): Promise<void> {
+async function storeTokenMetadata(metadata: TokenMetadata, dryRun = false): Promise<void> {
+  if (dryRun) {
+    console.log(`📋 Would store token metadata: ${metadata.uuid} (${metadata.sub})`)
+    return
+  }
+
   const sql = "INSERT INTO jwt_tokens (uuid, sub, description, created_at, expires_at) VALUES (?, ?, ?, ?, ?)"
 
   const params = [
@@ -116,7 +121,11 @@ async function storeTokenMetadata(metadata: TokenMetadata): Promise<void> {
 }
 
 // Token creation with JOSE library (compatible with our auth system)
-async function createToken(options: JWTRequest, secret: string): Promise<{ token: string; metadata: TokenMetadata }> {
+async function createToken(
+  options: JWTRequest,
+  secret: string,
+  dryRun = false
+): Promise<{ token: string; metadata: TokenMetadata }> {
   const uuid = uuidv4()
   const now = Math.floor(Date.now() / 1000)
   const createdAt = new Date().toISOString()
@@ -136,6 +145,24 @@ async function createToken(options: JWTRequest, secret: string): Promise<{ token
     iat: now,
     jti: uuid,
     ...(exp && { exp })
+  }
+
+  if (dryRun) {
+    console.log("📋 Would create JWT token:")
+    console.log(`   UUID: ${uuid}`)
+    console.log(`   Subject: ${options.sub}`)
+    console.log(`   Description: ${options.description || "None"}`)
+    console.log(`   Expires: ${expiresAt || "Never"}`)
+
+    const metadata: TokenMetadata = {
+      uuid,
+      sub: options.sub,
+      description: options.description,
+      createdAt,
+      expiresAt
+    }
+
+    return { token: "DRY_RUN_TOKEN", metadata }
   }
 
   // Use JOSE library (same as our auth system)
@@ -169,8 +196,20 @@ async function createToken(options: JWTRequest, secret: string): Promise<{ token
 program
   .command("init")
   .description("Initialize D1 database schema for JWT tokens")
-  .action(async () => {
+  .option("-d, --dry-run", "Show what would be initialized without making changes")
+  .action(async (options) => {
     try {
+      const scriptMode = isScriptMode()
+
+      if (options.dryRun) {
+        if (!scriptMode) {
+          console.log("📋 Would initialize D1 database schema:")
+          console.log("   - Create table: jwt_tokens")
+          console.log("   - Create index: idx_jwt_tokens_sub")
+        }
+        return
+      }
+
       console.log("🔧 Initializing D1 database schema...")
       const { client, config } = createCloudflareClient(true)
       if (!config.databaseId) {
@@ -232,6 +271,7 @@ program
   .option("--seriously-no-expiry", "Skip confirmation for no-expiry tokens (use with caution)")
   .option("--secret <secret>", "JWT secret key")
   .option("-i, --interactive", "Interactive mode")
+  .option("--dry-run", "Show what would be created without generating actual token")
   .action(async (options) => {
     let tokenRequest: JWTRequest
     let secret: string
@@ -304,7 +344,20 @@ program
     }
 
     try {
-      const { token, metadata } = await createToken(tokenRequest, secret)
+      const { token, metadata } = await createToken(tokenRequest, secret, options.dryRun)
+
+      if (options.dryRun) {
+        if (scriptMode) {
+          const output = {
+            success: true,
+            dryRun: true,
+            metadata,
+            wouldStore: true
+          }
+          console.log(JSON.stringify(output, null, 2))
+        }
+        return
+      }
 
       // Store in D1 production database if possible
       let dbStored = false
@@ -355,7 +408,8 @@ program
       if (scriptMode) {
         const output = {
           success: false,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
+          dryRun: options.dryRun || false
         }
         console.log(JSON.stringify(output, null, 2))
       } else {
@@ -445,20 +499,22 @@ program
   .command("revoke <uuid>")
   .description("Revoke a token by UUID")
   .option("--confirm", "Skip confirmation prompt")
+  .option("-d, --dry-run", "Show what would be revoked without making changes")
   .action(async (uuid, options) => {
     try {
       // First check if the token exists in D1
+      let tokenInfo = null
       try {
         const result = await executeD1Command("SELECT * FROM jwt_tokens WHERE uuid = ?", [uuid])
         const rawTokens = Array.isArray(result) ? result : []
         const rawToken = rawTokens.length > 0 ? rawTokens[0] : null
 
         if (rawToken) {
-          const token = mapD1Token(rawToken)
+          tokenInfo = mapD1Token(rawToken)
           console.log("\n🔍 Token to revoke:")
-          console.log(`   UUID: ${token.uuid}`)
-          console.log(`   Subject: ${token.sub}`)
-          console.log(`   Description: ${token.description || "No description"}`)
+          console.log(`   UUID: ${tokenInfo.uuid}`)
+          console.log(`   Subject: ${tokenInfo.sub}`)
+          console.log(`   Description: ${tokenInfo.description || "No description"}`)
         } else {
           console.log(`\n⚠️  Token with UUID ${uuid} not found in D1 database`)
           console.log("   Proceeding with KV revocation anyway (token may still exist)")
@@ -466,6 +522,16 @@ program
       } catch (error) {
         console.log(`\n⚠️  Could not check D1 database: ${error}`)
         console.log("   Proceeding with KV revocation anyway")
+      }
+
+      if (options.dryRun) {
+        console.log(`\n📋 Would revoke token ${uuid}`)
+        if (tokenInfo) {
+          console.log(`   Subject: ${tokenInfo.sub}`)
+          console.log(`   Description: ${tokenInfo.description || "No description"}`)
+        }
+        console.log(`   Would set KV key: auth:revocation:${uuid} = "true"`)
+        return
       }
 
       if (!options.confirm) {
