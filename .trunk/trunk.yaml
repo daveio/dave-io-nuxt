@@ -32,17 +32,19 @@ lint:
     - stylelint
     - vale
   enabled:
+    - gofmt@1.20.4
+    - golangci-lint2@2.1.6
     - actionlint@1.7.7
     - biome@1.9.4
-    - checkov@3.2.435
+    - checkov@3.2.437
     - dustilock@1.2.0
     - git-diff-check
-    - gitleaks@8.26.0
+    - gitleaks@8.27.0
     - hadolint@2.12.1-beta
     - markdownlint@0.45.0
     - osv-scanner@2.0.2
     - oxipng@9.1.5
-    - semgrep@1.123.0
+    - semgrep@1.124.0
     - shellcheck@0.10.0
     - shfmt@3.6.0
     - sourcery@1.37.0
